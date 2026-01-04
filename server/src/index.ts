@@ -3,10 +3,13 @@ import { createServer } from "http";
 import { monitor } from "@colyseus/monitor";
 import express from "express";
 import { GameRoom } from "./rooms/GameRoom";
+import { logger } from "./utils/logger";
 
 // Tailscale IP for this server
 const TAILSCALE_IP = "100.66.58.107";
-const PORT = 2567;
+const PORT = parseInt(process.env.PORT || "2567", 10);
+
+logger.info({ event: "server_init" }, "Initializing 711BF Gaming server");
 
 const app = express();
 
@@ -22,8 +25,24 @@ const gameServer = new Server({
 // Register game room
 gameServer.define("game", GameRoom);
 
-gameServer.listen(PORT, "0.0.0.0").then(() => {
-  console.log(`
+gameServer
+  .listen(PORT, "0.0.0.0")
+  .then(() => {
+    logger.info(
+      {
+        event: "server_started",
+        port: PORT,
+        host: "0.0.0.0",
+        tailscaleIp: TAILSCALE_IP,
+        monitorUrl: `http://localhost:${PORT}/colyseus`,
+        registeredRooms: ["game"],
+      },
+      "711BF Gaming server started successfully"
+    );
+
+    // Keep the ASCII banner for visual appeal in development
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║           711BF Gaming - Colyseus Server                   ║
 ╠════════════════════════════════════════════════════════════╣
@@ -36,5 +55,13 @@ gameServer.listen(PORT, "0.0.0.0").then(() => {
 ╚════════════════════════════════════════════════════════════╝
 
 Server ready for connections!
-  `);
-});
+      `);
+    }
+  })
+  .catch((err) => {
+    logger.error(
+      { event: "server_start_error", error: err.message, stack: err.stack },
+      "Failed to start server"
+    );
+    process.exit(1);
+  });

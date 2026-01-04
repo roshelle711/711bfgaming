@@ -32,7 +32,18 @@ const game = new Phaser.Game(config);
 // Multiplayer
 let room = null;
 let otherPlayers = {};  // sessionId -> Phaser container
-const SERVER_URL = 'ws://100.66.58.107:2567';
+// Server URL detection: use wss:// when accessed via game.711bf.org, otherwise fall back to local
+const SERVER_URL = (() => {
+    const host = window.location.hostname;
+    if (host === 'game.711bf.org') {
+        return 'wss://ws.game.711bf.org';
+    } else if (host === 'localhost' || host === '127.0.0.1') {
+        return 'ws://localhost:2567';
+    } else {
+        // Tailscale IP or other direct access
+        return 'ws://100.66.58.107:2567';
+    }
+})();
 let lastSentVelocity = { x: 0, y: 0 };
 
 // Character classes

@@ -1,5 +1,7 @@
 import { Room, Client } from "colyseus";
+import { Logger } from "pino";
 import { GameState, Player } from "../schema/GameState";
+import { createRoomLogger, createSessionLogger } from "../utils/logger";
 
 interface PlayerOptions {
   id?: string;
@@ -29,8 +31,11 @@ interface AppearanceMessage {
 
 export class GameRoom extends Room<GameState> {
   private gameTimeInterval: ReturnType<typeof setInterval> | null = null;
+  private roomLogger!: Logger;
 
   onCreate(options: any): void {
+    this.roomLogger = createRoomLogger(this.roomId);
+
     this.setState(new GameState());
 
     // Start the game time loop
@@ -45,11 +50,11 @@ export class GameRoom extends Room<GameState> {
       this.handleUpdateAppearance(client, message);
     });
 
-    console.log("GameRoom created!");
+    this.roomLogger.info({ event: "room_created" }, "GameRoom created");
   }
 
   onJoin(client: Client, options: PlayerOptions): void {
-    console.log(`Player ${client.sessionId} joined!`);
+    const sessionLogger = createSessionLogger(client.sessionId, this.roomId);
 
     const player = new Player();
     player.id = options.id || client.sessionId;
@@ -67,19 +72,59 @@ export class GameRoom extends Room<GameState> {
     player.velocityY = 0;
 
     this.state.players.set(client.sessionId, player);
+
+    sessionLogger.info(
+      {
+        event: "player_joined",
+        playerName: player.name,
+        playerClass: player.playerClass,
+        playerId: player.id,
+      },
+      "Player joined room"
+    );
   }
 
   onLeave(client: Client, consented: boolean): void {
-    console.log(`Player ${client.sessionId} left!`);
+    const sessionLogger = createSessionLogger(client.sessionId, this.roomId);
+    const player = this.state.players.get(client.sessionId);
+
+    sessionLogger.info(
+      {
+        event: "player_left",
+        consented,
+        playerName: player?.name,
+        playerId: player?.id,
+      },
+      "Player left room"
+    );
+
     this.state.players.delete(client.sessionId);
   }
 
   onDispose(): void {
-    console.log("GameRoom disposed!");
+    this.roomLogger.info(
+      { event: "room_disposed", playerCount: this.state.players.size },
+      "GameRoom disposed"
+    );
+
     if (this.gameTimeInterval) {
       clearInterval(this.gameTimeInterval);
       this.gameTimeInterval = null;
     }
+  }
+
+  onError(error: Error, client?: Client): void {
+    const context: Record<string, unknown> = {
+      event: "room_error",
+      error: error.message,
+      stack: error.stack,
+    };
+
+    if (client) {
+      context.sessionId = client.sessionId;
+    }
+
+    this.roomLogger.error(context, "Error in GameRoom");
   }
 
   private handleMove(client: Client, message: MoveMessage): void {
@@ -89,6 +134,15 @@ export class GameRoom extends Room<GameState> {
       player.y = message.y;
       player.velocityX = message.velocityX;
       player.velocityY = message.velocityY;
+    } else {
+      this.roomLogger.warn(
+        {
+          event: "player_not_found",
+          sessionId: client.sessionId,
+          action: "move",
+        },
+        "Received move from unknown player"
+      );
     }
   }
 
@@ -101,6 +155,15 @@ export class GameRoom extends Room<GameState> {
       if (message.skinTone !== undefined) player.skinTone = message.skinTone;
       if (message.hairColor !== undefined) player.hairColor = message.hairColor;
       if (message.pet !== undefined) player.pet = message.pet;
+    } else {
+      this.roomLogger.warn(
+        {
+          event: "player_not_found",
+          sessionId: client.sessionId,
+          action: "updateAppearance",
+        },
+        "Received appearance update from unknown player"
+      );
     }
   }
 

@@ -1,0 +1,61 @@
+# Traefik Dynamic Configuration for 711BF Gaming
+# Routes for game client and WebSocket server
+
+http:
+  # Routers
+  routers:
+    # Game Client (Phaser)
+    game-client:
+      rule: "Host(`game.711bf.org`)"
+      entryPoints:
+        - websecure
+      service: http-client-service
+      tls:
+        certResolver: tailscale
+
+    # WebSocket Server (Colyseus)
+    websocket-server:
+      rule: "Host(`ws.game.711bf.org`)"
+      entryPoints:
+        - websecure
+      service: colyseus-service
+      tls:
+        certResolver: tailscale
+
+    # HTTP redirect routers (catch HTTP requests)
+    game-client-http:
+      rule: "Host(`game.711bf.org`)"
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+      service: http-client-service
+
+    websocket-server-http:
+      rule: "Host(`ws.game.711bf.org`)"
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+      service: colyseus-service
+
+  # Services
+  services:
+    # HTTP Client (Phaser game files)
+    http-client-service:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:3000"
+
+    # Colyseus WebSocket Server
+    colyseus-service:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:2567"
+
+  # Middlewares
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true

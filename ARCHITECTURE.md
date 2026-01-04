@@ -7,6 +7,7 @@
 - **Server**: Colyseus + Node.js + TypeScript
 - **Client**: Phaser 3 (browser)
 - **Network**: Tailscale (100.66.58.107)
+- **Proxy**: Traefik (HTTPS via Tailscale certs)
 
 ---
 
@@ -180,7 +181,62 @@ Get-Process node, python | Stop-Process
 | 2026-01-03 | Colyseus over Socket.io | Better long-term MMO fit, built-in rooms/state sync |
 | 2026-01-03 | TypeScript for server | Type safety for schema, better tooling |
 | 2026-01-03 | JSON persistence first | Simple for Phase 1, migrate to PostgreSQL later |
+| 2026-01-03 | Traefik for reverse proxy | Native WebSocket support, Tailscale TLS integration |
 
 ---
 
 *Last updated: 2026-01-03*
+
+---
+
+## Traefik Reverse Proxy
+
+Traefik provides HTTPS access to the game via Tailscale built-in certificate resolver.
+
+### Routing Diagram
+
+```
+Internet/Tailscale
+        |
+        v
+  :80 ------> HTTP -> HTTPS redirect
+        |
+  :443 ----+-> game.711bf.org --> localhost:3000 (Phaser client)
+           |
+           +-> ws.game.711bf.org --> localhost:2567 (WebSocket/Colyseus)
+
+  :8080 --> Dashboard (local access only)
+
+  TLS Certificates: Tailscale (automatic)
+```
+
+### DNS Requirements
+
+Configure these DNS records (or Tailscale MagicDNS):
+
+| Hostname | Type | Value |
+|----------|------|-------|
+| game.711bf.org | A | 100.66.58.107 |
+| ws.game.711bf.org | A | 100.66.58.107 |
+
+### Configuration Files
+
+```
+infrastructure/traefik/
+  traefik.yml       # Static config (entry points, resolvers)
+  config.yml        # Dynamic config (routers, services)
+```
+
+### Starting Traefik
+
+```powershell
+# Standalone
+.\scripts\start-traefik.ps1
+
+# With game servers
+.\scripts\start-dev.ps1 -Traefik
+```
+
+### Dashboard
+
+Access the Traefik dashboard at: http://localhost:8080/dashboard/
