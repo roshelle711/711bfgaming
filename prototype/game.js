@@ -231,15 +231,14 @@ function create() {
     signpost.message = '📍 Village Center\n← West: Fishing Pond & Mira\'s Cottage\n↓ South: Farm Plots\n→ East: Cooking Station & General Store';
     GameState.interactables.push(signpost);
 
-    // Victorian lampposts - scattered around the village
-    drawLamppost(graphics, 350, 280);   // West path
-    drawLamppost(graphics, 550, 280);   // Near village center (west)
-    drawLamppost(graphics, 850, 280);   // Near village center (east)
-    drawLamppost(graphics, 1050, 280);  // East path
-    drawLamppost(graphics, 320, 450);   // Near Mira's patrol area
-    drawLamppost(graphics, 780, 500);   // South central
-    drawLamppost(graphics, 1100, 500);  // Near General Store path
-    drawLamppost(graphics, 300, 650);   // Near fishing pond
+    // Victorian lampposts - on separate layer for toggle (L key)
+    GameState.lamppostGraphics = this.add.graphics();
+    drawLamppost(GameState.lamppostGraphics, 350, 280);   // West path
+    drawLamppost(GameState.lamppostGraphics, 550, 280);   // Near village center (west)
+    drawLamppost(GameState.lamppostGraphics, 850, 280);   // Near village center (east)
+    drawLamppost(GameState.lamppostGraphics, 1050, 280);  // East path
+    drawLamppost(GameState.lamppostGraphics, 320, 450);   // Near Mira's patrol area
+    drawLamppost(GameState.lamppostGraphics, 1100, 500);  // Near General Store path
 
     // === UI SETUP ===
     setupUI(this);
@@ -266,6 +265,7 @@ function startGame(scene) {
     GameState.fishKey = scene.input.keyboard.addKey('F');
     GameState.craftKey = scene.input.keyboard.addKey('C');
     GameState.inventoryKey = scene.input.keyboard.addKey('I');
+    GameState.lamppostKey = scene.input.keyboard.addKey('L');
 
     // Create player
     GameState.player = createWhimsicalCharacter(scene, 700, 450, GameState.playerClass, false, null, GameState.customization);
@@ -412,6 +412,13 @@ function handleInput(scene) {
     // Inventory key (I)
     if (Phaser.Input.Keyboard.JustDown(GameState.inventoryKey) && !GameState.isDialogOpen) {
         toggleInventory();
+    }
+
+    // Lamppost toggle (L)
+    if (Phaser.Input.Keyboard.JustDown(GameState.lamppostKey) && !GameState.isDialogOpen) {
+        if (GameState.lamppostGraphics) {
+            GameState.lamppostGraphics.visible = !GameState.lamppostGraphics.visible;
+        }
     }
 }
 
