@@ -11,7 +11,8 @@
  * - setupWorld(scene, graphics): Create all world elements
  * - createNPCs(scene): Create Mira and Finn NPCs
  * - updateNPCPatrol(): Update NPC patrol behavior
- * - drawLamppost(graphics, x, y): Draw Victorian-style lamppost
+ * - drawLamppost(graphics, x, y): Draw Victorian-style lamppost structure
+ * - drawLamppostLight(graphics, x, y): Draw lamppost light/glow (toggleable)
  */
 
 import { npcPatrolPoints, miraHome, npcSpeed } from './config.js';
@@ -312,7 +313,7 @@ export function drawSmallFlower(graphics, x, y, color) {
 }
 
 /**
- * Draw a Victorian-style lamppost
+ * Draw a Victorian-style lamppost structure (without light)
  */
 export function drawLamppost(graphics, x, y) {
     // Base plate
@@ -353,6 +354,15 @@ export function drawLamppost(graphics, x, y) {
     graphics.fillRect(x - 4, y - 82, 8, 8);
     graphics.fillCircle(x, y - 85, 4);
 
+    // Dark glass when light is off
+    graphics.fillStyle(0x404040, 0.7);
+    graphics.fillRect(x - 7, y - 71, 14, 16);
+}
+
+/**
+ * Draw lamppost light/glow (toggleable)
+ */
+export function drawLamppostLight(graphics, x, y) {
     // Glass panels (warm glow)
     graphics.fillStyle(0xFFF8DC, 0.9);
     graphics.fillRect(x - 7, y - 71, 14, 16);

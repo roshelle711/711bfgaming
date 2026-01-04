@@ -10,7 +10,7 @@ import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed } from './modules
 import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles } from './modules/player.js';
-import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost } from './modules/world.js';
+import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs } from './modules/multiplayer.js';
@@ -231,14 +231,22 @@ function create() {
     signpost.message = '📍 Village Center\n← West: Fishing Pond & Mira\'s Cottage\n↓ South: Farm Plots\n→ East: Cooking Station & General Store';
     GameState.interactables.push(signpost);
 
-    // Victorian lampposts - on separate layer for toggle (L key)
-    GameState.lamppostGraphics = this.add.graphics();
-    drawLamppost(GameState.lamppostGraphics, 350, 280);   // West path
-    drawLamppost(GameState.lamppostGraphics, 550, 280);   // Near village center (west)
-    drawLamppost(GameState.lamppostGraphics, 850, 280);   // Near village center (east)
-    drawLamppost(GameState.lamppostGraphics, 1050, 280);  // East path
-    drawLamppost(GameState.lamppostGraphics, 320, 450);   // Near Mira's patrol area
-    drawLamppost(GameState.lamppostGraphics, 1100, 500);  // Near General Store path
+    // Victorian lampposts - structures on main graphics, lights toggleable (L key)
+    const lamppostPositions = [
+        { x: 350, y: 280 },   // West path
+        { x: 550, y: 280 },   // Near village center (west)
+        { x: 850, y: 280 },   // Near village center (east)
+        { x: 1050, y: 280 },  // East path
+        { x: 320, y: 450 },   // Near Mira's patrol area
+        { x: 780, y: 500 },   // South central
+        { x: 1100, y: 500 },  // Near General Store path
+        { x: 300, y: 650 }    // Near fishing pond
+    ];
+    // Draw structures (always visible)
+    lamppostPositions.forEach(pos => drawLamppost(graphics, pos.x, pos.y));
+    // Draw lights on separate layer (toggleable)
+    GameState.lamppostLights = this.add.graphics();
+    lamppostPositions.forEach(pos => drawLamppostLight(GameState.lamppostLights, pos.x, pos.y));
 
     // === UI SETUP ===
     setupUI(this);
@@ -414,10 +422,10 @@ function handleInput(scene) {
         toggleInventory();
     }
 
-    // Lamppost toggle (L)
+    // Lamppost lights toggle (L)
     if (Phaser.Input.Keyboard.JustDown(GameState.lamppostKey) && !GameState.isDialogOpen) {
-        if (GameState.lamppostGraphics) {
-            GameState.lamppostGraphics.visible = !GameState.lamppostGraphics.visible;
+        if (GameState.lamppostLights) {
+            GameState.lamppostLights.visible = !GameState.lamppostLights.visible;
         }
     }
 }
