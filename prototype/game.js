@@ -32,11 +32,11 @@ const game = new Phaser.Game(config);
 // Multiplayer
 let room = null;
 let otherPlayers = {};  // sessionId -> Phaser container
-// Server URL detection - Tailscale encrypts network, so ws:// is secure
+// Server URL detection - uses WSS with TLS when accessed via game.711bf.org
 const SERVER_URL = (() => {
     const host = window.location.hostname;
     if (host === 'game.711bf.org') {
-        return 'ws://ws.game.711bf.org';
+        return 'wss://ws.game.711bf.org';
     } else if (host === 'localhost' || host === '127.0.0.1') {
         return 'ws://localhost:2567';
     } else {
@@ -1535,8 +1535,8 @@ async function connectToServer() {
 
         console.log("Connected to server! Session ID:", room.sessionId);
 
-        // Listen for players joining
-        room.state.players.onAdd((playerData, sessionId) => {
+        // Listen for players joining (0.14.x API uses assignment)
+        room.state.players.onAdd = (playerData, sessionId) => {
             // Skip if this is our own player
             if (sessionId === room.sessionId) {
                 console.log("Local player registered on server");
@@ -1546,24 +1546,24 @@ async function connectToServer() {
             console.log("Player joined:", sessionId, playerData.name);
             createOtherPlayer(sessionId, playerData);
 
-            // Listen for position changes on this player
-            playerData.listen("x", (newX) => {
-                updateOtherPlayer(sessionId, newX, null);
-            });
+            // Listen for position changes on this player (0.14.x API)
+            playerData.onChange = (changes) => {
+                changes.forEach(change => {
+                    if (change.field === "x" || change.field === "y") {
+                        updateOtherPlayer(sessionId, playerData.x, playerData.y);
+                    }
+                });
+            };
+        };
 
-            playerData.listen("y", (newY) => {
-                updateOtherPlayer(sessionId, null, newY);
-            });
-        });
-
-        // Listen for players leaving
-        room.state.players.onRemove((playerData, sessionId) => {
+        // Listen for players leaving (0.14.x API uses assignment)
+        room.state.players.onRemove = (playerData, sessionId) => {
             console.log("Player left:", sessionId);
             if (otherPlayers[sessionId]) {
                 otherPlayers[sessionId].destroy();
                 delete otherPlayers[sessionId];
             }
-        });
+        };
 
         // Handle disconnection
         room.onLeave((code) => {

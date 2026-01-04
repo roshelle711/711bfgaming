@@ -3,6 +3,14 @@ node_modules/
 server/node_modules/
 server/dist/
 
+# Binaries
+*.exe
+
+# Certificates (sensitive)
+*.pem
+*.key
+*.crt
+
 # IDE
 .vscode/
 .idea/

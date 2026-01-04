@@ -9,7 +9,7 @@ Each entry includes: feature name, completion date, and implementation location 
 
 ### Multiplayer Foundation (Phase 1)
 - [x] **Colyseus server** - `server/src/index.ts`
-  - Node.js + TypeScript + Colyseus framework
+  - Node.js + TypeScript + Colyseus 0.14.x (matches client SDK)
   - Binds to 0.0.0.0:2567 for Tailscale access
   - Includes Colyseus monitor at /colyseus
 - [x] **Game room** - `server/src/rooms/GameRoom.ts`
@@ -19,14 +19,27 @@ Each entry includes: feature name, completion date, and implementation location 
 - [x] **State schema** - `server/src/schema/GameState.ts`
   - Player: position, velocity, name, class, appearance
   - GameState: players map, gameTime, timeSpeed
-- [x] **Client multiplayer** - `prototype/game.js:1506-1730`
-  - Connects to Colyseus server
+- [x] **Client multiplayer** - `prototype/game.js:1526-1600`
+  - Connects to Colyseus server via WSS
+  - Uses 0.14.x API (assignment-based callbacks)
   - Renders other players with full customization
   - Smooth interpolation for other player movement
   - Graceful fallback to single-player if server unavailable
+- [x] **Traefik reverse proxy** - `infrastructure/traefik/`
+  - HTTPS via Let's Encrypt certificates
+  - `game.711bf.org` → localhost:3000 (Phaser client)
+  - `ws.game.711bf.org` → localhost:2567 (WebSocket)
+- [x] **Structured logging** - `server/src/utils/logger.ts`
+  - Pino logger with pretty-print in dev, JSON in prod
+  - Events: server_init, server_started, player_joined, player_left
 - [x] **Development scripts** - `scripts/start-dev.ps1`
-  - Starts both Colyseus and HTTP servers
-  - Displays Tailscale URLs for network play
+  - Starts Colyseus, HTTP server, and optionally Traefik
+  - `-Traefik` flag for HTTPS mode
+
+### Version Compatibility Notes
+- **Client SDK**: colyseus.js 0.14.13 (CDN)
+- **Server**: colyseus 0.14.x, @colyseus/schema 1.x
+- **API style**: 0.14.x uses assignment (`onAdd =`) not function calls
 
 ---
 

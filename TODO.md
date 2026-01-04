@@ -8,9 +8,17 @@
   - `ui.js` - Dialogs, menus, character creation screens
   - `multiplayer.js` - Colyseus connection, other player sync
   - `systems.js` - Farming, fishing, cooking, shop mechanics
-- [ ] Test multiplayer with multiple Tailscale clients
-- [ ] Sync farm plots between players (Phase 2)
-- [ ] Persist world state to JSON file (Phase 2)
+
+## Next Up (Phase 2 - Multiplayer)
+- [ ] Sync farm plots between players
+- [ ] Persist world state to JSON file
+- [ ] Sync day/night cycle from server
+
+## Completed This Session
+- [x] Basic multiplayer - see other players moving ✅
+- [x] Traefik reverse proxy with HTTPS ✅
+- [x] Let's Encrypt certificates ✅
+- [x] Structured logging with Pino ✅
 
 ## Features (Backlog)
 - [ ] Interior scenes for buildings
