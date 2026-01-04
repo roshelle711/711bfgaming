@@ -1,6 +1,6 @@
 import { Room, Client } from "colyseus";
 import { Logger } from "pino";
-import { GameState, Player, FarmPlot, NPC, SeedPickup, Lamppost } from "../schema/GameState";
+import { GameState, Player, FarmPlot, NPC, SeedPickup, Lamppost, FruitTree } from "../schema/GameState";
 import { createRoomLogger, createSessionLogger } from "../utils/logger";
 import { loadWorldState, saveWorldState, PersistedWorldState } from "../utils/persistence";
 
@@ -44,6 +44,18 @@ interface LamppostToggleMessage {
   lamppostIndex: number;
 }
 
+interface WaterActionMessage {
+  plotIndex: number;
+}
+
+interface RemoveHazardMessage {
+  plotIndex: number;
+}
+
+interface HarvestFruitMessage {
+  treeIndex: number;
+}
+
 export class GameRoom extends Room<GameState> {
   private gameTimeInterval: ReturnType<typeof setInterval> | null = null;
   private worldUpdateInterval: ReturnType<typeof setInterval> | null = null;
@@ -78,6 +90,43 @@ export class GameRoom extends Room<GameState> {
   private readonly FINN_POSITION = { x: 1200, y: 680 };
   private readonly MIRA_START = { x: 450, y: 550 };
 
+  // Fruit tree positions
+  private readonly FRUIT_TREE_DATA = [
+    { x: 100, y: 400, type: "apple" },
+    { x: 150, y: 520, type: "orange" },
+    { x: 1300, y: 400, type: "peach" },
+    { x: 1250, y: 520, type: "cherry" },
+  ];
+
+  // Fruit regrow times (ms)
+  private readonly FRUIT_REGROW_TIMES: Record<string, number> = {
+    apple: 60000,
+    orange: 75000,
+    peach: 90000,
+    cherry: 45000,
+  };
+
+  // Crop growth times (ms) - different per crop type
+  private readonly CROP_GROWTH_TIMES: Record<string, number> = {
+    carrot: 8000,
+    tomato: 8000,
+    flower: 8000,
+    lettuce: 6000,
+    onion: 9000,
+    potato: 10000,
+    pepper: 12000,
+    corn: 15000,
+    pumpkin: 20000,
+  };
+
+  // Watering constants
+  private readonly GAME_DAY_MINUTES = 1440;
+  private readonly WILT_THRESHOLD = this.GAME_DAY_MINUTES * 3; // 3 game days
+  private readonly HAZARD_CHANCE_PER_HOUR = 0.02; // 2% per plot per hour
+
+  // Hazard tracking
+  private lastHazardCheckHour: number = -1;
+
   onCreate(options: any): void {
     this.roomLogger = createRoomLogger(this.roomId);
 
@@ -88,6 +137,7 @@ export class GameRoom extends Room<GameState> {
     this.initializeNPCs();
     this.initializeSeedPickups();
     this.initializeLampposts();
+    this.initializeFruitTrees();
 
     // Load persisted world state (overrides defaults if exists)
     this.loadPersistedWorldState();
@@ -117,6 +167,18 @@ export class GameRoom extends Room<GameState> {
 
     this.onMessage("toggleLamppost", (client, message: LamppostToggleMessage) => {
       this.handleToggleLamppost(client, message);
+    });
+
+    this.onMessage("waterAction", (client, message: WaterActionMessage) => {
+      this.handleWaterAction(client, message);
+    });
+
+    this.onMessage("removeHazard", (client, message: RemoveHazardMessage) => {
+      this.handleRemoveHazard(client, message);
+    });
+
+    this.onMessage("harvestFruit", (client, message: HarvestFruitMessage) => {
+      this.handleHarvestFruit(client, message);
     });
 
     this.roomLogger.info({ event: "room_created" }, "GameRoom created");
@@ -319,6 +381,20 @@ export class GameRoom extends Room<GameState> {
     this.roomLogger.debug({ event: "lampposts_initialized", count: 8 }, "Initialized lampposts");
   }
 
+  private initializeFruitTrees(): void {
+    this.FRUIT_TREE_DATA.forEach((data, i) => {
+      const tree = new FruitTree();
+      tree.index = i;
+      tree.treeType = data.type;
+      tree.x = data.x;
+      tree.y = data.y;
+      tree.hasFruit = true;
+      tree.fruitTimer = 0;
+      this.state.fruitTrees.set(String(i), tree);
+    });
+    this.roomLogger.debug({ event: "fruit_trees_initialized", count: 4 }, "Initialized fruit trees");
+  }
+
   // ===== World Update Loop =====
 
   private startWorldUpdateLoop(): void {
@@ -326,6 +402,9 @@ export class GameRoom extends Room<GameState> {
     this.worldUpdateInterval = setInterval(() => {
       const deltaMs = 100;
       this.updatePlantGrowth(deltaMs);
+      this.updateWaterStatus();
+      this.updateHazards();
+      this.updateFruitRegrowth(deltaMs);
       this.updateSeedRespawns(deltaMs);
       this.updateNPCPositions();
     }, 100);
@@ -334,16 +413,108 @@ export class GameRoom extends Room<GameState> {
   private updatePlantGrowth(deltaMs: number): void {
     this.state.farmPlots.forEach((plot) => {
       if (plot.state === "planted" || plot.state === "growing") {
+        // Only grow if watered and no hazards
+        if (!plot.isWatered || plot.hazard) {
+          return; // Paused growth
+        }
+
         // Check if last actor was druid for growth bonus
         const lastPlayer = this.state.players.get(plot.lastActionBy);
         const multiplier = lastPlayer?.playerClass === "druid" ? 1.2 : 1.0;
 
         plot.growthTimer += deltaMs * multiplier;
 
-        if (plot.state === "planted" && plot.growthTimer >= 3000) {
+        // Get crop-specific growth time (default 8000 for unknown crops)
+        const growthTime = this.CROP_GROWTH_TIMES[plot.crop] || 8000;
+        const plantedThreshold = growthTime * 0.375; // ~3000/8000 ratio
+
+        if (plot.state === "planted" && plot.growthTimer >= plantedThreshold) {
           plot.state = "growing";
-        } else if (plot.state === "growing" && plot.growthTimer >= 8000) {
+        } else if (plot.state === "growing" && plot.growthTimer >= growthTime) {
           plot.state = "ready";
+        }
+      }
+    });
+  }
+
+  private updateWaterStatus(): void {
+    const currentTime = this.state.gameTime;
+
+    this.state.farmPlots.forEach((plot) => {
+      // Only check plants that need water
+      if (plot.state !== "planted" && plot.state !== "growing") {
+        return;
+      }
+
+      if (plot.isWatered && plot.lastWateredTime > 0) {
+        // Check if plant has gone too long without water
+        const timeSinceWatered = currentTime - plot.lastWateredTime;
+
+        // Handle day wraparound (if current time < lastWatered, a day passed)
+        const adjustedTime = timeSinceWatered < 0
+          ? timeSinceWatered + this.GAME_DAY_MINUTES
+          : timeSinceWatered;
+
+        if (adjustedTime > this.WILT_THRESHOLD) {
+          // Plant wilts from lack of water
+          plot.state = "wilted";
+          plot.isWatered = false;
+          this.debouncedPersist();
+          this.roomLogger.debug(
+            { event: "plant_wilted", plotIndex: plot.index },
+            "Plant wilted from lack of water"
+          );
+        }
+      }
+    });
+  }
+
+  private updateHazards(): void {
+    const hour = Math.floor(this.state.gameTime / 60) % 24;
+
+    // Only check once per game hour
+    if (hour === this.lastHazardCheckHour) {
+      return;
+    }
+    this.lastHazardCheckHour = hour;
+
+    this.state.farmPlots.forEach((plot) => {
+      // Don't add hazards to plots that already have them
+      if (plot.hazard) return;
+
+      if (Math.random() < this.HAZARD_CHANCE_PER_HOUR) {
+        if (plot.state === "tilled") {
+          // Weeds on empty tilled plots
+          plot.hazard = "weeds";
+          this.debouncedPersist();
+          this.roomLogger.debug(
+            { event: "hazard_spawned", plotIndex: plot.index, hazard: "weeds" },
+            "Weeds spawned on plot"
+          );
+        } else if (plot.state === "planted" || plot.state === "growing") {
+          // Bugs on planted plots
+          plot.hazard = "bugs";
+          this.debouncedPersist();
+          this.roomLogger.debug(
+            { event: "hazard_spawned", plotIndex: plot.index, hazard: "bugs" },
+            "Bugs spawned on plot"
+          );
+        }
+      }
+    });
+  }
+
+  private updateFruitRegrowth(deltaMs: number): void {
+    this.state.fruitTrees.forEach((tree) => {
+      if (!tree.hasFruit && tree.fruitTimer > 0) {
+        tree.fruitTimer -= deltaMs;
+        if (tree.fruitTimer <= 0) {
+          tree.hasFruit = true;
+          tree.fruitTimer = 0;
+          this.roomLogger.debug(
+            { event: "fruit_regrown", treeIndex: tree.index, treeType: tree.treeType },
+            "Fruit regrown on tree"
+          );
         }
       }
     });
@@ -507,6 +678,73 @@ export class GameRoom extends Room<GameState> {
     );
   }
 
+  private handleWaterAction(client: Client, message: WaterActionMessage): void {
+    const plot = this.state.farmPlots.get(String(message.plotIndex));
+    if (!plot) {
+      return;
+    }
+
+    // Can only water planted or growing crops
+    if (plot.state !== "planted" && plot.state !== "growing") {
+      return;
+    }
+
+    plot.isWatered = true;
+    plot.lastWateredTime = this.state.gameTime;
+    this.debouncedPersist();
+    this.roomLogger.debug(
+      { event: "plot_watered", plotIndex: message.plotIndex, sessionId: client.sessionId },
+      "Plot watered"
+    );
+  }
+
+  private handleRemoveHazard(client: Client, message: RemoveHazardMessage): void {
+    const plot = this.state.farmPlots.get(String(message.plotIndex));
+    if (!plot || !plot.hazard) {
+      return;
+    }
+
+    const hazardType = plot.hazard;
+    plot.hazard = "";
+
+    // If removing a dead plant, reset to grass
+    if (plot.state === "wilted" || plot.state === "dead") {
+      plot.state = "grass";
+      plot.crop = "";
+      plot.growthTimer = 0;
+      plot.isWatered = false;
+      plot.lastWateredTime = 0;
+    }
+
+    this.debouncedPersist();
+    this.roomLogger.debug(
+      { event: "hazard_removed", plotIndex: message.plotIndex, hazardType, sessionId: client.sessionId },
+      "Hazard removed from plot"
+    );
+  }
+
+  private handleHarvestFruit(client: Client, message: HarvestFruitMessage): void {
+    const tree = this.state.fruitTrees.get(String(message.treeIndex));
+    if (!tree || !tree.hasFruit) {
+      return;
+    }
+
+    // Broadcast harvest event so client can add to inventory
+    this.broadcast("fruitHarvested", {
+      treeIndex: message.treeIndex,
+      fruitType: tree.treeType,
+      harvestedBy: client.sessionId,
+    });
+
+    tree.hasFruit = false;
+    tree.fruitTimer = this.FRUIT_REGROW_TIMES[tree.treeType] || 60000;
+    tree.lastHarvestedBy = client.sessionId;
+    this.roomLogger.debug(
+      { event: "fruit_harvested", treeIndex: message.treeIndex, fruitType: tree.treeType, sessionId: client.sessionId },
+      "Fruit harvested"
+    );
+  }
+
   // ===== Persistence =====
 
   private loadPersistedWorldState(): void {
@@ -520,6 +758,9 @@ export class GameRoom extends Room<GameState> {
         plot.state = plotData.state;
         plot.crop = plotData.crop;
         plot.growthTimer = plotData.growthTimer;
+        plot.isWatered = plotData.isWatered ?? false;
+        plot.lastWateredTime = plotData.lastWateredTime ?? 0;
+        plot.hazard = plotData.hazard ?? "";
       }
     });
 
@@ -529,6 +770,15 @@ export class GameRoom extends Room<GameState> {
       if (pickup) {
         pickup.isCollected = pickupData.isCollected;
         pickup.respawnTimer = pickupData.respawnTimer;
+      }
+    });
+
+    // Apply fruit tree states
+    saved.fruitTrees?.forEach((treeData) => {
+      const tree = this.state.fruitTrees.get(String(treeData.index));
+      if (tree) {
+        tree.hasFruit = treeData.hasFruit;
+        tree.fruitTimer = treeData.fruitTimer;
       }
     });
 
@@ -558,6 +808,7 @@ export class GameRoom extends Room<GameState> {
     const state: PersistedWorldState = {
       farmPlots: [],
       seedPickups: [],
+      fruitTrees: [],
       gameTime: this.state.gameTime,
       lastSaved: Date.now(),
     };
@@ -568,6 +819,9 @@ export class GameRoom extends Room<GameState> {
         state: plot.state,
         crop: plot.crop,
         growthTimer: plot.growthTimer,
+        isWatered: plot.isWatered,
+        lastWateredTime: plot.lastWateredTime,
+        hazard: plot.hazard,
       });
     });
 
@@ -576,6 +830,14 @@ export class GameRoom extends Room<GameState> {
         index: pickup.index,
         isCollected: pickup.isCollected,
         respawnTimer: pickup.respawnTimer,
+      });
+    });
+
+    this.state.fruitTrees.forEach((tree) => {
+      state.fruitTrees!.push({
+        index: tree.index,
+        hasFruit: tree.hasFruit,
+        fruitTimer: tree.fruitTimer,
       });
     });
 

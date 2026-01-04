@@ -8,16 +8,25 @@ export class FarmPlot extends Schema {
   index: number = 0; // 0-7 for 8 plots
 
   @type("string")
-  state: string = "grass"; // grass | tilled | planted | growing | ready
+  state: string = "grass"; // grass | tilled | planted | growing | ready | wilted | dead
 
   @type("string")
-  crop: string = ""; // "" | carrot | tomato | flower
+  crop: string = ""; // "" | carrot | tomato | flower | lettuce | onion | potato | pepper | corn | pumpkin
 
   @type("number")
-  growthTimer: number = 0; // 0-8000ms
+  growthTimer: number = 0; // growth progress in ms
 
   @type("string")
   lastActionBy: string = ""; // sessionId of player who last interacted
+
+  @type("boolean")
+  isWatered: boolean = false; // whether the plot is currently watered
+
+  @type("number")
+  lastWateredTime: number = 0; // game time (minutes) when last watered
+
+  @type("string")
+  hazard: string = ""; // "" | "weeds" | "bugs"
 }
 
 /**
@@ -46,6 +55,32 @@ export class Lamppost extends Schema {
 
   @type("boolean")
   lightOn: boolean = true;
+}
+
+/**
+ * Fruit tree state synced between all players
+ */
+export class FruitTree extends Schema {
+  @type("number")
+  index: number = 0; // 0-3 for 4 fruit trees
+
+  @type("string")
+  treeType: string = ""; // apple | orange | peach | cherry
+
+  @type("number")
+  x: number = 0;
+
+  @type("number")
+  y: number = 0;
+
+  @type("boolean")
+  hasFruit: boolean = true; // whether fruit is ready to harvest
+
+  @type("number")
+  fruitTimer: number = 0; // countdown to fruit regrowth (ms)
+
+  @type("string")
+  lastHarvestedBy: string = ""; // sessionId who last harvested
 }
 
 /**
@@ -127,6 +162,9 @@ export class GameState extends Schema {
 
   @type({ map: Lamppost })
   lampposts = new MapSchema<Lamppost>();
+
+  @type({ map: FruitTree })
+  fruitTrees = new MapSchema<FruitTree>();
 
   @type("number")
   gameTime: number = 480; // 8:00 AM (480 minutes from midnight)

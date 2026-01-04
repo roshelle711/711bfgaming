@@ -6,14 +6,14 @@
  */
 
 // === MODULE IMPORTS ===
-import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed } from './modules/config.js';
+import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions } from './modules/config.js';
 import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
-import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles } from './modules/player.js';
-import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight } from './modules/world.js';
+import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool } from './modules/player.js';
+import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory } from './modules/ui.js';
-import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation } from './modules/systems.js';
-import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost } from './modules/multiplayer.js';
+import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth } from './modules/systems.js';
+import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './modules/multiplayer.js';
 
 // === PHASER CONFIGURATION ===
 const config = {
@@ -252,6 +252,13 @@ function create() {
         GameState.lampposts.push({ x: pos.x, y: pos.y, lightOn: true, lightGraphics });
     });
 
+    // Fruit trees - harvestable trees around the map edges
+    GameState.fruitTrees = [];
+    fruitTreePositions.forEach((pos, index) => {
+        const tree = createFruitTree(this, pos.x, pos.y, pos.type, index);
+        GameState.fruitTrees.push(tree);
+    });
+
     // Ambient wildlife - birds and butterflies
     GameState.birds = [];
     const birdColors = [0xE74C3C, 0x3498DB, 0xF39C12, 0x9B59B6, 0x1ABC9C]; // Red, blue, orange, purple, teal
@@ -296,6 +303,21 @@ function create() {
         fontSize: '14px', fill: '#FFD700', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(100).setVisible(false);
 
+    // Water prompt (added after UI setup)
+    GameState.waterPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 200, '', {
+        fontSize: '14px', fill: '#87CEEB', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(100).setVisible(false);
+
+    // Hazard prompt (added after UI setup)
+    GameState.hazardPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 180, '', {
+        fontSize: '14px', fill: '#FF6B6B', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(100).setVisible(false);
+
+    // Fruit tree prompt (added after UI setup)
+    GameState.fruitTreePrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 220, '', {
+        fontSize: '14px', fill: '#90EE90', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(100).setVisible(false);
+
     // === SHOW CHARACTER CREATION ===
     // Input setup moved to startGame() to avoid capturing keys during name entry
     showCharacterCreation(this, () => startGame(this));
@@ -319,6 +341,11 @@ function startGame(scene) {
     GameState.craftKey = scene.input.keyboard.addKey('C');
     GameState.inventoryKey = scene.input.keyboard.addKey('I');
     GameState.lamppostKey = scene.input.keyboard.addKey('L');
+    GameState.waterKey = scene.input.keyboard.addKey('W');
+    GameState.removeHazardKey = scene.input.keyboard.addKey('R');
+
+    // Create tool graphics
+    createToolGraphics(scene);
 
     // Create player
     GameState.player = createWhimsicalCharacter(scene, 700, 450, GameState.playerClass, false, null, GameState.customization);
@@ -396,6 +423,8 @@ function update(time, delta) {
     respawnSeedPickups(this, delta);
     updateNPCPatrol();
     updateWildlife(delta);
+    updateFruitRegrowth(delta);
+    updateHeldTool();
 
     // === MULTIPLAYER ===
     interpolateOtherPlayers();
@@ -478,6 +507,37 @@ function handleInput(scene) {
                 nearestLamppost.lightOn = !nearestLamppost.lightOn;
                 nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
             }
+        }
+    }
+
+    // Water key (W) - water nearest planted plot
+    if (Phaser.Input.Keyboard.JustDown(GameState.waterKey) && !GameState.isDialogOpen) {
+        const plot = findNearestFarmPlot();
+        if (plot && (plot.state === 'planted' || plot.state === 'growing') && !plot.isWatered) {
+            equipTool('wateringCan');
+            GameState.isWatering = true;
+            waterPlot(plot);
+            // Brief watering animation, then unequip
+            setTimeout(() => {
+                GameState.isWatering = false;
+                equipTool('none');
+            }, 500);
+        }
+    }
+
+    // Remove hazard key (R) - remove weeds, bugs, or dead plants
+    if (Phaser.Input.Keyboard.JustDown(GameState.removeHazardKey) && !GameState.isDialogOpen) {
+        const plot = findNearestFarmPlot();
+        if (plot && (plot.hazard || plot.state === 'dead')) {
+            removeHazard(plot);
+        }
+    }
+
+    // Harvest fruit from trees (E key near fruit tree)
+    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.canInteract) {
+        const nearestTree = findNearestFruitTree();
+        if (nearestTree && nearestTree.hasFruit) {
+            harvestFruit(nearestTree);
         }
     }
 }
@@ -630,9 +690,41 @@ function updateProximityPrompts() {
         if (nearPlot.state === 'grass') promptText = '🔨 H to hoe';
         else if (nearPlot.state === 'tilled') promptText = '🌱 P to plant';
         else if (nearPlot.state === 'ready') promptText = '✋ P to harvest';
+        else if (nearPlot.state === 'dead') promptText = '💀 R to clear';
         GameState.farmPrompt.setText(promptText).setVisible(!!promptText);
+
+        // Water prompt for unwatered plants
+        if ((nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
+            GameState.waterPrompt.setText('💧 W to water').setVisible(true);
+        } else {
+            GameState.waterPrompt.setVisible(false);
+        }
+
+        // Hazard prompt for weeds/bugs
+        if (nearPlot.hazard) {
+            const hazardName = nearPlot.hazard === 'weeds' ? '🌿 Weeds' : '🐛 Bugs';
+            GameState.hazardPrompt.setText(`${hazardName} - R to remove`).setVisible(true);
+        } else {
+            GameState.hazardPrompt.setVisible(false);
+        }
     } else {
         GameState.farmPrompt.setVisible(false);
+        GameState.waterPrompt.setVisible(false);
+        GameState.hazardPrompt.setVisible(false);
+    }
+
+    // Fruit tree prompt
+    const nearTree = findNearestFruitTree();
+    if (nearTree) {
+        if (nearTree.hasFruit) {
+            const fruitEmoji = { apple: '🍎', orange: '🍊', peach: '🍑', cherry: '🍒' };
+            const emoji = fruitEmoji[nearTree.treeType] || '🍎';
+            GameState.fruitTreePrompt.setText(`${emoji} E to harvest`).setVisible(true);
+        } else {
+            GameState.fruitTreePrompt.setText('⏳ Growing...').setVisible(true);
+        }
+    } else {
+        GameState.fruitTreePrompt.setVisible(false);
     }
 
     // Fishing prompt

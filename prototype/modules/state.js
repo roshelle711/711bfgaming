@@ -32,12 +32,17 @@ export const GameState = {
 
     // Inventory & economy
     inventory: {
-        seeds: { carrot: 3, tomato: 3, flower: 3 },
-        crops: { carrot: 0, tomato: 0, flower: 0 },
+        seeds: { carrot: 3, tomato: 3, flower: 3, lettuce: 2, onion: 2, potato: 2, pepper: 1, corn: 1, pumpkin: 1 },
+        crops: { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
+        fruits: { apple: 0, orange: 0, peach: 0, cherry: 0 },
         fish: { bass: 0, salmon: 0, goldfish: 0 },
         crafted: { salad: 0, bouquet: 0, fishStew: 0, magicPotion: 0 }
     },
     coins: 50,
+
+    // Equipped tool
+    equippedTool: 'none',  // 'none' | 'hoe' | 'wateringCan'
+    isWatering: false,     // True during watering animation
 
     // Time & day/night
     gameTime: 480,      // Minutes (8:00 AM start)
@@ -48,6 +53,7 @@ export const GameState = {
     farmPlots: [],
     currentSeedIndex: 0,
     seedPickups: [],
+    fruitTrees: [],
 
     // Fishing
     isFishing: false,
@@ -83,6 +89,9 @@ export const GameState = {
     fishKey: null,
     craftKey: null,
     inventoryKey: null,
+    waterKey: null,
+    removeHazardKey: null,
+    lamppostKey: null,
 
     // UI elements (set by ui.js)
     interactPrompt: null,
@@ -162,8 +171,9 @@ export function loadPreset(slot) {
 // Reset state for new game (useful for testing)
 export function resetState() {
     GameState.inventory = {
-        seeds: { carrot: 3, tomato: 3, flower: 3 },
-        crops: { carrot: 0, tomato: 0, flower: 0 },
+        seeds: { carrot: 3, tomato: 3, flower: 3, lettuce: 2, onion: 2, potato: 2, pepper: 1, corn: 1, pumpkin: 1 },
+        crops: { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
+        fruits: { apple: 0, orange: 0, peach: 0, cherry: 0 },
         fish: { bass: 0, salmon: 0, goldfish: 0 },
         crafted: { salad: 0, bouquet: 0, fishStew: 0, magicPotion: 0 }
     };
@@ -171,5 +181,7 @@ export function resetState() {
     GameState.gameTime = 480;
     GameState.farmPlots = [];
     GameState.seedPickups = [];
+    GameState.fruitTrees = [];
     GameState.otherPlayers = {};
+    GameState.equippedTool = 'none';
 }

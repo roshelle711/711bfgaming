@@ -65,14 +65,31 @@ export function closeDialog() {
  * Inventory item definitions
  */
 const inventoryItems = {
-    // Seeds
+    // Seeds (9 types)
     carrotSeed: { emoji: '🥕', name: 'Carrot Seed', category: 'seeds', key: 'carrot' },
     tomatoSeed: { emoji: '🍅', name: 'Tomato Seed', category: 'seeds', key: 'tomato' },
     flowerSeed: { emoji: '🌸', name: 'Flower Seed', category: 'seeds', key: 'flower' },
-    // Crops
+    lettuceSeed: { emoji: '🥬', name: 'Lettuce Seed', category: 'seeds', key: 'lettuce' },
+    onionSeed: { emoji: '🧅', name: 'Onion Seed', category: 'seeds', key: 'onion' },
+    potatoSeed: { emoji: '🥔', name: 'Potato Seed', category: 'seeds', key: 'potato' },
+    pepperSeed: { emoji: '🌶️', name: 'Pepper Seed', category: 'seeds', key: 'pepper' },
+    cornSeed: { emoji: '🌽', name: 'Corn Seed', category: 'seeds', key: 'corn' },
+    pumpkinSeed: { emoji: '🎃', name: 'Pumpkin Seed', category: 'seeds', key: 'pumpkin' },
+    // Crops (9 types)
     carrot: { emoji: '🥕', name: 'Carrot', category: 'crops', key: 'carrot' },
     tomato: { emoji: '🍅', name: 'Tomato', category: 'crops', key: 'tomato' },
     flower: { emoji: '🌸', name: 'Flower', category: 'crops', key: 'flower' },
+    lettuce: { emoji: '🥬', name: 'Lettuce', category: 'crops', key: 'lettuce' },
+    onion: { emoji: '🧅', name: 'Onion', category: 'crops', key: 'onion' },
+    potato: { emoji: '🥔', name: 'Potato', category: 'crops', key: 'potato' },
+    pepper: { emoji: '🌶️', name: 'Pepper', category: 'crops', key: 'pepper' },
+    corn: { emoji: '🌽', name: 'Corn', category: 'crops', key: 'corn' },
+    pumpkin: { emoji: '🎃', name: 'Pumpkin', category: 'crops', key: 'pumpkin' },
+    // Fruits (4 types)
+    apple: { emoji: '🍎', name: 'Apple', category: 'fruits', key: 'apple' },
+    orange: { emoji: '🍊', name: 'Orange', category: 'fruits', key: 'orange' },
+    peach: { emoji: '🍑', name: 'Peach', category: 'fruits', key: 'peach' },
+    cherry: { emoji: '🍒', name: 'Cherry', category: 'fruits', key: 'cherry' },
     // Fish
     bass: { emoji: '🐟', name: 'Bass', category: 'fish', key: 'bass' },
     salmon: { emoji: '🐠', name: 'Salmon', category: 'fish', key: 'salmon' },
@@ -93,34 +110,35 @@ export function createInventoryIcons(scene) {
 
     GameState.inventoryIcons = [];
 
-    // Panel background
-    GameState.inventoryPanel = scene.add.rectangle(centerX, centerY, 420, 380, 0x1a1a2e, 0.95)
+    // Panel background - larger to fit more items
+    GameState.inventoryPanel = scene.add.rectangle(centerX, centerY, 700, 480, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(150).setVisible(false);
 
     // Title
-    GameState.inventoryTitle = scene.add.text(centerX, centerY - 165, '📦 INVENTORY', {
+    GameState.inventoryTitle = scene.add.text(centerX, centerY - 215, '📦 INVENTORY', {
         fontSize: '20px', fill: '#FFD700', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
-    // Category labels and icons
+    // Category labels and icons - expanded for all items
     const categories = [
-        { name: '🌱 Seeds', items: ['carrotSeed', 'tomatoSeed', 'flowerSeed'], y: -110 },
-        { name: '🌾 Crops', items: ['carrot', 'tomato', 'flower'], y: -40 },
-        { name: '🐟 Fish', items: ['bass', 'salmon', 'goldfish'], y: 30 },
-        { name: '🍳 Cooked', items: ['salad', 'bouquet', 'fishStew', 'magicPotion'], y: 100 }
+        { name: '🌱 Seeds', items: ['carrotSeed', 'tomatoSeed', 'flowerSeed', 'lettuceSeed', 'onionSeed', 'potatoSeed', 'pepperSeed', 'cornSeed', 'pumpkinSeed'], y: -160 },
+        { name: '🌾 Crops', items: ['carrot', 'tomato', 'flower', 'lettuce', 'onion', 'potato', 'pepper', 'corn', 'pumpkin'], y: -90 },
+        { name: '🍎 Fruits', items: ['apple', 'orange', 'peach', 'cherry'], y: -20 },
+        { name: '🐟 Fish', items: ['bass', 'salmon', 'goldfish'], y: 50 },
+        { name: '🍳 Cooked', items: ['salad', 'bouquet', 'fishStew', 'magicPotion'], y: 120 }
     ];
 
     categories.forEach(cat => {
         // Category label
-        const label = scene.add.text(centerX - 180, centerY + cat.y, cat.name, {
+        const label = scene.add.text(centerX - 310, centerY + cat.y, cat.name, {
             fontSize: '14px', fill: '#aaa'
         }).setDepth(151).setVisible(false);
         GameState.inventoryIcons.push({ type: 'label', obj: label });
 
-        // Item icons
+        // Item icons - arranged in a row with smaller spacing for more items
         cat.items.forEach((itemKey, i) => {
             const item = inventoryItems[itemKey];
-            const x = centerX - 80 + i * 70;
+            const x = centerX - 220 + i * 60;
             const y = centerY + cat.y;
 
             // Icon background (interactive)
@@ -161,7 +179,7 @@ export function createInventoryIcons(scene) {
     });
 
     // Close hint
-    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 165, '[ Press I to close ]', {
+    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 210, '[ Press I to close ]', {
         fontSize: '12px', fill: '#666'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
@@ -205,6 +223,8 @@ export function updateInventoryDisplay() {
             amount = inv.seeds[item.key] || 0;
         } else if (item.category === 'crops') {
             amount = inv.crops[item.key] || 0;
+        } else if (item.category === 'fruits') {
+            amount = inv.fruits[item.key] || 0;
         } else if (item.category === 'fish') {
             amount = inv.fish[item.key] || 0;
         } else if (item.category === 'crafted') {
@@ -284,9 +304,13 @@ export function hideInventory() {
  */
 export function updateSeedIndicator() {
     if (!GameState.seedIndicator) return;
-    const emoji = { carrot: '🥕', tomato: '🍅', flower: '🌸' };
+    const emoji = {
+        carrot: '🥕', tomato: '🍅', flower: '🌸',
+        lettuce: '🥬', onion: '🧅', potato: '🥔',
+        pepper: '🌶️', corn: '🌽', pumpkin: '🎃'
+    };
     const seed = seedTypes[GameState.currentSeedIndex];
-    GameState.seedIndicator.setText(`Plant: ${emoji[seed]} (${GameState.inventory.seeds[seed]})`);
+    GameState.seedIndicator.setText(`Plant: ${emoji[seed] || '🌱'} (${GameState.inventory.seeds[seed] || 0})`);
 }
 
 /**

@@ -63,13 +63,23 @@ export function createHouse(graphics, x, y, roofColor, label, scene) {
  * @param {number} index - Plot index (0-7) for server sync
  */
 export function createFarmPlot(scene, x, y, index = 0) {
-    const plot = { index, x, y, state: 'grass', crop: null, growthTimer: 0, graphics: scene.add.graphics(), plantGraphics: null };
+    const plot = {
+        index, x, y,
+        state: 'grass',
+        crop: null,
+        growthTimer: 0,
+        isWatered: false,
+        lastWateredTime: 0,
+        hazard: '',
+        graphics: scene.add.graphics(),
+        plantGraphics: null
+    };
     drawPlot(plot);
     return plot;
 }
 
 /**
- * Draw the farm plot ground (grass or tilled)
+ * Draw the farm plot ground (grass or tilled) with water/hazard indicators
  */
 export function drawPlot(plot) {
     plot.graphics.clear();
@@ -80,13 +90,51 @@ export function drawPlot(plot) {
         plot.graphics.fillStyle(0x8B7355, 1).fillRect(x - size/2, y - size/2, size, size);
         plot.graphics.fillStyle(0x90EE90, 0.5).fillRect(x - size/2, y - size/2, size, size);
     } else {
-        plot.graphics.fillStyle(0x5D4037, 1).fillRect(x - size/2, y - size/2, size, size);
+        // Tilled/planted soil - darker if watered
+        const soilColor = plot.isWatered ? 0x3E2723 : 0x5D4037;
+        plot.graphics.fillStyle(soilColor, 1).fillRect(x - size/2, y - size/2, size, size);
         if (plot.state === 'tilled') {
             plot.graphics.lineStyle(2, 0x4A3728, 1);
             for (let i = -15; i <= 15; i += 10) plot.graphics.lineBetween(x - 18, y + i, x + 18, y + i);
         }
     }
     plot.graphics.lineStyle(1, 0x666666, 0.5).strokeRect(x - size/2, y - size/2, size, size);
+
+    // Draw water indicator (small droplet)
+    if (plot.isWatered && (plot.state === 'planted' || plot.state === 'growing')) {
+        plot.graphics.fillStyle(0x4FC3F7, 0.8);
+        plot.graphics.fillCircle(x + 16, y - 16, 4);
+        plot.graphics.fillTriangle(x + 16, y - 22, x + 13, y - 16, x + 19, y - 16);
+    }
+
+    // Draw hazard indicator
+    if (plot.hazard === 'weeds') {
+        // Green tangled weeds
+        plot.graphics.fillStyle(0x2E7D32, 1);
+        plot.graphics.fillRect(x - 12, y + 8, 3, 12);
+        plot.graphics.fillRect(x - 6, y + 6, 2, 14);
+        plot.graphics.fillRect(x + 4, y + 10, 3, 10);
+        plot.graphics.fillRect(x + 10, y + 7, 2, 13);
+        plot.graphics.fillStyle(0x1B5E20, 1);
+        plot.graphics.fillCircle(x - 10, y + 6, 4);
+        plot.graphics.fillCircle(x - 4, y + 4, 3);
+        plot.graphics.fillCircle(x + 6, y + 8, 4);
+        plot.graphics.fillCircle(x + 12, y + 5, 3);
+    } else if (plot.hazard === 'bugs') {
+        // Small animated-looking bugs
+        plot.graphics.fillStyle(0x000000, 1);
+        plot.graphics.fillCircle(x - 8, y + 12, 3);
+        plot.graphics.fillCircle(x - 6, y + 10, 2);
+        plot.graphics.fillCircle(x + 6, y + 14, 3);
+        plot.graphics.fillCircle(x + 8, y + 12, 2);
+        plot.graphics.fillCircle(x, y + 16, 2);
+        // Bug legs
+        plot.graphics.lineStyle(1, 0x000000, 1);
+        plot.graphics.lineBetween(x - 10, y + 11, x - 13, y + 9);
+        plot.graphics.lineBetween(x - 6, y + 11, x - 3, y + 9);
+        plot.graphics.lineBetween(x + 4, y + 13, x + 1, y + 11);
+        plot.graphics.lineBetween(x + 8, y + 13, x + 11, y + 11);
+    }
 }
 
 /**
@@ -171,6 +219,135 @@ export function drawPlant(scene, plot) {
             plot.plantGraphics.fillStyle(0xFFFFFF, 0.5);
             plot.plantGraphics.fillCircle(x - 1, y - 14, 1.5);
         }
+    } else if (crop === 'lettuce') {
+        plot.plantGraphics.fillStyle(0x90EE90, 1); // Light green
+        if (state === 'planted') {
+            plot.plantGraphics.fillCircle(x, y - 2, 4);
+        } else if (state === 'growing') {
+            plot.plantGraphics.fillCircle(x, y - 4, 7);
+            plot.plantGraphics.fillStyle(0x7CCD7C, 1);
+            plot.plantGraphics.fillCircle(x - 3, y - 2, 4);
+            plot.plantGraphics.fillCircle(x + 3, y - 2, 4);
+        } else if (state === 'ready') {
+            plot.plantGraphics.fillStyle(0x7CCD7C, 1);
+            plot.plantGraphics.fillCircle(x, y - 6, 10);
+            plot.plantGraphics.fillStyle(0x90EE90, 1);
+            plot.plantGraphics.fillCircle(x, y - 8, 8);
+            plot.plantGraphics.fillStyle(0xADFF2F, 1);
+            plot.plantGraphics.fillCircle(x, y - 10, 5);
+        }
+    } else if (crop === 'onion') {
+        plot.plantGraphics.fillStyle(0x228B22, 1);
+        if (state === 'planted') {
+            plot.plantGraphics.fillRect(x - 1, y - 6, 2, 10);
+        } else if (state === 'growing') {
+            plot.plantGraphics.fillRect(x - 1, y - 10, 2, 14);
+            plot.plantGraphics.fillRect(x - 3, y - 8, 2, 10);
+            plot.plantGraphics.fillRect(x + 2, y - 8, 2, 10);
+        } else if (state === 'ready') {
+            plot.plantGraphics.fillRect(x - 1, y - 12, 2, 14);
+            plot.plantGraphics.fillRect(x - 4, y - 10, 2, 12);
+            plot.plantGraphics.fillRect(x + 3, y - 10, 2, 12);
+            plot.plantGraphics.fillStyle(0xE6E6FA, 1); // Purple-white onion
+            plot.plantGraphics.fillCircle(x, y + 4, 8);
+            plot.plantGraphics.fillStyle(0xD8BFD8, 1);
+            plot.plantGraphics.fillCircle(x - 2, y + 3, 3);
+        }
+    } else if (crop === 'potato') {
+        plot.plantGraphics.fillStyle(0x228B22, 1);
+        if (state === 'planted') {
+            plot.plantGraphics.fillCircle(x, y - 3, 4);
+            plot.plantGraphics.fillRect(x - 1, y - 1, 2, 6);
+        } else if (state === 'growing') {
+            plot.plantGraphics.fillCircle(x - 4, y - 4, 5);
+            plot.plantGraphics.fillCircle(x + 4, y - 4, 5);
+            plot.plantGraphics.fillCircle(x, y - 8, 6);
+        } else if (state === 'ready') {
+            plot.plantGraphics.fillCircle(x - 5, y - 3, 6);
+            plot.plantGraphics.fillCircle(x + 5, y - 3, 6);
+            plot.plantGraphics.fillCircle(x, y - 8, 7);
+            plot.plantGraphics.fillStyle(0xD2B48C, 1); // Tan potato
+            plot.plantGraphics.fillEllipse(x - 4, y + 5, 6, 4);
+            plot.plantGraphics.fillEllipse(x + 4, y + 6, 5, 3);
+            plot.plantGraphics.fillStyle(0x8B7355, 1);
+            plot.plantGraphics.fillCircle(x - 5, y + 4, 1);
+            plot.plantGraphics.fillCircle(x + 3, y + 5, 1);
+        }
+    } else if (crop === 'pepper') {
+        plot.plantGraphics.fillStyle(0x228B22, 1);
+        if (state === 'planted') {
+            plot.plantGraphics.fillRect(x - 1, y - 4, 2, 8);
+            plot.plantGraphics.fillCircle(x, y - 5, 3);
+        } else if (state === 'growing') {
+            plot.plantGraphics.fillRect(x - 1, y - 8, 2, 12);
+            plot.plantGraphics.fillCircle(x - 4, y - 6, 4);
+            plot.plantGraphics.fillCircle(x + 4, y - 6, 4);
+            plot.plantGraphics.fillCircle(x, y - 10, 5);
+        } else if (state === 'ready') {
+            plot.plantGraphics.fillRect(x - 1, y - 10, 2, 14);
+            plot.plantGraphics.fillCircle(x - 5, y - 6, 5);
+            plot.plantGraphics.fillCircle(x + 5, y - 6, 5);
+            plot.plantGraphics.fillCircle(x, y - 12, 6);
+            plot.plantGraphics.fillStyle(0xFF4500, 1); // Red pepper
+            plot.plantGraphics.fillEllipse(x - 5, y - 2, 4, 7);
+            plot.plantGraphics.fillStyle(0x32CD32, 1); // Green pepper
+            plot.plantGraphics.fillEllipse(x + 5, y, 4, 6);
+        }
+    } else if (crop === 'corn') {
+        plot.plantGraphics.fillStyle(0x228B22, 1);
+        if (state === 'planted') {
+            plot.plantGraphics.fillRect(x - 1, y - 8, 2, 12);
+        } else if (state === 'growing') {
+            plot.plantGraphics.fillRect(x - 2, y - 16, 4, 20);
+            plot.plantGraphics.fillStyle(0x2E8B57, 1);
+            plot.plantGraphics.fillEllipse(x - 8, y - 6, 8, 4);
+            plot.plantGraphics.fillEllipse(x + 8, y - 6, 8, 4);
+        } else if (state === 'ready') {
+            plot.plantGraphics.fillRect(x - 2, y - 22, 4, 26);
+            plot.plantGraphics.fillStyle(0x2E8B57, 1);
+            plot.plantGraphics.fillEllipse(x - 10, y - 8, 10, 5);
+            plot.plantGraphics.fillEllipse(x + 10, y - 8, 10, 5);
+            plot.plantGraphics.fillEllipse(x - 8, y - 16, 8, 4);
+            plot.plantGraphics.fillEllipse(x + 8, y - 16, 8, 4);
+            plot.plantGraphics.fillStyle(0xFFD700, 1); // Yellow corn
+            plot.plantGraphics.fillEllipse(x + 6, y - 4, 5, 10);
+            plot.plantGraphics.fillStyle(0x90EE90, 1); // Corn husk
+            plot.plantGraphics.fillTriangle(x + 2, y - 14, x + 6, y - 6, x + 10, y - 14);
+        }
+    } else if (crop === 'pumpkin') {
+        plot.plantGraphics.fillStyle(0x228B22, 1);
+        if (state === 'planted') {
+            plot.plantGraphics.fillRect(x - 1, y - 3, 2, 6);
+            plot.plantGraphics.fillEllipse(x - 3, y - 2, 4, 3);
+            plot.plantGraphics.fillEllipse(x + 3, y - 2, 4, 3);
+        } else if (state === 'growing') {
+            plot.plantGraphics.fillRect(x - 1, y - 4, 2, 8);
+            plot.plantGraphics.fillEllipse(x - 8, y - 2, 8, 5);
+            plot.plantGraphics.fillEllipse(x + 8, y - 2, 8, 5);
+            plot.plantGraphics.fillStyle(0xFF8C00, 0.5);
+            plot.plantGraphics.fillCircle(x, y + 4, 6);
+        } else if (state === 'ready') {
+            plot.plantGraphics.fillRect(x - 1, y - 8, 2, 10);
+            plot.plantGraphics.fillEllipse(x - 12, y - 4, 10, 6);
+            plot.plantGraphics.fillEllipse(x + 12, y - 4, 10, 6);
+            plot.plantGraphics.fillStyle(0xFF6600, 1); // Orange pumpkin
+            plot.plantGraphics.fillCircle(x, y + 6, 12);
+            plot.plantGraphics.fillStyle(0xFF8C00, 1);
+            plot.plantGraphics.fillEllipse(x - 5, y + 6, 5, 10);
+            plot.plantGraphics.fillEllipse(x + 5, y + 6, 5, 10);
+            plot.plantGraphics.fillStyle(0x228B22, 1);
+            plot.plantGraphics.fillRect(x - 2, y - 4, 4, 6); // Stem
+        }
+    }
+
+    // Draw wilted/dead overlay
+    if (state === 'wilted' || state === 'dead') {
+        plot.plantGraphics.fillStyle(state === 'dead' ? 0x4A3728 : 0x8B7355, 0.7);
+        plot.plantGraphics.fillRect(x - 8, y - 10, 16, 20);
+        plot.plantGraphics.fillStyle(0x654321, 1);
+        plot.plantGraphics.fillRect(x - 2, y - 6, 4, 12);
+        plot.plantGraphics.fillCircle(x - 4, y - 4, 3);
+        plot.plantGraphics.fillCircle(x + 4, y - 2, 2);
     }
 }
 
@@ -376,4 +553,98 @@ export function drawLamppostLight(graphics, x, y) {
     graphics.fillCircle(x, y - 63, 4);
     graphics.fillStyle(0xFFFF00, 0.9);
     graphics.fillCircle(x, y - 63, 2);
+}
+
+/**
+ * Create a fruit tree data structure
+ * @param {Phaser.Scene} scene - The game scene
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {string} treeType - Type of tree (apple, orange, peach, cherry)
+ * @param {number} index - Tree index for server sync
+ */
+export function createFruitTree(scene, x, y, treeType, index = 0) {
+    const tree = {
+        index, x, y, treeType,
+        hasFruit: true,
+        fruitTimer: 0,
+        graphics: scene.add.graphics(),
+        needsRedraw: false
+    };
+    drawFruitTree(tree);
+    return tree;
+}
+
+/**
+ * Draw a fruit tree with optional fruit
+ */
+export function drawFruitTree(tree) {
+    tree.graphics.clear();
+    const { x, y, treeType, hasFruit } = tree;
+
+    // Trunk
+    tree.graphics.fillStyle(0x8B4513, 1);
+    tree.graphics.fillRect(x - 8, y - 10, 16, 40);
+    tree.graphics.fillStyle(0x654321, 1);
+    tree.graphics.fillRect(x - 4, y - 10, 4, 40);
+
+    // Foliage colors vary by tree type
+    const foliageColors = {
+        apple: 0x228B22,
+        orange: 0x2E8B57,
+        peach: 0x90EE90,
+        cherry: 0x228B22
+    };
+
+    // Draw foliage (layered circles)
+    tree.graphics.fillStyle(foliageColors[treeType] || 0x228B22, 1);
+    tree.graphics.fillCircle(x, y - 35, 30);
+    tree.graphics.fillCircle(x - 20, y - 25, 22);
+    tree.graphics.fillCircle(x + 20, y - 25, 22);
+    tree.graphics.fillCircle(x - 10, y - 45, 18);
+    tree.graphics.fillCircle(x + 10, y - 45, 18);
+
+    // Darker foliage accents
+    tree.graphics.fillStyle(0x1B5E20, 0.5);
+    tree.graphics.fillCircle(x - 15, y - 30, 10);
+    tree.graphics.fillCircle(x + 12, y - 40, 8);
+
+    // Draw fruit if tree has fruit
+    if (hasFruit) {
+        const fruitColors = {
+            apple: 0xFF0000,
+            orange: 0xFFA500,
+            peach: 0xFFDAB9,
+            cherry: 0xDC143C
+        };
+        const fruitColor = fruitColors[treeType] || 0xFF0000;
+
+        tree.graphics.fillStyle(fruitColor, 1);
+
+        if (treeType === 'cherry') {
+            // Cherries come in pairs
+            tree.graphics.fillCircle(x - 15, y - 30, 5);
+            tree.graphics.fillCircle(x - 10, y - 28, 5);
+            tree.graphics.fillCircle(x + 12, y - 35, 5);
+            tree.graphics.fillCircle(x + 17, y - 33, 5);
+            tree.graphics.fillCircle(x - 5, y - 20, 5);
+            tree.graphics.fillCircle(x, y - 18, 5);
+            // Stems
+            tree.graphics.lineStyle(1, 0x228B22, 1);
+            tree.graphics.lineBetween(x - 12, y - 32, x - 10, y - 38);
+            tree.graphics.lineBetween(x + 14, y - 37, x + 12, y - 43);
+        } else {
+            // Regular fruit
+            tree.graphics.fillCircle(x - 15, y - 30, 6);
+            tree.graphics.fillCircle(x + 18, y - 35, 6);
+            tree.graphics.fillCircle(x - 8, y - 20, 6);
+            tree.graphics.fillCircle(x + 10, y - 25, 6);
+            tree.graphics.fillCircle(x - 2, y - 40, 5);
+        }
+
+        // Shine on fruit
+        tree.graphics.fillStyle(0xFFFFFF, 0.4);
+        tree.graphics.fillCircle(x - 17, y - 32, 2);
+        tree.graphics.fillCircle(x + 16, y - 37, 2);
+    }
 }

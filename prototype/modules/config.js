@@ -43,8 +43,44 @@ export const skinTones = [0xFFDBB4, 0xF5CBA7, 0xE0AC69, 0xC68642, 0x8D5524, 0xD4
 export const hairColors = [0x2C1810, 0x4A3728, 0x8B4513, 0xD4A574, 0xE8C07D, 0x1a1a2e, 0x722F37, 0xE91E63, 0x9C27B0, 0x3F51B5];
 
 // Farming & fishing types
-export const seedTypes = ['carrot', 'tomato', 'flower'];
+export const seedTypes = ['carrot', 'tomato', 'flower', 'lettuce', 'onion', 'potato', 'pepper', 'corn', 'pumpkin'];
 export const fishTypes = ['bass', 'salmon', 'goldfish'];
+export const fruitTypes = ['apple', 'orange', 'peach', 'cherry'];
+
+// Crop data - growth times (ms), sell prices, and emojis
+export const cropData = {
+    carrot:   { growthTime: 8000,  sellPrice: 15, emoji: '🥕' },
+    tomato:   { growthTime: 8000,  sellPrice: 20, emoji: '🍅' },
+    flower:   { growthTime: 8000,  sellPrice: 25, emoji: '🌸' },
+    lettuce:  { growthTime: 6000,  sellPrice: 12, emoji: '🥬' },
+    onion:    { growthTime: 9000,  sellPrice: 18, emoji: '🧅' },
+    potato:   { growthTime: 10000, sellPrice: 22, emoji: '🥔' },
+    pepper:   { growthTime: 12000, sellPrice: 30, emoji: '🌶️' },
+    corn:     { growthTime: 15000, sellPrice: 35, emoji: '🌽' },
+    pumpkin:  { growthTime: 20000, sellPrice: 50, emoji: '🎃' }
+};
+
+// Fruit tree data - regrow times (ms), sell prices, and emojis
+export const fruitData = {
+    apple:  { regrowTime: 60000, sellPrice: 12, emoji: '🍎' },
+    orange: { regrowTime: 75000, sellPrice: 15, emoji: '🍊' },
+    peach:  { regrowTime: 90000, sellPrice: 20, emoji: '🍑' },
+    cherry: { regrowTime: 45000, sellPrice: 8,  emoji: '🍒' }
+};
+
+// Fruit tree positions on map
+export const fruitTreePositions = [
+    { x: 100, y: 400, type: 'apple' },
+    { x: 150, y: 520, type: 'orange' },
+    { x: 1300, y: 400, type: 'peach' },
+    { x: 1250, y: 520, type: 'cherry' }
+];
+
+// Watering and growth constants
+export const GAME_DAY_MINUTES = 1440;                    // 24 hours * 60 minutes
+export const WILT_THRESHOLD_DAYS = 3;                    // Days without water before wilting
+export const WILT_THRESHOLD = GAME_DAY_MINUTES * WILT_THRESHOLD_DAYS;  // 4320 game minutes
+export const HAZARD_CHANCE_PER_HOUR = 0.02;              // 2% chance per plot per game hour
 
 // Crafting recipes
 export const recipes = {
@@ -56,7 +92,8 @@ export const recipes = {
 
 // Sell prices
 export const sellPrices = {
-    crops: { carrot: 15, tomato: 20, flower: 25 },
+    crops: { carrot: 15, tomato: 20, flower: 25, lettuce: 12, onion: 18, potato: 22, pepper: 30, corn: 35, pumpkin: 50 },
+    fruits: { apple: 12, orange: 15, peach: 20, cherry: 8 },
     fish: { bass: 10, salmon: 25, goldfish: 50 },
     crafted: { salad: 50, bouquet: 80, fishStew: 75, magicPotion: 150 }
 };

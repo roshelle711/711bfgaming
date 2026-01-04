@@ -13,6 +13,9 @@ import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, decele
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
 
+// Tool graphics containers (created once, reused)
+let toolGraphics = null;
+
 /**
  * Create a whimsical character sprite
  * @param {Phaser.Scene} scene - Phaser scene
@@ -327,4 +330,80 @@ export function updatePlayerSparkles(time) {
         sparkle.x = -15 + Math.sin(t + i) * 30;
         sparkle.y = -35 + Math.cos(t * 0.7 + i) * 20;
     });
+}
+
+/**
+ * Create tool graphics container for player
+ * @param {Phaser.Scene} scene - Phaser scene
+ */
+export function createToolGraphics(scene) {
+    if (toolGraphics) return toolGraphics;
+
+    toolGraphics = scene.add.graphics();
+    toolGraphics.setDepth(1000); // Above player
+    return toolGraphics;
+}
+
+/**
+ * Draw the currently equipped tool
+ * Call this in the update loop after player position is set
+ */
+export function updateHeldTool() {
+    if (!toolGraphics || !GameState.player) return;
+
+    toolGraphics.clear();
+
+    const tool = GameState.equippedTool;
+    if (tool === 'none') return;
+
+    const px = GameState.player.x;
+    const py = GameState.player.y;
+
+    // Offset for hand position (right side of character)
+    const toolX = px + 18;
+    const toolY = py - 5;
+
+    if (tool === 'hoe') {
+        // Hoe: wooden handle + metal blade
+        toolGraphics.fillStyle(0x8B4513, 1); // Brown handle
+        toolGraphics.fillRect(toolX, toolY - 20, 4, 30);
+        toolGraphics.fillStyle(0x696969, 1); // Gray metal blade
+        toolGraphics.fillRect(toolX - 6, toolY - 22, 16, 5);
+        toolGraphics.fillStyle(0x505050, 1); // Darker edge
+        toolGraphics.fillRect(toolX - 6, toolY - 18, 16, 2);
+    } else if (tool === 'wateringCan') {
+        // Watering can: body + spout + handle
+        toolGraphics.fillStyle(0x4682B4, 1); // Steel blue
+        toolGraphics.fillEllipse(toolX, toolY, 16, 12); // Body
+        toolGraphics.fillRect(toolX + 6, toolY - 10, 10, 4); // Spout
+        toolGraphics.fillStyle(0x5F9EA0, 1); // Lighter shade
+        toolGraphics.fillEllipse(toolX, toolY - 2, 10, 6); // Highlight
+        // Handle
+        toolGraphics.lineStyle(3, 0x4682B4, 1);
+        toolGraphics.beginPath();
+        toolGraphics.arc(toolX - 8, toolY - 8, 6, 0, Math.PI, true);
+        toolGraphics.strokePath();
+        // Water droplets from spout (when watering)
+        if (GameState.isWatering) {
+            toolGraphics.fillStyle(0x87CEEB, 0.8);
+            for (let i = 0; i < 3; i++) {
+                toolGraphics.fillCircle(toolX + 18 + i * 3, toolY - 8 + i * 4, 2);
+            }
+        }
+    }
+}
+
+/**
+ * Equip a tool
+ * @param {string} toolType - 'hoe', 'wateringCan', or 'none'
+ */
+export function equipTool(toolType) {
+    GameState.equippedTool = toolType;
+}
+
+/**
+ * Unequip the current tool
+ */
+export function unequipTool() {
+    GameState.equippedTool = 'none';
 }

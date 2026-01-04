@@ -20,11 +20,19 @@ export interface PersistedWorldState {
     state: string;
     crop: string;
     growthTimer: number;
+    isWatered?: boolean;
+    lastWateredTime?: number;
+    hazard?: string;
   }>;
   seedPickups: Array<{
     index: number;
     isCollected: boolean;
     respawnTimer: number;
+  }>;
+  fruitTrees?: Array<{
+    index: number;
+    hasFruit: boolean;
+    fruitTimer: number;
   }>;
   gameTime: number;
   lastSaved: number;

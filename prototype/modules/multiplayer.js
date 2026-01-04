@@ -10,6 +10,10 @@
  * - sendPositionToServer(): Send local player position to server
  * - sendFarmAction(plotIndex, action, seedType): Send farm action to server
  * - sendCollectSeed(pickupIndex): Send seed collection to server
+ * - sendToggleLamppost(lamppostIndex): Toggle lamppost light
+ * - sendWaterAction(plotIndex): Water a crop
+ * - sendRemoveHazard(plotIndex): Remove hazard from plot
+ * - sendHarvestFruit(treeIndex): Harvest fruit from tree
  * - interpolateNPCs(): Smooth NPC movement
  */
 
@@ -119,6 +123,15 @@ export async function connectToServer() {
             };
         };
 
+        // Sync fruit trees from server
+        GameState.room.state.fruitTrees.onAdd = (treeData, key) => {
+            syncFruitTree(treeData);
+
+            treeData.onChange = () => {
+                syncFruitTree(treeData);
+            };
+        };
+
         // Sync game time from server
         GameState.room.state.onChange = (changes) => {
             changes.forEach(change => {
@@ -147,6 +160,15 @@ export async function connectToServer() {
                 GameState.inventory.seeds[message.seedType] += message.amount;
                 updateInventoryDisplay();
                 updateSeedIndicator();
+            }
+        });
+
+        // Listen for fruit harvest broadcast
+        GameState.room.onMessage("fruitHarvested", (message) => {
+            // Only add to inventory if we harvested it
+            if (message.harvestedBy === GameState.room.sessionId) {
+                GameState.inventory.fruits[message.fruitType]++;
+                updateInventoryDisplay();
             }
         });
 
@@ -366,15 +388,20 @@ function syncFarmPlot(plotData) {
 
     const stateChanged = localPlot.state !== plotData.state;
     const cropChanged = localPlot.crop !== plotData.crop;
+    const wateredChanged = localPlot.isWatered !== plotData.isWatered;
+    const hazardChanged = localPlot.hazard !== plotData.hazard;
 
     localPlot.state = plotData.state;
     localPlot.crop = plotData.crop || null;
     localPlot.growthTimer = plotData.growthTimer;
+    localPlot.isWatered = plotData.isWatered;
+    localPlot.lastWateredTime = plotData.lastWateredTime;
+    localPlot.hazard = plotData.hazard || '';
 
-    // Redraw if state or crop changed
-    if (stateChanged || cropChanged) {
+    // Redraw if state, crop, water, or hazard changed
+    if (stateChanged || cropChanged || wateredChanged || hazardChanged) {
         drawPlot(localPlot);
-        if (localPlot.crop) {
+        if (localPlot.crop && localPlot.state !== 'wilted' && localPlot.state !== 'dead') {
             drawPlant(GameState.scene, localPlot);
         } else if (localPlot.plantGraphics) {
             localPlot.plantGraphics.destroy();
@@ -438,6 +465,26 @@ function syncLamppost(lamppostData) {
     }
 }
 
+/**
+ * Sync fruit tree state from server data
+ */
+function syncFruitTree(treeData) {
+    const localTree = GameState.fruitTrees[treeData.index];
+    if (!localTree) return;
+
+    const fruitChanged = localTree.hasFruit !== treeData.hasFruit;
+
+    localTree.hasFruit = treeData.hasFruit;
+    localTree.fruitTimer = treeData.fruitTimer;
+
+    // Update visuals if fruit state changed
+    if (fruitChanged && localTree.graphics) {
+        // Redraw tree will be handled by world.js drawFruitTree function
+        // For now just mark for redraw
+        localTree.needsRedraw = true;
+    }
+}
+
 // ===== Action Senders =====
 
 /**
@@ -479,6 +526,42 @@ export function sendToggleLamppost(lamppostIndex) {
     if (!GameState.room) return false;
 
     GameState.room.send("toggleLamppost", { lamppostIndex });
+    return true;
+}
+
+/**
+ * Send water action to server
+ * @param {number} plotIndex - Index of the farm plot
+ * @returns {boolean} True if message was sent
+ */
+export function sendWaterAction(plotIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("waterAction", { plotIndex });
+    return true;
+}
+
+/**
+ * Send hazard removal to server
+ * @param {number} plotIndex - Index of the farm plot
+ * @returns {boolean} True if message was sent
+ */
+export function sendRemoveHazard(plotIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("removeHazard", { plotIndex });
+    return true;
+}
+
+/**
+ * Send fruit harvest to server
+ * @param {number} treeIndex - Index of the fruit tree
+ * @returns {boolean} True if message was sent
+ */
+export function sendHarvestFruit(treeIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("harvestFruit", { treeIndex });
     return true;
 }
 

@@ -6,6 +6,11 @@
  * - plantSeed(plot): Plant current seed in tilled plot
  * - harvestCrop(plot): Harvest ready crop
  * - updatePlantGrowth(delta): Update plant growth timers
+ * - waterPlot(plot): Water a planted crop
+ * - removeHazard(plot): Remove weeds/bugs from plot
+ * - harvestFruit(tree): Harvest fruit from tree
+ * - findNearestFruitTree(): Find nearest fruit tree
+ * - updateFruitRegrowth(delta): Update fruit regrowth timers
  * - startFishing(): Start fishing at pond
  * - updateFishing(delta): Update fishing timer
  * - showShopMenu(): Display shop menu
@@ -16,11 +21,11 @@
  * - respawnSeedPickups(delta): Respawn collected seeds
  */
 
-import { seedTypes, fishTypes, recipes, sellPrices } from './config.js';
+import { seedTypes, fishTypes, recipes, sellPrices, cropData, fruitData, fruitTreePositions } from './config.js';
 import { GameState } from './state.js';
 import { showDialog, closeDialog, updateInventoryDisplay, updateCoinDisplay, updateSeedIndicator } from './ui.js';
 import { drawPlot, drawPlant, drawSeedPickup } from './world.js';
-import { sendFarmAction, sendCollectSeed } from './multiplayer.js';
+import { sendFarmAction, sendCollectSeed, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './multiplayer.js';
 
 /**
  * Hoe a grass plot to prepare for planting
@@ -392,4 +397,122 @@ export function isNearCookingStation(stationX = 1050, stationY = 450, range = 60
     const dx = player.x - stationX;
     const dy = player.y - stationY;
     return Math.sqrt(dx * dx + dy * dy) < range;
+}
+
+/**
+ * Water a planted crop
+ * Server-authoritative when connected, local fallback for single-player
+ */
+export function waterPlot(plot) {
+    if (plot.state !== 'planted' && plot.state !== 'growing') return false;
+
+    if (GameState.room) {
+        // Server-authoritative: send action
+        sendWaterAction(plot.index);
+        return true;
+    } else {
+        // Single-player fallback
+        plot.isWatered = true;
+        plot.lastWateredTime = GameState.gameTime;
+        drawPlot(plot);
+        return true;
+    }
+}
+
+/**
+ * Remove hazard (weeds/bugs) from a plot
+ * Also handles removing wilted/dead plants
+ * Server-authoritative when connected, local fallback for single-player
+ */
+export function removeHazard(plot) {
+    // Can remove hazards or wilted/dead plants
+    const hasHazard = plot.hazard && plot.hazard !== '';
+    const isDead = plot.state === 'wilted' || plot.state === 'dead';
+
+    if (!hasHazard && !isDead) return false;
+
+    if (GameState.room) {
+        // Server-authoritative: send action
+        sendRemoveHazard(plot.index);
+        return true;
+    } else {
+        // Single-player fallback
+        plot.hazard = '';
+        if (isDead) {
+            plot.state = 'grass';
+            plot.crop = '';
+            plot.growthTimer = 0;
+            plot.isWatered = false;
+            if (plot.plantGraphics) {
+                plot.plantGraphics.destroy();
+                plot.plantGraphics = null;
+            }
+        }
+        drawPlot(plot);
+        return true;
+    }
+}
+
+/**
+ * Harvest fruit from a tree
+ * Server-authoritative when connected, local fallback for single-player
+ */
+export function harvestFruit(tree) {
+    if (!tree.hasFruit) return false;
+
+    if (GameState.room) {
+        // Server-authoritative: send action
+        // Server broadcasts fruitHarvested, we add to inventory in message handler
+        sendHarvestFruit(tree.index);
+        return true;
+    } else {
+        // Single-player fallback
+        GameState.inventory.fruits[tree.treeType]++;
+        tree.hasFruit = false;
+        tree.fruitTimer = fruitData[tree.treeType]?.regrowTime || 60000;
+        updateInventoryDisplay();
+        return true;
+    }
+}
+
+/**
+ * Find the nearest fruit tree to player within range
+ */
+export function findNearestFruitTree(maxDistance = 60) {
+    const player = GameState.player;
+    if (!player) return null;
+
+    let nearest = null;
+    let nearestDist = maxDistance;
+
+    GameState.fruitTrees.forEach(tree => {
+        const dx = player.x - tree.x;
+        const dy = player.y - tree.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = tree;
+        }
+    });
+
+    return nearest;
+}
+
+/**
+ * Update fruit tree regrowth for single-player mode
+ */
+export function updateFruitRegrowth(delta) {
+    // Server handles regrowth when connected
+    if (GameState.room) return;
+
+    // Single-player fallback
+    GameState.fruitTrees.forEach(tree => {
+        if (!tree.hasFruit && tree.fruitTimer > 0) {
+            tree.fruitTimer -= delta;
+            if (tree.fruitTimer <= 0) {
+                tree.hasFruit = true;
+                tree.fruitTimer = 0;
+            }
+        }
+    });
 }
