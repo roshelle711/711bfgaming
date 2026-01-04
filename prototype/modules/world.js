@@ -58,9 +58,10 @@ export function createHouse(graphics, x, y, roofColor, label, scene) {
 
 /**
  * Create a farm plot data structure
+ * @param {number} index - Plot index (0-7) for server sync
  */
-export function createFarmPlot(scene, x, y) {
-    const plot = { x, y, state: 'grass', crop: null, growthTimer: 0, graphics: scene.add.graphics(), plantGraphics: null };
+export function createFarmPlot(scene, x, y, index = 0) {
+    const plot = { index, x, y, state: 'grass', crop: null, growthTimer: 0, graphics: scene.add.graphics(), plantGraphics: null };
     drawPlot(plot);
     return plot;
 }
@@ -173,9 +174,10 @@ export function drawPlant(scene, plot) {
 
 /**
  * Create a seed pickup item
+ * @param {number} index - Pickup index for server sync
  */
-export function createSeedPickup(scene, x, y, seedType) {
-    const pickup = { x, y, seedType, isCollected: false, respawnTimer: 0, graphics: scene.add.graphics() };
+export function createSeedPickup(scene, x, y, seedType, index = 0) {
+    const pickup = { index, x, y, seedType, isCollected: false, respawnTimer: 0, graphics: scene.add.graphics() };
     drawSeedPickup(pickup);
     return pickup;
 }
@@ -211,6 +213,10 @@ export function createNPCs(scene) {
     });
     GameState.npc.body.setImmovable(true);
 
+    // Add interpolation targets for server sync
+    GameState.npc.targetX = 400;
+    GameState.npc.targetY = 500;
+
     // Add nameplate to Mira's container (moves with her)
     const miraName = scene.add.text(0, -60, 'Mira 🌿', {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000099', padding: { x: 4, y: 2 }
@@ -243,8 +249,13 @@ export function createNPCs(scene) {
 /**
  * Update NPC patrol behavior
  * Mira patrols during day, goes home at night
+ * Skip when connected - server handles NPC movement
  */
 export function updateNPCPatrol() {
+    // Server handles NPC movement when connected
+    if (GameState.room) return;
+
+    // Single-player fallback
     const npc = GameState.npc;
     if (!npc) return;
 

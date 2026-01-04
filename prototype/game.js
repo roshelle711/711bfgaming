@@ -13,7 +13,7 @@ import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFol
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation } from './modules/systems.js';
-import { connectToServer, interpolateOtherPlayers, sendPositionToServer } from './modules/multiplayer.js';
+import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs } from './modules/multiplayer.js';
 
 // === PHASER CONFIGURATION ===
 const config = {
@@ -158,11 +158,13 @@ function create() {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Create farm plots
+    // Create farm plots with index for server sync
+    let plotIndex = 0;
     for (let row = 0; row < 2; row++) {
         for (let col = 0; col < 4; col++) {
-            const plot = createFarmPlot(this, farmStartX - 80 + col * 50, farmStartY - 25 + row * 55);
+            const plot = createFarmPlot(this, farmStartX - 80 + col * 50, farmStartY - 25 + row * 55, plotIndex);
             GameState.farmPlots.push(plot);
+            plotIndex++;
         }
     }
 
@@ -185,6 +187,8 @@ function create() {
     }).setOrigin(0.5);
 
     // Seed pickups
+    // Seed pickups - when connected, server manages 3 pickups at fixed positions
+    // In single-player, we use these 6 local positions
     const seedLocations = [
         { x: 300, y: 500, type: 'carrot' },
         { x: 350, y: 520, type: 'tomato' },
@@ -193,8 +197,8 @@ function create() {
         { x: 750, y: 500, type: 'tomato' },
         { x: 720, y: 530, type: 'flower' }
     ];
-    seedLocations.forEach(loc => {
-        GameState.seedPickups.push(createSeedPickup(this, loc.x, loc.y, loc.type));
+    seedLocations.forEach((loc, index) => {
+        GameState.seedPickups.push(createSeedPickup(this, loc.x, loc.y, loc.type, index));
     });
 
     // Well decoration
@@ -288,8 +292,11 @@ function update(time, delta) {
     if (!this.gameStarted) return;
 
     // === TIME & DAY/NIGHT ===
-    GameState.gameTime += GameState.timeSpeed / 60;
-    if (GameState.gameTime >= 1440) GameState.gameTime = 0;
+    // Skip local time advancement when connected - server syncs time
+    if (!GameState.room) {
+        GameState.gameTime += GameState.timeSpeed / 60;
+        if (GameState.gameTime >= 1440) GameState.gameTime = 0;
+    }
 
     const phase = getDayPhase(GameState.gameTime);
     GameState.isNight = (phase === 'night');
@@ -317,6 +324,7 @@ function update(time, delta) {
 
     // === MULTIPLAYER ===
     interpolateOtherPlayers();
+    interpolateNPCs();
     sendPositionToServer();
 
     // === INPUT HANDLING ===

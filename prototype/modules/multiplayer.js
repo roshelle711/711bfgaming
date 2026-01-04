@@ -1,5 +1,5 @@
 /**
- * multiplayer.js - Colyseus connection, player synchronization
+ * multiplayer.js - Colyseus connection, player/world synchronization
  *
  * Exports:
  * - connectToServer(): Connect to Colyseus server
@@ -8,11 +8,16 @@
  * - updateOtherPlayer(sessionId, x, y): Update remote player target position
  * - interpolateOtherPlayers(): Smooth movement for remote players
  * - sendPositionToServer(): Send local player position to server
+ * - sendFarmAction(plotIndex, action, seedType): Send farm action to server
+ * - sendCollectSeed(pickupIndex): Send seed collection to server
+ * - interpolateNPCs(): Smooth NPC movement
  */
 
 import { classes, SERVER_URL } from './config.js';
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
+import { drawPlot, drawPlant, drawSeedPickup } from './world.js';
+import { updateInventoryDisplay, updateSeedIndicator } from './ui.js';
 
 /**
  * Connect to Colyseus multiplayer server
@@ -58,6 +63,66 @@ export async function connectToServer() {
                 delete GameState.otherPlayers[sessionId];
             }
         };
+
+        // ===== World State Sync =====
+
+        // Sync farm plots from server
+        GameState.room.state.farmPlots.onAdd = (plotData, key) => {
+            syncFarmPlot(plotData);
+
+            plotData.onChange = () => {
+                syncFarmPlot(plotData);
+            };
+        };
+
+        // Sync NPCs from server
+        GameState.room.state.npcs.onAdd = (npcData, key) => {
+            syncNPC(npcData);
+
+            npcData.onChange = () => {
+                syncNPC(npcData);
+            };
+        };
+
+        // Sync seed pickups from server
+        GameState.room.state.seedPickups.onAdd = (pickupData, key) => {
+            syncSeedPickup(pickupData);
+
+            pickupData.onChange = () => {
+                syncSeedPickup(pickupData);
+            };
+        };
+
+        // Sync game time from server
+        GameState.room.state.onChange = (changes) => {
+            changes.forEach(change => {
+                if (change.field === "gameTime") {
+                    GameState.gameTime = change.value;
+                }
+                if (change.field === "timeSpeed") {
+                    GameState.timeSpeed = change.value;
+                }
+            });
+        };
+
+        // Listen for harvest broadcast (to add crop to our inventory)
+        GameState.room.onMessage("cropHarvested", (message) => {
+            // Only add to inventory if we harvested it
+            if (message.harvestedBy === GameState.room.sessionId) {
+                GameState.inventory.crops[message.crop]++;
+                updateInventoryDisplay();
+            }
+        });
+
+        // Listen for seed collection broadcast
+        GameState.room.onMessage("seedCollected", (message) => {
+            // Only add to inventory if we collected it
+            if (message.collectedBy === GameState.room.sessionId) {
+                GameState.inventory.seeds[message.seedType] += message.amount;
+                updateInventoryDisplay();
+                updateSeedIndicator();
+            }
+        });
 
         // Handle disconnection
         GameState.room.onLeave((code) => {
@@ -261,5 +326,110 @@ export function sendPositionToServer() {
 
         GameState.lastSentVelocity.x = vx;
         GameState.lastSentVelocity.y = vy;
+    }
+}
+
+// ===== World Sync Helper Functions =====
+
+/**
+ * Sync farm plot state from server data
+ */
+function syncFarmPlot(plotData) {
+    const localPlot = GameState.farmPlots[plotData.index];
+    if (!localPlot) return;
+
+    const stateChanged = localPlot.state !== plotData.state;
+    const cropChanged = localPlot.crop !== plotData.crop;
+
+    localPlot.state = plotData.state;
+    localPlot.crop = plotData.crop || null;
+    localPlot.growthTimer = plotData.growthTimer;
+
+    // Redraw if state or crop changed
+    if (stateChanged || cropChanged) {
+        drawPlot(localPlot);
+        if (localPlot.crop) {
+            drawPlant(GameState.scene, localPlot);
+        } else if (localPlot.plantGraphics) {
+            localPlot.plantGraphics.destroy();
+            localPlot.plantGraphics = null;
+        }
+    }
+}
+
+/**
+ * Sync NPC position from server data
+ */
+function syncNPC(npcData) {
+    if (npcData.id === "mira" && GameState.npc) {
+        // Use interpolation targets for smooth movement
+        GameState.npc.targetX = npcData.x;
+        GameState.npc.targetY = npcData.y;
+    } else if (npcData.id === "finn" && GameState.shopkeeper) {
+        // Finn stays stationary, just update directly
+        GameState.shopkeeper.x = npcData.x;
+        GameState.shopkeeper.y = npcData.y;
+    }
+}
+
+/**
+ * Sync seed pickup state from server data
+ */
+function syncSeedPickup(pickupData) {
+    const localPickup = GameState.seedPickups[pickupData.index];
+    if (!localPickup) return;
+
+    const wasCollected = localPickup.isCollected;
+    localPickup.isCollected = pickupData.isCollected;
+    localPickup.respawnTimer = pickupData.respawnTimer;
+
+    // Redraw if collected state changed
+    if (wasCollected !== pickupData.isCollected) {
+        drawSeedPickup(localPickup);
+    }
+}
+
+// ===== Action Senders =====
+
+/**
+ * Send farm action to server
+ * @param {number} plotIndex - Index of the farm plot (0-7)
+ * @param {string} action - "hoe", "plant", or "harvest"
+ * @param {string|null} seedType - Required for "plant" action
+ * @returns {boolean} True if message was sent
+ */
+export function sendFarmAction(plotIndex, action, seedType = null) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("farmAction", {
+        plotIndex,
+        action,
+        seedType
+    });
+    return true;
+}
+
+/**
+ * Send seed pickup collection to server
+ * @param {number} pickupIndex - Index of the seed pickup (0-2)
+ * @returns {boolean} True if message was sent
+ */
+export function sendCollectSeed(pickupIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("collectSeed", { pickupIndex });
+    return true;
+}
+
+/**
+ * Interpolate NPC positions for smooth movement
+ */
+export function interpolateNPCs() {
+    const lerpFactor = 0.1;
+
+    // Mira interpolation
+    if (GameState.npc && GameState.npc.targetX !== undefined) {
+        GameState.npc.x = lerp(GameState.npc.x, GameState.npc.targetX, lerpFactor);
+        GameState.npc.y = lerp(GameState.npc.y, GameState.npc.targetY, lerpFactor);
     }
 }

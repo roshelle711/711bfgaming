@@ -20,12 +20,20 @@ import { seedTypes, fishTypes, recipes, sellPrices } from './config.js';
 import { GameState } from './state.js';
 import { showDialog, closeDialog, updateInventoryDisplay, updateCoinDisplay, updateSeedIndicator } from './ui.js';
 import { drawPlot, drawPlant, drawSeedPickup } from './world.js';
+import { sendFarmAction, sendCollectSeed } from './multiplayer.js';
 
 /**
  * Hoe a grass plot to prepare for planting
+ * Server-authoritative when connected, local fallback for single-player
  */
 export function hoePlot(plot) {
-    if (plot.state === 'grass') {
+    if (plot.state !== 'grass') return;
+
+    if (GameState.room) {
+        // Server-authoritative: send action, server will sync state back
+        sendFarmAction(plot.index, 'hoe');
+    } else {
+        // Single-player fallback
         plot.state = 'tilled';
         drawPlot(plot);
     }
@@ -33,12 +41,24 @@ export function hoePlot(plot) {
 
 /**
  * Plant the currently selected seed in a tilled plot
+ * Server-authoritative when connected, local fallback for single-player
  */
 export function plantSeed(plot, scene) {
     if (plot.state !== 'tilled') return false;
 
     const seedType = seedTypes[GameState.currentSeedIndex];
-    if (GameState.inventory.seeds[seedType] > 0) {
+    if (GameState.inventory.seeds[seedType] <= 0) return false;
+
+    if (GameState.room) {
+        // Server-authoritative: deduct seed locally, send action
+        // Server will handle plot state, client syncs via schema
+        GameState.inventory.seeds[seedType]--;
+        sendFarmAction(plot.index, 'plant', seedType);
+        updateInventoryDisplay();
+        updateSeedIndicator();
+        return true;
+    } else {
+        // Single-player fallback
         GameState.inventory.seeds[seedType]--;
         plot.state = 'planted';
         plot.crop = seedType;
@@ -49,32 +69,45 @@ export function plantSeed(plot, scene) {
         updateSeedIndicator();
         return true;
     }
-    return false;
 }
 
 /**
  * Harvest a ready crop
+ * Server-authoritative when connected, local fallback for single-player
  */
 export function harvestCrop(plot) {
     if (plot.state !== 'ready' || !plot.crop) return false;
 
-    GameState.inventory.crops[plot.crop]++;
-    plot.state = 'tilled';
-    plot.crop = null;
-    plot.growthTimer = 0;
-    if (plot.plantGraphics) {
-        plot.plantGraphics.destroy();
-        plot.plantGraphics = null;
+    if (GameState.room) {
+        // Server-authoritative: send action
+        // Server broadcasts cropHarvested, we add to inventory in message handler
+        sendFarmAction(plot.index, 'harvest');
+        return true;
+    } else {
+        // Single-player fallback
+        GameState.inventory.crops[plot.crop]++;
+        plot.state = 'tilled';
+        plot.crop = null;
+        plot.growthTimer = 0;
+        if (plot.plantGraphics) {
+            plot.plantGraphics.destroy();
+            plot.plantGraphics = null;
+        }
+        drawPlot(plot);
+        updateInventoryDisplay();
+        return true;
     }
-    drawPlot(plot);
-    updateInventoryDisplay();
-    return true;
 }
 
 /**
  * Update plant growth for all farm plots
+ * Skip when connected - server handles growth and syncs via schema
  */
 export function updatePlantGrowth(scene, delta) {
+    // Server handles growth when connected
+    if (GameState.room) return;
+
+    // Single-player fallback
     const isDruid = GameState.playerClass === 'druid';
     const growthMultiplier = isDruid ? 1.2 : 1.0;
 
@@ -259,12 +292,13 @@ export function sellItem(category, item) {
 
 /**
  * Check if player is collecting seed pickups
+ * Server-authoritative when connected, local fallback for single-player
  */
 export function checkSeedPickups() {
     const player = GameState.player;
     if (!player) return;
 
-    GameState.seedPickups.forEach(pickup => {
+    GameState.seedPickups.forEach((pickup, index) => {
         if (pickup.isCollected) return;
 
         const dx = player.x - pickup.x;
@@ -272,23 +306,35 @@ export function checkSeedPickups() {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 30) {
-            pickup.isCollected = true;
+            if (GameState.room) {
+                // Server-authoritative: send collection
+                // Server broadcasts seedCollected, we add to inventory in message handler
+                sendCollectSeed(pickup.index !== undefined ? pickup.index : index);
+            } else {
+                // Single-player fallback
+                pickup.isCollected = true;
 
-            // Hunter class gets extra seeds
-            const amount = GameState.playerClass === 'hunter' ? 2 : 1;
-            GameState.inventory.seeds[pickup.seedType] += amount;
+                // Hunter class gets extra seeds
+                const amount = GameState.playerClass === 'hunter' ? 2 : 1;
+                GameState.inventory.seeds[pickup.seedType] += amount;
 
-            pickup.graphics.clear();
-            updateInventoryDisplay();
-            updateSeedIndicator();
+                pickup.graphics.clear();
+                updateInventoryDisplay();
+                updateSeedIndicator();
+            }
         }
     });
 }
 
 /**
  * Respawn collected seed pickups after delay
+ * Skip when connected - server handles respawns and syncs via schema
  */
 export function respawnSeedPickups(scene, delta) {
+    // Server handles respawns when connected
+    if (GameState.room) return;
+
+    // Single-player fallback
     GameState.seedPickups.forEach(pickup => {
         if (pickup.isCollected) {
             pickup.respawnTimer += delta;
