@@ -34,11 +34,15 @@ export async function connectToServer() {
 
         console.log("Connected to server! Session ID:", GameState.room.sessionId);
 
-        // Listen for players joining (0.14.x API uses assignment)
-        GameState.room.state.players.onAdd = (playerData, sessionId) => {
+        // Helper function to handle a player (new or existing)
+        const handlePlayer = (playerData, sessionId) => {
             // Skip if this is our own player
             if (sessionId === GameState.room.sessionId) {
-                console.log("Local player registered on server");
+                return;
+            }
+
+            // Skip if we already have this player
+            if (GameState.otherPlayers[sessionId]) {
                 return;
             }
 
@@ -54,6 +58,16 @@ export async function connectToServer() {
                 });
             };
         };
+
+        // Listen for NEW players joining (0.14.x API uses assignment)
+        GameState.room.state.players.onAdd = (playerData, sessionId) => {
+            handlePlayer(playerData, sessionId);
+        };
+
+        // Process EXISTING players already in the room
+        GameState.room.state.players.forEach((playerData, sessionId) => {
+            handlePlayer(playerData, sessionId);
+        });
 
         // Listen for players leaving (0.14.x API uses assignment)
         GameState.room.state.players.onRemove = (playerData, sessionId) => {

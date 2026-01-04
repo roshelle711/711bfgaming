@@ -243,6 +243,9 @@ function create() {
  * Start the game after character creation
  */
 function startGame(scene) {
+    // Store scene reference for multiplayer module
+    GameState.scene = scene;
+
     // === INPUT SETUP (after character creation to avoid capturing keys during name entry) ===
     GameState.cursors = scene.input.keyboard.createCursorKeys();
     GameState.wasd = scene.input.keyboard.addKeys('W,S,A,D');

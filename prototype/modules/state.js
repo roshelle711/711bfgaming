@@ -9,6 +9,9 @@
 
 // Centralized game state - all modules read/write from this object
 export const GameState = {
+    // Phaser scene reference (set by game.js)
+    scene: null,
+
     // Player & NPCs (set by world.js/player.js)
     player: null,
     playerPet: null,

@@ -5,7 +5,7 @@
 ## Current Status
 - **Phase**: 1 - Basic Multiplayer ✅ WORKING
 - **Server**: Colyseus 0.15.x + Bun + TypeScript
-- **Client**: Phaser 3 + colyseus.js 0.14.13 (CDN)
+- **Client**: Phaser 3 + colyseus.js 0.15.x (CDN)
 - **Network**: Tailscale (100.66.58.107)
 - **Proxy**: Traefik (HTTPS via Let's Encrypt)
 - **Domains**: game.711bf.org, ws.game.711bf.org

@@ -33,7 +33,7 @@ Write-Host ""
 
 # Kill any existing processes
 Write-Host "Stopping any existing servers..." -ForegroundColor Yellow
-Get-Process bun -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
 Get-Process uv, python -ErrorAction SilentlyContinue | Stop-Process -Force
 if ($Traefik) {
     Get-Process traefik -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -44,11 +44,10 @@ Start-Sleep -Seconds 1
 $tailscaleIP = & tailscale ip -4 2>$null
 if (-not $tailscaleIP) { $tailscaleIP = "localhost" }
 
-# Start Colyseus server (Bun runtime)
+# Start Colyseus server (Node.js + tsx runtime)
 Write-Host "Starting Colyseus server on port 2567..." -ForegroundColor Green
 $serverPath = Join-Path $PSScriptRoot "..\server"
-$bunPath = "$env:USERPROFILE\.bun\bin\bun.exe"
-Start-Process -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$serverPath`" && `"$bunPath`" run dev" -WindowStyle Minimized
+Start-Process -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$serverPath`" && npm run dev:node" -WindowStyle Minimized
 
 # Wait for server to initialize
 Start-Sleep -Seconds 3
@@ -87,8 +86,8 @@ if ($Traefik) {
     Write-Host "Traefik Dashboard:" -ForegroundColor White
     Write-Host "  http://localhost:8080/dashboard/" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "To stop all: Get-Process bun, uv, traefik | Stop-Process" -ForegroundColor Yellow
+    Write-Host "To stop all: Get-Process node, uv, traefik | Stop-Process" -ForegroundColor Yellow
 } else {
-    Write-Host "To stop servers: Get-Process bun, uv | Stop-Process" -ForegroundColor Yellow
+    Write-Host "To stop servers: Get-Process node, uv | Stop-Process" -ForegroundColor Yellow
     Write-Host "Tip: Traefik skipped. Remove -NoTraefik for HTTPS access." -ForegroundColor DarkGray
 }
