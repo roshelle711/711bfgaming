@@ -5,6 +5,31 @@ Each entry includes: feature name, completion date, and implementation location 
 
 ---
 
+## v9 (2026-01-03)
+
+### Multiplayer Foundation (Phase 1)
+- [x] **Colyseus server** - `server/src/index.ts`
+  - Node.js + TypeScript + Colyseus framework
+  - Binds to 0.0.0.0:2567 for Tailscale access
+  - Includes Colyseus monitor at /colyseus
+- [x] **Game room** - `server/src/rooms/GameRoom.ts`
+  - Handles player join/leave
+  - Syncs player positions in real-time
+  - Shared day/night cycle (gameTime)
+- [x] **State schema** - `server/src/schema/GameState.ts`
+  - Player: position, velocity, name, class, appearance
+  - GameState: players map, gameTime, timeSpeed
+- [x] **Client multiplayer** - `prototype/game.js:1506-1730`
+  - Connects to Colyseus server
+  - Renders other players with full customization
+  - Smooth interpolation for other player movement
+  - Graceful fallback to single-player if server unavailable
+- [x] **Development scripts** - `scripts/start-dev.ps1`
+  - Starts both Colyseus and HTTP servers
+  - Displays Tailscale URLs for network play
+
+---
+
 ## v8 (2026-01-03)
 
 ### Canvas & Display

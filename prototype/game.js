@@ -1,5 +1,5 @@
-// 711BF Gaming - Prototype v8
-// Features: Responsive canvas, smooth movement, consolidated character creation, presets!
+// 711BF Gaming - Prototype v9
+// Features: Multiplayer! See other players on Tailscale network. Colyseus server backend.
 
 const config = {
     type: Phaser.AUTO,
@@ -28,6 +28,12 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+// Multiplayer
+let room = null;
+let otherPlayers = {};  // sessionId -> Phaser container
+const SERVER_URL = 'ws://100.66.58.107:2567';
+let lastSentVelocity = { x: 0, y: 0 };
 
 // Character classes
 const classes = {
@@ -1127,6 +1133,9 @@ function startGame(scene) {
     }
 
     scene.gameStarted = true;
+
+    // Connect to multiplayer server
+    connectToServer();
 }
 
 // === UPDATE ===
@@ -1248,6 +1257,10 @@ function update(time, delta) {
         currentVel.x + (targetVelocity.x - currentVel.x) * lerpFactor,
         currentVel.y + (targetVelocity.y - currentVel.y) * lerpFactor
     );
+
+    // Multiplayer: Send position to server and interpolate other players
+    sendPositionToServer();
+    interpolateOtherPlayers();
 
     // NPC behavior
     let miraTarget = isNight ? miraHome : npcPatrolPoints[currentPatrolIndex];
@@ -1495,4 +1508,230 @@ function closeDialog() {
     dialogBox.setVisible(false);
     dialogText.setVisible(false);
     game.scene.scenes[0].dialogCloseText.setVisible(false);
+}
+
+// === MULTIPLAYER FUNCTIONS ===
+
+async function connectToServer() {
+    try {
+        const client = new Colyseus.Client(SERVER_URL);
+
+        room = await client.joinOrCreate("game", {
+            name: playerName,
+            playerClass: playerClass,
+            customization: customization
+        });
+
+        console.log("Connected to server! Session ID:", room.sessionId);
+
+        // Listen for players joining
+        room.state.players.onAdd((playerData, sessionId) => {
+            // Skip if this is our own player
+            if (sessionId === room.sessionId) {
+                console.log("Local player registered on server");
+                return;
+            }
+
+            console.log("Player joined:", sessionId, playerData.name);
+            createOtherPlayer(sessionId, playerData);
+
+            // Listen for position changes on this player
+            playerData.listen("x", (newX) => {
+                updateOtherPlayer(sessionId, newX, null);
+            });
+
+            playerData.listen("y", (newY) => {
+                updateOtherPlayer(sessionId, null, newY);
+            });
+        });
+
+        // Listen for players leaving
+        room.state.players.onRemove((playerData, sessionId) => {
+            console.log("Player left:", sessionId);
+            if (otherPlayers[sessionId]) {
+                otherPlayers[sessionId].destroy();
+                delete otherPlayers[sessionId];
+            }
+        });
+
+        // Handle disconnection
+        room.onLeave((code) => {
+            console.log("Left room with code:", code);
+            room = null;
+            // Clean up all other players
+            Object.keys(otherPlayers).forEach(sessionId => {
+                if (otherPlayers[sessionId]) {
+                    otherPlayers[sessionId].destroy();
+                }
+            });
+            otherPlayers = {};
+        });
+
+        room.onError((code, message) => {
+            console.error("Room error:", code, message);
+        });
+
+    } catch (error) {
+        console.error("Failed to connect to server:", error);
+        // Game continues in single-player mode
+    }
+}
+
+function createOtherPlayer(sessionId, playerData) {
+    const scene = game.scene.scenes[0];
+
+    // Extract customization data from server
+    const charCustom = {
+        skinTone: playerData.customization?.skinTone || 0xFFDBB4,
+        hairColor: playerData.customization?.hairColor || 0x4A3728,
+        gender: playerData.customization?.gender || 'female',
+        pet: playerData.customization?.pet || 'none'
+    };
+
+    const classType = playerData.playerClass || 'druid';
+    const x = playerData.x || 600;
+    const y = playerData.y || 450;
+
+    // Create a simplified player container (no physics needed for other players)
+    const container = scene.add.container(x, y);
+    const cls = classes[classType] || classes.druid;
+    const isFemale = charCustom.gender === 'female';
+
+    container.floatOffset = Math.random() * Math.PI * 2;
+    container.targetX = x;
+    container.targetY = y;
+
+    // Shadow
+    const shadow = scene.add.ellipse(0, 28, 30, 10, 0x000000, 0.25);
+    container.add(shadow);
+
+    const bodyColor = cls.color;
+
+    if (isFemale) {
+        container.add(scene.add.ellipse(0, -2, 28, 14, bodyColor));
+        container.add(scene.add.ellipse(0, 8, 18, 12, bodyColor));
+        container.add(scene.add.ellipse(0, 18, 26, 16, bodyColor));
+        container.add(scene.add.triangle(0, 28, -18, 0, 0, 12, 18, 0, bodyColor));
+        const accentColor = cls.accent;
+        container.add(scene.add.ellipse(0, 10, 20, 4, accentColor));
+        container.add(scene.add.circle(-4, 10, 3, accentColor));
+        container.add(scene.add.circle(4, 10, 3, accentColor));
+        container.add(scene.add.circle(0, 10, 2, 0xFFFFFF, 0.5));
+    } else {
+        container.add(scene.add.ellipse(0, 8, 28, 36, bodyColor));
+        container.add(scene.add.ellipse(0, 10, 20, 24, cls.accent, 0.5));
+    }
+
+    const skinTone = charCustom.skinTone;
+    container.add(scene.add.circle(0, -20, 18, skinTone));
+    container.add(scene.add.ellipse(-10, -15, 6, 4, 0xFFB6C1, 0.6));
+    container.add(scene.add.ellipse(10, -15, 6, 4, 0xFFB6C1, 0.6));
+
+    const hairColor = charCustom.hairColor;
+
+    if (isFemale) {
+        container.add(scene.add.ellipse(-14, -10, 10, 35, hairColor));
+        container.add(scene.add.ellipse(14, -10, 10, 35, hairColor));
+        container.add(scene.add.ellipse(-16, 5, 8, 20, hairColor));
+        container.add(scene.add.ellipse(16, 5, 8, 20, hairColor));
+        container.add(scene.add.circle(-12, -34, 11, hairColor));
+        container.add(scene.add.circle(12, -34, 11, hairColor));
+        container.add(scene.add.circle(0, -38, 13, hairColor));
+        container.add(scene.add.circle(-6, -36, 10, hairColor));
+        container.add(scene.add.circle(6, -36, 10, hairColor));
+        container.add(scene.add.ellipse(-8, -30, 8, 6, hairColor));
+        container.add(scene.add.ellipse(8, -30, 8, 6, hairColor));
+        container.add(scene.add.ellipse(0, -32, 6, 5, hairColor));
+    } else {
+        container.add(scene.add.circle(-10, -32, 10, hairColor));
+        container.add(scene.add.circle(10, -32, 10, hairColor));
+        container.add(scene.add.circle(0, -36, 12, hairColor));
+        container.add(scene.add.circle(-6, -34, 8, hairColor));
+        container.add(scene.add.circle(6, -34, 8, hairColor));
+    }
+
+    // Eyes
+    container.add(scene.add.ellipse(-7, -22, 8, 10, 0xFFFFFF));
+    container.add(scene.add.ellipse(7, -22, 8, 10, 0xFFFFFF));
+    container.add(scene.add.circle(-7, -21, 4, 0x000000));
+    container.add(scene.add.circle(7, -21, 4, 0x000000));
+    container.add(scene.add.circle(-6, -24, 2, 0xFFFFFF));
+    container.add(scene.add.circle(8, -24, 2, 0xFFFFFF));
+    container.add(scene.add.circle(-8, -20, 1, 0xFFFFFF));
+    container.add(scene.add.circle(6, -20, 1, 0xFFFFFF));
+
+    // Eyelashes for feminine
+    if (isFemale) {
+        container.add(scene.add.line(0, 0, -12, -28, -14, -32, 0x000000).setLineWidth(1.5));
+        container.add(scene.add.line(0, 0, -9, -30, -10, -34, 0x000000).setLineWidth(1.5));
+        container.add(scene.add.line(0, 0, 12, -28, 14, -32, 0x000000).setLineWidth(1.5));
+        container.add(scene.add.line(0, 0, 9, -30, 10, -34, 0x000000).setLineWidth(1.5));
+    }
+
+    // Mouth
+    const mouth = scene.add.arc(0, -12, 5, 0, 180, false, 0x000000);
+    mouth.setStrokeStyle(2, 0x000000);
+    container.add(mouth);
+
+    // Nameplate
+    const nameplate = scene.add.text(0, -65, playerData.name || 'Player', {
+        fontSize: '13px', fill: '#fff', fontStyle: 'bold',
+        backgroundColor: '#00000099', padding: { x: 5, y: 2 }
+    }).setOrigin(0.5);
+    container.add(nameplate);
+
+    // Class icon
+    const classIcon = scene.add.text(0, -50, cls.emoji, { fontSize: '14px' }).setOrigin(0.5);
+    container.add(classIcon);
+
+    // Store in otherPlayers map
+    otherPlayers[sessionId] = container;
+
+    return container;
+}
+
+function updateOtherPlayer(sessionId, newX, newY) {
+    const otherPlayer = otherPlayers[sessionId];
+    if (!otherPlayer) return;
+
+    // Update target positions for interpolation
+    if (newX !== null) otherPlayer.targetX = newX;
+    if (newY !== null) otherPlayer.targetY = newY;
+}
+
+function interpolateOtherPlayers() {
+    // Smoothly move other players towards their target positions
+    const lerpFactor = 0.15;
+
+    Object.keys(otherPlayers).forEach(sessionId => {
+        const otherPlayer = otherPlayers[sessionId];
+        if (!otherPlayer || otherPlayer.targetX === undefined) return;
+
+        // Interpolate position
+        otherPlayer.x += (otherPlayer.targetX - otherPlayer.x) * lerpFactor;
+        otherPlayer.y += (otherPlayer.targetY - otherPlayer.y) * lerpFactor;
+    });
+}
+
+function sendPositionToServer() {
+    if (!room || !player) return;
+
+    const vx = Math.round(player.body.velocity.x);
+    const vy = Math.round(player.body.velocity.y);
+
+    // Only send when velocity changes significantly (not every frame)
+    const velocityChanged = Math.abs(vx - lastSentVelocity.x) > 5 ||
+                           Math.abs(vy - lastSentVelocity.y) > 5;
+
+    if (velocityChanged) {
+        room.send("move", {
+            x: Math.round(player.x),
+            y: Math.round(player.y),
+            velocityX: vx,
+            velocityY: vy
+        });
+
+        lastSentVelocity.x = vx;
+        lastSentVelocity.y = vy;
+    }
 }

@@ -1,14 +1,9 @@
 # 711BF Gaming - Active Tasks
 
 ## In Progress
-- [ ] Canvas scales to browser window (game plane stays 1200x800)
-- [ ] Dialog boxes auto-resize to fit content
-- [ ] Smooth movement with acceleration (fix jerkiness)
-- [ ] Player name input field (pre-filled "Roshelle" for dev)
-- [ ] Consolidate character creation into single screen
-- [ ] Randomize button for character creation
-- [ ] 3 character preset slots (save/load configs)
-- [ ] More varied plant shapes
+- [ ] Test multiplayer with multiple Tailscale clients
+- [ ] Sync farm plots between players (Phase 2)
+- [ ] Persist world state to JSON file (Phase 2)
 
 ## Features (Backlog)
 - [ ] Interior scenes for buildings

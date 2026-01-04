@@ -1,0 +1,20 @@
+v9: Multiplayer foundation with Colyseus
+
+Phase 1 multiplayer implementation:
+- Colyseus server (Node.js + TypeScript) on port 2567
+- GameRoom with player state sync
+- Client connects via WebSocket, renders other players
+- Smooth interpolation for remote player movement
+- Graceful fallback to single-player if server unavailable
+- Shared day/night cycle across all clients
+
+New files:
+- server/ - Complete Colyseus server project
+- ARCHITECTURE.md - System architecture documentation
+- scripts/start-dev.ps1 - Launch both servers
+
+Accessible on Tailscale at 100.66.58.107
+
+Generated with Claude Code
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
