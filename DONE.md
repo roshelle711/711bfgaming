@@ -5,6 +5,42 @@ Each entry includes: feature name, completion date, and implementation location 
 
 ---
 
+## v8 (2026-01-03)
+
+### Canvas & Display
+- [x] **Responsive canvas scaling** - `game.js:10-13` (Phaser.Scale.FIT + autoCenter)
+  - Scales to browser window while maintaining 1200x800 game plane
+- [x] **Anti-aliasing** - `game.js:21-25` (render config)
+  - Smoother graphics with antialias: true, roundPixels: false
+
+### Movement
+- [x] **Smooth acceleration** - `game.js:72-82, 1230-1250`
+  - Acceleration/deceleration with lerp interpolation (factor: 0.2)
+  - Max speed increased to 280
+
+### Character Creation
+- [x] **Consolidated single screen** - `game.js:821+` (showCharacterCreation)
+  - Class, appearance, pet, and name on one screen
+- [x] **Name input field** - `game.js:870-890` (DOM text input)
+  - Pre-filled "Roshelle" for development
+- [x] **Randomize button** - `game.js:950+`
+  - Randomizes class, hair color, and pet
+- [x] **3 character presets** - `game.js:66-68, 142-175`
+  - localStorage persistence under '711bf_presets' key
+- [x] **No Pet option** - `game.js:49` (petTypes.none)
+
+### UI/UX
+- [x] **Dynamic dialog boxes** - showDialog function
+  - Auto-resize based on text content bounds
+
+### Visuals
+- [x] **Varied plant shapes** - drawPlant function
+  - Carrots (feathery leaves + orange root)
+  - Tomatoes (bushy vine + red fruit)
+  - Flowers (petals around center)
+
+---
+
 ## v7 (2026-01-03)
 
 ### Character System
@@ -64,10 +100,11 @@ Each entry includes: feature name, completion date, and implementation location 
 ## Implementation Notes
 
 ### Key File Locations
-- **Main game**: `prototype/game.js` (~1400 lines)
+- **Main game**: `prototype/game.js` (~1500 lines)
 - **HTML wrapper**: `prototype/index.html`
 - **Design doc**: `GAME_IDEAS.md`
 - **Tech decisions**: `TECH_NOTES.md`
+- **Version scripts**: `scripts/` (new-version.ps1, create-pr.ps1)
 
 ### Architecture Patterns
 - **Characters**: Phaser containers with physics bodies
@@ -76,6 +113,7 @@ Each entry includes: feature name, completion date, and implementation location 
 - **Input**: WASD + action keys (E, H, P, F, C, TAB)
 
 ### Known Technical Debt
-- Movement uses instant velocity (no acceleration)
-- Dialog boxes are fixed size
-- No state persistence (localStorage)
+- ~~Movement uses instant velocity (no acceleration)~~ Fixed in v8
+- ~~Dialog boxes are fixed size~~ Fixed in v8
+- ~~No state persistence (localStorage)~~ Fixed in v8 (presets)
+- State still uses global variables (for multiplayer refactor later)
