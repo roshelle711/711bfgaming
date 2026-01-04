@@ -29,7 +29,10 @@ export async function connectToServer() {
         GameState.room = await client.joinOrCreate("game", {
             name: GameState.playerName,
             playerClass: GameState.playerClass,
-            customization: GameState.customization
+            gender: GameState.customization.gender,
+            skinTone: GameState.customization.skinTone,
+            hairColor: GameState.customization.hairColor,
+            pet: GameState.customization.pet
         });
 
         console.log("Connected to server! Session ID:", GameState.room.sessionId);
@@ -178,12 +181,12 @@ export function createOtherPlayer(sessionId, playerData) {
     const scene = GameState.scene;
     if (!scene) return null;
 
-    // Extract customization data from server
+    // Extract customization data from server (stored as flat fields on Player schema)
     const charCustom = {
-        skinTone: playerData.customization?.skinTone || 0xFFDBB4,
-        hairColor: playerData.customization?.hairColor || 0x4A3728,
-        gender: playerData.customization?.gender || 'female',
-        pet: playerData.customization?.pet || 'none'
+        skinTone: playerData.skinTone || 0xFFDBB4,
+        hairColor: playerData.hairColor || 0x4A3728,
+        gender: playerData.gender || 'female',
+        pet: playerData.pet || 'none'
     };
 
     const classType = playerData.playerClass || 'druid';
