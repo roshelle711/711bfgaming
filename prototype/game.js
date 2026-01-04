@@ -32,11 +32,11 @@ const game = new Phaser.Game(config);
 // Multiplayer
 let room = null;
 let otherPlayers = {};  // sessionId -> Phaser container
-// Server URL detection: use wss:// when accessed via game.711bf.org, otherwise fall back to local
+// Server URL detection - Tailscale encrypts network, so ws:// is secure
 const SERVER_URL = (() => {
     const host = window.location.hostname;
     if (host === 'game.711bf.org') {
-        return 'wss://ws.game.711bf.org';
+        return 'ws://ws.game.711bf.org';
     } else if (host === 'localhost' || host === '127.0.0.1') {
         return 'ws://localhost:2567';
     } else {

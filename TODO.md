@@ -1,6 +1,13 @@
 # 711BF Gaming - Active Tasks
 
 ## In Progress
+- [ ] **Modularize game.js** - Split ~1700 line file into modules:
+  - `config.js` - Game config, constants, class/pet definitions
+  - `player.js` - Player creation, movement, customization
+  - `world.js` - Buildings, farm plots, fishing pond, NPCs
+  - `ui.js` - Dialogs, menus, character creation screens
+  - `multiplayer.js` - Colyseus connection, other player sync
+  - `systems.js` - Farming, fishing, cooking, shop mechanics
 - [ ] Test multiplayer with multiple Tailscale clients
 - [ ] Sync farm plots between players (Phase 2)
 - [ ] Persist world state to JSON file (Phase 2)

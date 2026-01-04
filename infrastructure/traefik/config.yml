@@ -1,5 +1,6 @@
 # Traefik Dynamic Configuration for 711BF Gaming
 # Routes for game client and WebSocket server
+# Note: Using HTTP since Tailscale provides network-level encryption
 
 http:
   # Routers
@@ -8,35 +9,14 @@ http:
     game-client:
       rule: "Host(`game.711bf.org`)"
       entryPoints:
-        - websecure
+        - web
       service: http-client-service
-      tls:
-        certResolver: tailscale
 
     # WebSocket Server (Colyseus)
     websocket-server:
       rule: "Host(`ws.game.711bf.org`)"
       entryPoints:
-        - websecure
-      service: colyseus-service
-      tls:
-        certResolver: tailscale
-
-    # HTTP redirect routers (catch HTTP requests)
-    game-client-http:
-      rule: "Host(`game.711bf.org`)"
-      entryPoints:
         - web
-      middlewares:
-        - redirect-to-https
-      service: http-client-service
-
-    websocket-server-http:
-      rule: "Host(`ws.game.711bf.org`)"
-      entryPoints:
-        - web
-      middlewares:
-        - redirect-to-https
       service: colyseus-service
 
   # Services
@@ -52,10 +32,3 @@ http:
       loadBalancer:
         servers:
           - url: "http://localhost:2567"
-
-  # Middlewares
-  middlewares:
-    redirect-to-https:
-      redirectScheme:
-        scheme: https
-        permanent: true
