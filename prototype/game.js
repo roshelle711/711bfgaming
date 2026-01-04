@@ -10,7 +10,7 @@ import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed } from './modules
 import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles } from './modules/player.js';
-import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol } from './modules/world.js';
+import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs } from './modules/multiplayer.js';
@@ -230,6 +230,16 @@ function create() {
     signpost.interactType = 'sign';
     signpost.message = '📍 Village Center\n← West: Fishing Pond & Mira\'s Cottage\n↓ South: Farm Plots\n→ East: Cooking Station & General Store';
     GameState.interactables.push(signpost);
+
+    // Victorian lampposts - scattered around the village
+    drawLamppost(graphics, 350, 280);   // West path
+    drawLamppost(graphics, 550, 280);   // Near village center (west)
+    drawLamppost(graphics, 850, 280);   // Near village center (east)
+    drawLamppost(graphics, 1050, 280);  // East path
+    drawLamppost(graphics, 320, 450);   // Near Mira's patrol area
+    drawLamppost(graphics, 780, 500);   // South central
+    drawLamppost(graphics, 1100, 500);  // Near General Store path
+    drawLamppost(graphics, 300, 650);   // Near fishing pond
 
     // === UI SETUP ===
     setupUI(this);

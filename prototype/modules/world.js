@@ -11,6 +11,7 @@
  * - setupWorld(scene, graphics): Create all world elements
  * - createNPCs(scene): Create Mira and Finn NPCs
  * - updateNPCPatrol(): Update NPC patrol behavior
+ * - drawLamppost(graphics, x, y): Draw Victorian-style lamppost
  */
 
 import { npcPatrolPoints, miraHome, npcSpeed } from './config.js';
@@ -308,4 +309,61 @@ export function drawSmallFlower(graphics, x, y, color) {
     graphics.fillCircle(x, y - 1, 4);
     graphics.fillStyle(0xFFFF00, 1);
     graphics.fillCircle(x, y - 4, 3);
+}
+
+/**
+ * Draw a Victorian-style lamppost
+ */
+export function drawLamppost(graphics, x, y) {
+    // Base plate
+    graphics.fillStyle(0x2C2C2C, 1);
+    graphics.fillRect(x - 12, y + 25, 24, 6);
+    graphics.fillStyle(0x1A1A1A, 1);
+    graphics.fillRect(x - 8, y + 20, 16, 8);
+
+    // Main post
+    graphics.fillStyle(0x2C2C2C, 1);
+    graphics.fillRect(x - 4, y - 50, 8, 75);
+
+    // Decorative rings on post
+    graphics.fillStyle(0x3D3D3D, 1);
+    graphics.fillRect(x - 6, y + 10, 12, 4);
+    graphics.fillRect(x - 6, y - 10, 12, 4);
+    graphics.fillRect(x - 5, y - 30, 10, 3);
+
+    // Decorative scrollwork (simplified curves)
+    graphics.fillStyle(0x2C2C2C, 1);
+    graphics.fillCircle(x - 10, y - 40, 3);
+    graphics.fillCircle(x + 10, y - 40, 3);
+    graphics.fillRect(x - 10, y - 43, 4, 8);
+    graphics.fillRect(x + 6, y - 43, 4, 8);
+
+    // Cross arm
+    graphics.fillRect(x - 14, y - 52, 28, 4);
+
+    // Lamp housing frame (black iron)
+    graphics.fillStyle(0x1A1A1A, 1);
+    graphics.fillRect(x - 10, y - 75, 20, 4);  // Top
+    graphics.fillRect(x - 10, y - 55, 20, 4);  // Bottom
+    graphics.fillRect(x - 10, y - 75, 3, 24);  // Left side
+    graphics.fillRect(x + 7, y - 75, 3, 24);   // Right side
+
+    // Lamp top finial
+    graphics.fillStyle(0x2C2C2C, 1);
+    graphics.fillRect(x - 4, y - 82, 8, 8);
+    graphics.fillCircle(x, y - 85, 4);
+
+    // Glass panels (warm glow)
+    graphics.fillStyle(0xFFF8DC, 0.9);
+    graphics.fillRect(x - 7, y - 71, 14, 16);
+
+    // Inner glow
+    graphics.fillStyle(0xFFD700, 0.6);
+    graphics.fillRect(x - 5, y - 68, 10, 10);
+
+    // Flame/light source
+    graphics.fillStyle(0xFFA500, 0.8);
+    graphics.fillCircle(x, y - 63, 4);
+    graphics.fillStyle(0xFFFF00, 0.9);
+    graphics.fillCircle(x, y - 63, 2);
 }
