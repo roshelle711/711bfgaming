@@ -1,18 +1,16 @@
 # 711BF Gaming - Active Tasks
 
 ## In Progress
-- [ ] **Modularize game.js** - Split ~1700 line file into modules:
-  - `config.js` - Game config, constants, class/pet definitions
-  - `player.js` - Player creation, movement, customization
-  - `world.js` - Buildings, farm plots, fishing pond, NPCs
-  - `ui.js` - Dialogs, menus, character creation screens
-  - `multiplayer.js` - Colyseus connection, other player sync
-  - `systems.js` - Farming, fishing, cooking, shop mechanics
+- [ ] **Phase 2: Multiplayer World Sync** (v11)
+  - [ ] Sync farm plots between players
+  - [ ] Sync NPC positions (Mira patrols, Finn at shop)
+  - [ ] Sync seed pickups between players
+  - [ ] Persist world state to JSON file
+  - [ ] Sync day/night cycle from server
 
-## Next Up (Phase 2 - Multiplayer)
-- [ ] Sync farm plots between players
-- [ ] Persist world state to JSON file
-- [ ] Sync day/night cycle from server
+## Recently Completed
+- [x] **Modularize game.js** - Split into 8 ES6 modules ✅ (v10)
+  - See `prototype/MODULES.md` for quick reference
 
 ## Completed This Session
 - [x] Basic multiplayer - see other players moving ✅

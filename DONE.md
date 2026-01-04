@@ -5,6 +5,39 @@ Each entry includes: feature name, completion date, and implementation location 
 
 ---
 
+## v10 (2026-01-04)
+
+### Code Modularization
+- [x] **ES6 module structure** - `prototype/modules/`
+  - Split ~1750 line game.js into 8 focused modules
+  - config.js: Constants, classes, pets, recipes, prices (~90 lines)
+  - state.js: Centralized GameState object, preset management (~130 lines)
+  - utils.js: Time formatting, day phase, helpers (~65 lines)
+  - player.js: Character creation, movement, pets, sparkles (~290 lines)
+  - world.js: Buildings, farm plots, NPCs, environment (~300 lines)
+  - ui.js: Dialogs, menus, character creation screen (~380 lines)
+  - systems.js: Farming, fishing, cooking, shop mechanics (~290 lines)
+  - multiplayer.js: Colyseus connection, player sync (~230 lines)
+- [x] **Refactored game.js** - `prototype/game.js` (~290 lines)
+  - Main entry point, imports modules, Phaser lifecycle
+  - Coordinates module initialization and update loops
+- [x] **Module reference doc** - `prototype/MODULES.md`
+  - Quick lookup: which module owns which feature
+  - Common workflows (add class, fix movement, add recipe, etc.)
+  - State reference for GameState object
+- [x] **ES6 imports in HTML** - `prototype/index.html`
+  - Changed to `type="module"` for ES6 module support
+
+### Bug Fixes
+- [x] **WASD input handling** - `player.js:262+`
+  - Fixed: Phaser WASD keys use `.W`, `.A`, `.S`, `.D` not `.left`, `.up`, etc.
+  - Added guards for undefined input during scene loading
+- [x] **NPC nameplate anchoring** - `world.js:214-235`
+  - Fixed: Nameplates now added to NPC containers with `npc.add(nameplate)`
+  - NPCs set to immovable with `body.setImmovable(true)`
+
+---
+
 ## v9 (2026-01-03)
 
 ### Multiplayer Foundation (Phase 1)
