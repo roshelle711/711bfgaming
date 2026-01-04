@@ -4,7 +4,7 @@
 
 ## Current Status
 - **Phase**: 1 - Basic Multiplayer ✅ WORKING
-- **Server**: Colyseus 0.14.x + Node.js + TypeScript
+- **Server**: Colyseus 0.15.x + Bun + TypeScript
 - **Client**: Phaser 3 + colyseus.js 0.14.13 (CDN)
 - **Network**: Tailscale (100.66.58.107)
 - **Proxy**: Traefik (HTTPS via Let's Encrypt)
@@ -141,11 +141,14 @@ CREATE TABLE players (
 
 ### Development (Current)
 ```bash
-# Terminal 1: Start server
-cd server && npm run dev
+# Terminal 1: Start server (Bun runtime)
+cd server && bun run dev
 
 # Terminal 2: Serve client
 cd prototype && python -m http.server 3000 --bind 0.0.0.0
+
+# Or start everything at once:
+.\scripts\start-dev.ps1
 ```
 
 ### Access URLs
@@ -166,7 +169,7 @@ cd prototype && python -m http.server 3000 --bind 0.0.0.0
 ### Stopping the System
 ```powershell
 # Kill server and client
-Get-Process node, python | Stop-Process
+Get-Process bun, python | Stop-Process
 ```
 
 ### Logs
@@ -183,10 +186,12 @@ Get-Process node, python | Stop-Process
 | 2026-01-03 | TypeScript for server | Type safety for schema, better tooling |
 | 2026-01-03 | JSON persistence first | Simple for Phase 1, migrate to PostgreSQL later |
 | 2026-01-03 | Traefik for reverse proxy | Native WebSocket support, Tailscale TLS integration |
+| 2026-01-04 | Bun over Node.js | Native TS execution (no ts-node), faster package installs, Colyseus 0.15+ support |
+| 2026-01-04 | uv over Python direct | Faster startup, consistent tooling with modern Python ecosystem |
 
 ---
 
-*Last updated: 2026-01-03*
+*Last updated: 2026-01-04*
 
 ---
 

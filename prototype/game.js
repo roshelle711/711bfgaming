@@ -11,7 +11,7 @@ import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles } from './modules/player.js';
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol } from './modules/world.js';
-import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay } from './modules/ui.js';
+import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs } from './modules/multiplayer.js';
 
@@ -58,38 +58,40 @@ function create() {
     // Background grass
     graphics.fillStyle(0x90EE90, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     graphics.fillStyle(0x7CCD7C, 1);
-    for (let i = 0; i < 150; i++) {
+    for (let i = 0; i < 200; i++) {
         graphics.fillCircle(Math.random() * GAME_WIDTH, Math.random() * GAME_HEIGHT, 2 + Math.random() * 5);
     }
 
     // Flowers scattered
     const flowerColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xFFB6C1, 0xDDA0DD];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
         graphics.fillStyle(flowerColors[Math.floor(Math.random() * flowerColors.length)], 0.7);
         graphics.fillCircle(Math.random() * GAME_WIDTH, Math.random() * GAME_HEIGHT, 3 + Math.random() * 2);
     }
 
-    // Paths
+    // Paths - extended for larger screen
     graphics.fillStyle(0xD2B48C, 1);
-    graphics.fillRect(150, 240, 900, 30);
-    graphics.fillRect(580, 240, 30, 350);
-    graphics.fillRect(235, 170, 30, 75);
-    graphics.fillRect(785, 170, 30, 75);
+    graphics.fillRect(150, 280, 1100, 30);  // Main horizontal path
+    graphics.fillRect(680, 280, 30, 420);   // Main vertical path (center)
+    graphics.fillRect(235, 200, 30, 85);    // To Mira's cottage
+    graphics.fillRect(885, 200, 30, 85);    // To Your Home
+    graphics.fillRect(1180, 500, 30, 180);  // To General Store
 
     // Path texture
     graphics.fillStyle(0xC4A77D, 0.5);
-    for (let i = 0; i < 80; i++) {
-        graphics.fillCircle(150 + Math.random() * 900, 242 + Math.random() * 26, 5);
+    for (let i = 0; i < 100; i++) {
+        graphics.fillCircle(150 + Math.random() * 1100, 282 + Math.random() * 26, 5);
     }
 
     // Obstacles group
     GameState.obstacles = this.physics.add.staticGroup();
 
-    // Trees
+    // Trees - spread across larger map
     const trees = [
-        { x: 60, y: 100, s: 35 }, { x: 1140, y: 100, s: 40 }, { x: 60, y: 700, s: 42 },
-        { x: 1140, y: 700, s: 38 }, { x: 60, y: 400, s: 36 }, { x: 1140, y: 400, s: 34 },
-        { x: 950, y: 150, s: 32 }, { x: 100, y: 550, s: 30 }
+        { x: 60, y: 100, s: 35 }, { x: 1340, y: 100, s: 40 }, { x: 60, y: 800, s: 42 },
+        { x: 1340, y: 800, s: 38 }, { x: 60, y: 450, s: 36 }, { x: 1340, y: 450, s: 34 },
+        { x: 1050, y: 150, s: 32 }, { x: 100, y: 650, s: 30 }, { x: 1340, y: 600, s: 33 },
+        { x: 60, y: 250, s: 28 }
     ];
     trees.forEach(t => {
         graphics.fillStyle(0x2ECC71, 1);
@@ -104,26 +106,26 @@ function create() {
         GameState.obstacles.add(this.add.rectangle(t.x, t.y + t.s, 18, 18, 0x000000, 0));
     });
 
-    // Houses
-    createHouse(graphics, 235, 120, 0xE74C3C, "🏠 Mira's Cottage", this);
-    GameState.obstacles.add(this.add.rectangle(235, 120, 120, 100, 0x000000, 0));
-    const miraDoor = this.add.rectangle(235, 175, 40, 35, 0x000000, 0);
+    // Houses - repositioned for larger screen
+    createHouse(graphics, 235, 150, 0xE74C3C, "🏠 Mira's Cottage", this);
+    GameState.obstacles.add(this.add.rectangle(235, 150, 120, 100, 0x000000, 0));
+    const miraDoor = this.add.rectangle(235, 205, 40, 35, 0x000000, 0);
     miraDoor.interactType = 'miraDoor';
     miraDoor.message = "Mira's cottage... she's probably outside gardening!";
     GameState.interactables.push(miraDoor);
 
-    createHouse(graphics, 785, 120, 0x3498DB, '🏡 Your Home', this);
-    GameState.obstacles.add(this.add.rectangle(785, 120, 120, 100, 0x000000, 0));
-    const homeDoor = this.add.rectangle(785, 175, 40, 35, 0x000000, 0);
+    createHouse(graphics, 885, 150, 0x3498DB, '🏡 Your Home', this);
+    GameState.obstacles.add(this.add.rectangle(885, 150, 120, 100, 0x000000, 0));
+    const homeDoor = this.add.rectangle(885, 205, 40, 35, 0x000000, 0);
     homeDoor.interactType = 'homeDoor';
     homeDoor.message = 'Your cozy home... maybe later you can rest here!';
     GameState.interactables.push(homeDoor);
 
-    createHouse(graphics, 1050, 530, 0x27AE60, '🏪 General Store', this);
-    GameState.obstacles.add(this.add.rectangle(1050, 530, 120, 100, 0x000000, 0));
+    createHouse(graphics, 1200, 580, 0x27AE60, '🏪 General Store', this);
+    GameState.obstacles.add(this.add.rectangle(1200, 580, 120, 100, 0x000000, 0));
 
-    // Fishing pond
-    const pondX = 150, pondY = 650;
+    // Fishing pond - moved down for larger screen
+    const pondX = 180, pondY = 720;
     graphics.fillStyle(0x5DADE2, 0.9);
     graphics.fillEllipse(pondX, pondY, 140, 100);
     graphics.fillStyle(0x85C1E9, 0.6);
@@ -144,8 +146,8 @@ function create() {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Farm area
-    const farmStartX = 400, farmStartY = 620;
+    // Farm area - moved down for larger screen
+    const farmStartX = 500, farmStartY = 700;
     graphics.fillStyle(0x8B7355, 1);
     graphics.fillRect(farmStartX - 110, farmStartY - 55, 230, 120);
     graphics.lineStyle(2, 0x654321, 1);
@@ -168,8 +170,8 @@ function create() {
         }
     }
 
-    // Cooking station
-    const cookX = 950, cookY = 400;
+    // Cooking station - repositioned for larger screen
+    const cookX = 1050, cookY = 450;
     graphics.fillStyle(0x795548, 1);
     graphics.fillRect(cookX - 35, cookY - 25, 70, 50);
     graphics.fillStyle(0x5D4037, 1);
@@ -186,59 +188,54 @@ function create() {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Seed pickups
-    // Seed pickups - when connected, server manages 3 pickups at fixed positions
-    // In single-player, we use these 6 local positions
+    // Seed pickups - scattered around the map
     const seedLocations = [
-        { x: 300, y: 500, type: 'carrot' },
-        { x: 350, y: 520, type: 'tomato' },
-        { x: 280, y: 540, type: 'flower' },
-        { x: 700, y: 480, type: 'carrot' },
-        { x: 750, y: 500, type: 'tomato' },
-        { x: 720, y: 530, type: 'flower' }
+        { x: 350, y: 500, type: 'carrot' },
+        { x: 400, y: 520, type: 'tomato' },
+        { x: 320, y: 540, type: 'flower' },
+        { x: 800, y: 500, type: 'carrot' },
+        { x: 850, y: 520, type: 'tomato' },
+        { x: 820, y: 550, type: 'flower' }
     ];
     seedLocations.forEach((loc, index) => {
         GameState.seedPickups.push(createSeedPickup(this, loc.x, loc.y, loc.type, index));
     });
 
-    // Well decoration
+    // Well decoration - repositioned for larger screen
     graphics.fillStyle(0x808080, 1);
-    graphics.fillRect(510, 330, 60, 60);
+    graphics.fillRect(610, 370, 60, 60);
     graphics.fillStyle(0x696969, 1);
-    graphics.fillRect(520, 340, 40, 40);
+    graphics.fillRect(620, 380, 40, 40);
     graphics.fillStyle(0x5DADE2, 0.7);
-    graphics.fillRect(525, 345, 30, 30);
+    graphics.fillRect(625, 385, 30, 30);
     graphics.fillStyle(0x8B4513, 1);
-    graphics.fillRect(505, 315, 70, 15);
-    graphics.fillRect(530, 290, 20, 25);
-    this.add.text(540, 275, '🪣', { fontSize: '16px' }).setOrigin(0.5);
-    GameState.obstacles.add(this.add.rectangle(540, 360, 60, 60, 0x000000, 0));
+    graphics.fillRect(605, 355, 70, 15);
+    graphics.fillRect(630, 330, 20, 25);
+    this.add.text(640, 315, '🪣', { fontSize: '16px' }).setOrigin(0.5);
+    GameState.obstacles.add(this.add.rectangle(640, 400, 60, 60, 0x000000, 0));
 
-    // Signpost
+    // Signpost - repositioned for larger screen
     graphics.fillStyle(0x8B4513, 1);
-    graphics.fillRect(595, 280, 10, 60);
+    graphics.fillRect(695, 320, 10, 60);
     graphics.fillStyle(0xDEB887, 1);
-    graphics.fillRect(555, 285, 100, 25);
+    graphics.fillRect(655, 325, 100, 25);
     graphics.lineStyle(2, 0x654321, 1);
-    graphics.strokeRect(555, 285, 100, 25);
-    this.add.text(605, 297, '← Market  Farm →', {
+    graphics.strokeRect(655, 325, 100, 25);
+    this.add.text(705, 337, '← Pond  Shop →', {
         fontSize: '10px', fill: '#654321', fontStyle: 'bold'
     }).setOrigin(0.5);
+
+    // Signpost interaction
+    const signpost = this.add.rectangle(705, 345, 100, 40, 0x000000, 0);
+    signpost.interactType = 'sign';
+    signpost.message = '📍 Village Center\n← West: Fishing Pond & Mira\'s Cottage\n↓ South: Farm Plots\n→ East: Cooking Station & General Store';
+    GameState.interactables.push(signpost);
 
     // === UI SETUP ===
     setupUI(this);
 
-    // === INPUT SETUP ===
-    GameState.cursors = this.input.keyboard.createCursorKeys();
-    GameState.wasd = this.input.keyboard.addKeys('W,S,A,D');
-    GameState.interactKey = this.input.keyboard.addKey('E');
-    GameState.hoeKey = this.input.keyboard.addKey('H');
-    GameState.plantKey = this.input.keyboard.addKey('P');
-    GameState.tabKey = this.input.keyboard.addKey('TAB');
-    GameState.fishKey = this.input.keyboard.addKey('F');
-    GameState.craftKey = this.input.keyboard.addKey('C');
-
     // === SHOW CHARACTER CREATION ===
+    // Input setup moved to startGame() to avoid capturing keys during name entry
     showCharacterCreation(this, () => startGame(this));
 }
 
@@ -246,8 +243,19 @@ function create() {
  * Start the game after character creation
  */
 function startGame(scene) {
+    // === INPUT SETUP (after character creation to avoid capturing keys during name entry) ===
+    GameState.cursors = scene.input.keyboard.createCursorKeys();
+    GameState.wasd = scene.input.keyboard.addKeys('W,S,A,D');
+    GameState.interactKey = scene.input.keyboard.addKey('E');
+    GameState.hoeKey = scene.input.keyboard.addKey('H');
+    GameState.plantKey = scene.input.keyboard.addKey('P');
+    GameState.tabKey = scene.input.keyboard.addKey('TAB');
+    GameState.fishKey = scene.input.keyboard.addKey('F');
+    GameState.craftKey = scene.input.keyboard.addKey('C');
+    GameState.inventoryKey = scene.input.keyboard.addKey('I');
+
     // Create player
-    GameState.player = createWhimsicalCharacter(scene, 600, 450, GameState.playerClass, false, null, GameState.customization);
+    GameState.player = createWhimsicalCharacter(scene, 700, 450, GameState.playerClass, false, null, GameState.customization);
 
     // Nameplate
     const nameplate = scene.add.text(0, -65, GameState.playerName, {
@@ -302,9 +310,9 @@ function update(time, delta) {
     GameState.isNight = (phase === 'night');
 
     let overlayAlpha = 0;
-    if (phase === 'dawn') overlayAlpha = 0.12;
-    else if (phase === 'dusk') overlayAlpha = 0.2;
-    else if (phase === 'night') overlayAlpha = 0.45;
+    if (phase === 'dawn') overlayAlpha = 0.08;
+    else if (phase === 'dusk') overlayAlpha = 0.15;
+    else if (phase === 'night') overlayAlpha = 0.28;
     GameState.dayOverlay.setFillStyle(0x0a0a23, overlayAlpha);
 
     const emoji = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
@@ -382,10 +390,15 @@ function handleInput(scene) {
     }
 
     // Craft key (C)
-    if (Phaser.Input.Keyboard.JustDown(GameState.craftKey) && !GameState.isDialogOpen) {
+    if (Phaser.Input.Keyboard.JustDown(GameState.craftKey) && !GameState.isDialogOpen && !GameState.inventoryOpen) {
         if (isNearCookingStation()) {
             showCraftingMenu();
         }
+    }
+
+    // Inventory key (I)
+    if (Phaser.Input.Keyboard.JustDown(GameState.inventoryKey) && !GameState.isDialogOpen) {
+        toggleInventory();
     }
 }
 
@@ -427,5 +440,12 @@ function updateProximityPrompts() {
         GameState.fishingPrompt.setText('🎣 F to fish').setVisible(true);
     } else {
         GameState.fishingPrompt.setVisible(false);
+    }
+
+    // Cooking prompt
+    if (isNearCookingStation()) {
+        GameState.cookingPrompt.setText('🍳 C to cook').setVisible(true);
+    } else {
+        GameState.cookingPrompt.setVisible(false);
     }
 }

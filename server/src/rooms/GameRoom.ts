@@ -49,25 +49,30 @@ export class GameRoom extends Room<GameState> {
   // NPC patrol state
   private miraPatrolIndex: number = 0;
   private readonly PATROL_POINTS = [
-    { x: 400, y: 500 },
-    { x: 600, y: 450 },
-    { x: 500, y: 350 },
-    { x: 300, y: 400 },
-    { x: 350, y: 550 },
+    { x: 450, y: 550 },
+    { x: 700, y: 500 },
+    { x: 600, y: 400 },
+    { x: 350, y: 450 },
+    { x: 400, y: 600 },
   ];
+  private readonly MIRA_HOME = { x: 235, y: 235 };
 
-  // Farm plot positions (matches client layout)
+  // Farm plot positions (matches client layout - farmStartX=500, farmStartY=700)
   private readonly FARM_PLOT_POSITIONS = [
-    { x: 400, y: 590 }, { x: 445, y: 590 }, { x: 490, y: 590 }, { x: 535, y: 590 },
-    { x: 400, y: 635 }, { x: 445, y: 635 }, { x: 490, y: 635 }, { x: 535, y: 635 },
+    { x: 420, y: 675 }, { x: 470, y: 675 }, { x: 520, y: 675 }, { x: 570, y: 675 },
+    { x: 420, y: 730 }, { x: 470, y: 730 }, { x: 520, y: 730 }, { x: 570, y: 730 },
   ];
 
   // Seed pickup positions
   private readonly SEED_PICKUP_DATA = [
-    { x: 350, y: 680, seedType: "carrot" },
-    { x: 550, y: 680, seedType: "tomato" },
-    { x: 750, y: 680, seedType: "flower" },
+    { x: 350, y: 500, seedType: "carrot" },
+    { x: 400, y: 520, seedType: "tomato" },
+    { x: 320, y: 540, seedType: "flower" },
   ];
+
+  // NPC positions
+  private readonly FINN_POSITION = { x: 1200, y: 680 };
+  private readonly MIRA_START = { x: 450, y: 550 };
 
   onCreate(options: any): void {
     this.roomLogger = createRoomLogger(this.roomId);
@@ -265,16 +270,16 @@ export class GameRoom extends Room<GameState> {
     // Mira - druid who patrols during day
     const mira = new NPC();
     mira.id = "mira";
-    mira.x = 400;
-    mira.y = 500;
+    mira.x = this.MIRA_START.x;
+    mira.y = this.MIRA_START.y;
     mira.currentAction = "patrol";
     this.state.npcs.set("mira", mira);
 
-    // Finn - shopkeeper (stationary)
+    // Finn - shopkeeper (stationary, in front of General Store)
     const finn = new NPC();
     finn.id = "finn";
-    finn.x = 815;
-    finn.y = 230;
+    finn.x = this.FINN_POSITION.x;
+    finn.y = this.FINN_POSITION.y;
     finn.currentAction = "idle";
     this.state.npcs.set("finn", finn);
 
@@ -347,14 +352,14 @@ export class GameRoom extends Room<GameState> {
       if (isNight) {
         // Move to home (Mira's cottage)
         mira.currentAction = "home";
-        this.moveNPCToward(mira, 235, 205);
+        this.moveNPCToward(mira, this.MIRA_HOME.x, this.MIRA_HOME.y);
       } else {
         // Patrol
         mira.currentAction = "patrol";
         this.updateMiraPatrol(mira);
       }
     }
-    // Finn stays stationary
+    // Finn stays stationary at General Store
   }
 
   private updateMiraPatrol(mira: NPC): void {

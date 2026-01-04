@@ -149,6 +149,27 @@ Start with **Phaser.js** for quick 2D prototypes OR **PlayCanvas** if you want 3
 
 ---
 
+## Runtime Stack
+
+### Server Runtime: Bun
+- **What**: Fast JavaScript/TypeScript runtime (replaces Node.js)
+- **Why**: Native TypeScript execution (no ts-node), faster package installs, official Colyseus 0.15+ support
+- **Install**: `powershell -c "irm bun.sh/install.ps1 | iex"`
+- **Location**: `~/.bun/bin/bun.exe`
+
+### Python Runner: uv
+- **What**: Fast Python package manager and runner
+- **Why**: Faster startup, consistent tooling with modern Python ecosystem
+- **Install**: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- **Location**: `~/.local/bin/uv.exe`
+
+### How They're Used
+- **Colyseus Server**: `bun run dev` (in `server/` directory)
+- **HTTP Static Server**: `uv run python -m http.server 3000` (in `prototype/` directory)
+- **Traefik**: Native executable for HTTPS reverse proxy
+
+---
+
 ## Decisions Made
 
 ### Prototype Approach: 2D with Phaser.js
@@ -169,4 +190,4 @@ Start with **Phaser.js** for quick 2D prototypes OR **PlayCanvas** if you want 3
 
 ---
 
-*Last updated: 2026-01-03*
+*Last updated: 2026-01-04*

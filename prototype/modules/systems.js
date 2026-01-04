@@ -373,7 +373,7 @@ export function findNearestFarmPlot(maxDistance = 50) {
 /**
  * Check if player is near the fishing pond
  */
-export function isNearPond(pondX = 150, pondY = 650, range = 80) {
+export function isNearPond(pondX = 180, pondY = 720, range = 80) {
     const player = GameState.player;
     if (!player) return false;
 
@@ -385,7 +385,7 @@ export function isNearPond(pondX = 150, pondY = 650, range = 80) {
 /**
  * Check if player is near the cooking station
  */
-export function isNearCookingStation(stationX = 950, stationY = 400, range = 60) {
+export function isNearCookingStation(stationX = 1050, stationY = 450, range = 60) {
     const player = GameState.player;
     if (!player) return false;
 

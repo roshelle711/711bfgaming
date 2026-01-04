@@ -207,15 +207,15 @@ export function drawSeedPickup(pickup) {
  * Create NPC characters (Mira and Finn)
  */
 export function createNPCs(scene) {
-    // Mira - druid NPC near her cottage
-    GameState.npc = createWhimsicalCharacter(scene, 400, 500, 'druid', true, {
+    // Mira - druid NPC near her cottage (adjusted for larger screen)
+    GameState.npc = createWhimsicalCharacter(scene, 450, 550, 'druid', true, {
         body: 0xE67E22, accent: 0xF39C12, skin: 0xF5CBA7, hair: 0x8B4513
     });
     GameState.npc.body.setImmovable(true);
 
     // Add interpolation targets for server sync
-    GameState.npc.targetX = 400;
-    GameState.npc.targetY = 500;
+    GameState.npc.targetX = 450;
+    GameState.npc.targetY = 550;
 
     // Add nameplate to Mira's container (moves with her)
     const miraName = scene.add.text(0, -60, 'Mira 🌿', {
@@ -228,8 +228,8 @@ export function createNPCs(scene) {
     GameState.npc.message = `Welcome, ${GameState.playerName}! 🌟\nI'm Mira, the village druid.\nGrow crops, fish, cook recipes!\nSell at the shop for coins!`;
     GameState.interactables.push(GameState.npc);
 
-    // Finn - shopkeeper with apron
-    GameState.shopkeeper = createWhimsicalCharacter(scene, 815, 230, 'priest', true, {
+    // Finn - shopkeeper with apron (in front of General Store door)
+    GameState.shopkeeper = createWhimsicalCharacter(scene, 1200, 680, 'priest', true, {
         body: 0x27AE60, accent: 0x2ECC71, skin: 0xC68642, hair: 0x1E8449, accessory: 'apron'
     });
     GameState.shopkeeper.body.setImmovable(true);

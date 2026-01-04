@@ -15,8 +15,8 @@
  */
 
 // Canvas dimensions
-export const GAME_WIDTH = 1200;
-export const GAME_HEIGHT = 800;
+export const GAME_WIDTH = 1400;
+export const GAME_HEIGHT = 900;
 
 // Character classes
 export const classes = {
@@ -61,12 +61,12 @@ export const sellPrices = {
     crafted: { salad: 50, bouquet: 80, fishStew: 75, magicPotion: 150 }
 };
 
-// NPC patrol waypoints
+// NPC patrol waypoints - adjusted for larger screen
 export const npcPatrolPoints = [
-    { x: 400, y: 500 }, { x: 600, y: 450 }, { x: 500, y: 350 },
-    { x: 300, y: 400 }, { x: 350, y: 550 }
+    { x: 450, y: 550 }, { x: 700, y: 500 }, { x: 600, y: 400 },
+    { x: 350, y: 450 }, { x: 400, y: 600 }
 ];
-export const miraHome = { x: 235, y: 205 };
+export const miraHome = { x: 235, y: 235 };
 export const npcSpeed = 60;
 
 // Movement physics

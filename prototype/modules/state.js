@@ -53,6 +53,7 @@ export const GameState = {
     // UI state
     isDialogOpen: false,
     craftingOpen: false,
+    inventoryOpen: false,
     canInteract: false,
     currentInteractable: null,
 
@@ -78,6 +79,7 @@ export const GameState = {
     tabKey: null,
     fishKey: null,
     craftKey: null,
+    inventoryKey: null,
 
     // UI elements (set by ui.js)
     interactPrompt: null,
@@ -85,7 +87,12 @@ export const GameState = {
     dialogText: null,
     farmPrompt: null,
     fishingPrompt: null,
-    inventoryDisplay: null,
+    cookingPrompt: null,
+    inventoryPanel: null,
+    inventoryTitle: null,
+    inventoryCloseHint: null,
+    inventoryTooltip: null,
+    inventoryIcons: null,
     seedIndicator: null,
     coinDisplay: null,
     dayOverlay: null,
