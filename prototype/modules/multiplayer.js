@@ -16,7 +16,7 @@
 import { classes, SERVER_URL } from './config.js';
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
-import { drawPlot, drawPlant, drawSeedPickup } from './world.js';
+import { drawPlot, drawPlant, drawSeedPickup, drawLamppostLight } from './world.js';
 import { updateInventoryDisplay, updateSeedIndicator } from './ui.js';
 
 /**
@@ -107,6 +107,15 @@ export async function connectToServer() {
 
             pickupData.onChange = () => {
                 syncSeedPickup(pickupData);
+            };
+        };
+
+        // Sync lampposts from server
+        GameState.room.state.lampposts.onAdd = (lamppostData, key) => {
+            syncLamppost(lamppostData);
+
+            lamppostData.onChange = () => {
+                syncLamppost(lamppostData);
             };
         };
 
@@ -406,6 +415,29 @@ function syncSeedPickup(pickupData) {
     }
 }
 
+/**
+ * Sync lamppost state from server data
+ */
+function syncLamppost(lamppostData) {
+    const localLamppost = GameState.lampposts[lamppostData.index];
+    if (!localLamppost) return;
+
+    const wasOn = localLamppost.lightOn;
+    localLamppost.lightOn = lamppostData.lightOn;
+
+    // Update light graphics if state changed
+    if (wasOn !== lamppostData.lightOn) {
+        if (lamppostData.lightOn) {
+            // Redraw the light graphics
+            localLamppost.lightGraphics.clear();
+            drawLamppostLight(localLamppost.lightGraphics, localLamppost.x, localLamppost.y);
+            localLamppost.lightGraphics.visible = true;
+        } else {
+            localLamppost.lightGraphics.visible = false;
+        }
+    }
+}
+
 // ===== Action Senders =====
 
 /**
@@ -435,6 +467,18 @@ export function sendCollectSeed(pickupIndex) {
     if (!GameState.room) return false;
 
     GameState.room.send("collectSeed", { pickupIndex });
+    return true;
+}
+
+/**
+ * Send lamppost toggle to server
+ * @param {number} lamppostIndex - Index of the lamppost (0-5)
+ * @returns {boolean} True if message was sent
+ */
+export function sendToggleLamppost(lamppostIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("toggleLamppost", { lamppostIndex });
     return true;
 }
 

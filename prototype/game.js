@@ -13,7 +13,7 @@ import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFol
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation } from './modules/systems.js';
-import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs } from './modules/multiplayer.js';
+import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost } from './modules/multiplayer.js';
 
 // === PHASER CONFIGURATION ===
 const config = {
@@ -254,6 +254,7 @@ function create() {
 
     // Ambient wildlife - birds and butterflies
     GameState.birds = [];
+    const birdColors = [0xE74C3C, 0x3498DB, 0xF39C12, 0x9B59B6, 0x1ABC9C]; // Red, blue, orange, purple, teal
     for (let i = 0; i < 5; i++) {
         const bird = this.add.graphics();
         const birdData = {
@@ -263,6 +264,8 @@ function create() {
             targetY: 100 + Math.random() * 200,
             wingPhase: Math.random() * Math.PI * 2,
             speed: 40 + Math.random() * 30,
+            color: birdColors[i % birdColors.length],
+            facingRight: true,
             graphics: bird
         };
         GameState.birds.push(birdData);
@@ -469,8 +472,12 @@ function handleInput(scene) {
     if (Phaser.Input.Keyboard.JustDown(GameState.lamppostKey) && !GameState.isDialogOpen) {
         const nearestLamppost = findNearestLamppost();
         if (nearestLamppost) {
-            nearestLamppost.lightOn = !nearestLamppost.lightOn;
-            nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
+            const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
+            // Send to server for sync, or toggle locally if offline
+            if (!sendToggleLamppost(lamppostIndex)) {
+                nearestLamppost.lightOn = !nearestLamppost.lightOn;
+                nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
+            }
         }
     }
 }
@@ -517,33 +524,41 @@ function updateWildlife(delta) {
         } else {
             bird.x += (dx / dist) * bird.speed * dt;
             bird.y += (dy / dist) * bird.speed * dt;
+            // Update facing direction based on movement
+            if (Math.abs(dx) > 1) bird.facingRight = dx > 0;
         }
 
         // Animate wings
         bird.wingPhase += dt * 15;
 
-        // Redraw
+        // Redraw with color and correct direction
         bird.graphics.clear();
         const wingY = Math.sin(bird.wingPhase) * 4;
-        bird.graphics.fillStyle(0x2C2C2C, 1);
+        const dir = bird.facingRight ? 1 : -1;
+
         // Body
+        bird.graphics.fillStyle(bird.color, 1);
         bird.graphics.fillEllipse(bird.x, bird.y, 8, 5);
         // Head
-        bird.graphics.fillCircle(bird.x + 5, bird.y - 2, 3);
-        // Wings
+        bird.graphics.fillCircle(bird.x + 5 * dir, bird.y - 2, 3);
+        // Wings (darker shade)
+        bird.graphics.fillStyle(bird.color - 0x222222, 1);
         bird.graphics.fillTriangle(
-            bird.x - 2, bird.y,
-            bird.x - 8, bird.y - 6 + wingY,
-            bird.x + 2, bird.y
+            bird.x - 2 * dir, bird.y,
+            bird.x - 8 * dir, bird.y - 6 + wingY,
+            bird.x + 2 * dir, bird.y
         );
         bird.graphics.fillTriangle(
-            bird.x - 2, bird.y,
-            bird.x - 8, bird.y + 6 - wingY,
-            bird.x + 2, bird.y
+            bird.x - 2 * dir, bird.y,
+            bird.x - 8 * dir, bird.y + 6 - wingY,
+            bird.x + 2 * dir, bird.y
         );
+        // Eye
+        bird.graphics.fillStyle(0x000000, 1);
+        bird.graphics.fillCircle(bird.x + 6 * dir, bird.y - 3, 1.5);
         // Beak
         bird.graphics.fillStyle(0xFFA500, 1);
-        bird.graphics.fillTriangle(bird.x + 7, bird.y - 2, bird.x + 11, bird.y - 1, bird.x + 7, bird.y);
+        bird.graphics.fillTriangle(bird.x + 7 * dir, bird.y - 2, bird.x + 11 * dir, bird.y - 1, bird.x + 7 * dir, bird.y);
     });
 
     // Update butterflies

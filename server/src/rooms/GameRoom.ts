@@ -1,6 +1,6 @@
 import { Room, Client } from "colyseus";
 import { Logger } from "pino";
-import { GameState, Player, FarmPlot, NPC, SeedPickup } from "../schema/GameState";
+import { GameState, Player, FarmPlot, NPC, SeedPickup, Lamppost } from "../schema/GameState";
 import { createRoomLogger, createSessionLogger } from "../utils/logger";
 import { loadWorldState, saveWorldState, PersistedWorldState } from "../utils/persistence";
 
@@ -38,6 +38,10 @@ interface FarmActionMessage {
 
 interface CollectSeedMessage {
   pickupIndex: number;
+}
+
+interface LamppostToggleMessage {
+  lamppostIndex: number;
 }
 
 export class GameRoom extends Room<GameState> {
@@ -83,6 +87,7 @@ export class GameRoom extends Room<GameState> {
     this.initializeFarmPlots();
     this.initializeNPCs();
     this.initializeSeedPickups();
+    this.initializeLampposts();
 
     // Load persisted world state (overrides defaults if exists)
     this.loadPersistedWorldState();
@@ -108,6 +113,10 @@ export class GameRoom extends Room<GameState> {
 
     this.onMessage("collectSeed", (client, message: CollectSeedMessage) => {
       this.handleCollectSeed(client, message);
+    });
+
+    this.onMessage("toggleLamppost", (client, message: LamppostToggleMessage) => {
+      this.handleToggleLamppost(client, message);
     });
 
     this.roomLogger.info({ event: "room_created" }, "GameRoom created");
@@ -300,6 +309,16 @@ export class GameRoom extends Room<GameState> {
     this.roomLogger.debug({ event: "seed_pickups_initialized", count: 3 }, "Initialized seed pickups");
   }
 
+  private initializeLampposts(): void {
+    for (let i = 0; i < 8; i++) {
+      const lamppost = new Lamppost();
+      lamppost.index = i;
+      lamppost.lightOn = true;
+      this.state.lampposts.set(String(i), lamppost);
+    }
+    this.roomLogger.debug({ event: "lampposts_initialized", count: 8 }, "Initialized lampposts");
+  }
+
   // ===== World Update Loop =====
 
   private startWorldUpdateLoop(): void {
@@ -472,6 +491,19 @@ export class GameRoom extends Room<GameState> {
     this.roomLogger.debug(
       { event: "seed_collected", pickupIndex: message.pickupIndex, seedType: pickup.seedType, sessionId: client.sessionId },
       "Seed collected"
+    );
+  }
+
+  private handleToggleLamppost(client: Client, message: LamppostToggleMessage): void {
+    const lamppost = this.state.lampposts.get(String(message.lamppostIndex));
+    if (!lamppost) {
+      return;
+    }
+
+    lamppost.lightOn = !lamppost.lightOn;
+    this.roomLogger.debug(
+      { event: "lamppost_toggled", lamppostIndex: message.lamppostIndex, lightOn: lamppost.lightOn, sessionId: client.sessionId },
+      "Lamppost toggled"
     );
   }
 

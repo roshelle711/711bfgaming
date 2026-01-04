@@ -38,6 +38,17 @@ export class NPC extends Schema {
 }
 
 /**
+ * Lamppost light state synced between all players
+ */
+export class Lamppost extends Schema {
+  @type("number")
+  index: number = 0; // 0-7 for 8 lampposts
+
+  @type("boolean")
+  lightOn: boolean = true;
+}
+
+/**
  * Seed pickup state synced between all players
  */
 export class SeedPickup extends Schema {
@@ -113,6 +124,9 @@ export class GameState extends Schema {
 
   @type({ map: SeedPickup })
   seedPickups = new MapSchema<SeedPickup>();
+
+  @type({ map: Lamppost })
+  lampposts = new MapSchema<Lamppost>();
 
   @type("number")
   gameTime: number = 480; // 8:00 AM (480 minutes from midnight)
