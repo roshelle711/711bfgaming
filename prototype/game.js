@@ -231,7 +231,7 @@ function create() {
     signpost.message = '📍 Village Center\n← West: Fishing Pond & Mira\'s Cottage\n↓ South: Farm Plots\n→ East: Cooking Station & General Store';
     GameState.interactables.push(signpost);
 
-    // Victorian lampposts - structures on main graphics, lights toggleable (L key)
+    // Victorian lampposts - each individually toggleable (L key when nearby)
     const lamppostPositions = [
         { x: 350, y: 280 },   // West path
         { x: 550, y: 280 },   // Near village center (west)
@@ -242,14 +242,56 @@ function create() {
         { x: 1100, y: 500 },  // Near General Store path
         { x: 300, y: 650 }    // Near fishing pond
     ];
-    // Draw structures (always visible)
-    lamppostPositions.forEach(pos => drawLamppost(graphics, pos.x, pos.y));
-    // Draw lights on separate layer (toggleable)
-    GameState.lamppostLights = this.add.graphics();
-    lamppostPositions.forEach(pos => drawLamppostLight(GameState.lamppostLights, pos.x, pos.y));
+    GameState.lampposts = [];
+    lamppostPositions.forEach(pos => {
+        // Draw structure on main graphics
+        drawLamppost(graphics, pos.x, pos.y);
+        // Create individual light graphics for each lamppost
+        const lightGraphics = this.add.graphics();
+        drawLamppostLight(lightGraphics, pos.x, pos.y);
+        GameState.lampposts.push({ x: pos.x, y: pos.y, lightOn: true, lightGraphics });
+    });
+
+    // Ambient wildlife - birds and butterflies
+    GameState.birds = [];
+    for (let i = 0; i < 5; i++) {
+        const bird = this.add.graphics();
+        const birdData = {
+            x: 200 + Math.random() * 1000,
+            y: 100 + Math.random() * 200,
+            targetX: 200 + Math.random() * 1000,
+            targetY: 100 + Math.random() * 200,
+            wingPhase: Math.random() * Math.PI * 2,
+            speed: 40 + Math.random() * 30,
+            graphics: bird
+        };
+        GameState.birds.push(birdData);
+    }
+
+    GameState.butterflies = [];
+    const butterflyColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xDDA0DD, 0xFFA500];
+    for (let i = 0; i < 8; i++) {
+        const butterfly = this.add.graphics();
+        const butterflyData = {
+            x: 100 + Math.random() * 1200,
+            y: 300 + Math.random() * 500,
+            targetX: 100 + Math.random() * 1200,
+            targetY: 300 + Math.random() * 500,
+            wingPhase: Math.random() * Math.PI * 2,
+            color: butterflyColors[Math.floor(Math.random() * butterflyColors.length)],
+            speed: 20 + Math.random() * 20,
+            graphics: butterfly
+        };
+        GameState.butterflies.push(butterflyData);
+    }
 
     // === UI SETUP ===
     setupUI(this);
+
+    // Lamppost prompt (added after UI setup)
+    GameState.lamppostPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 240, '', {
+        fontSize: '14px', fill: '#FFD700', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(100).setVisible(false);
 
     // === SHOW CHARACTER CREATION ===
     // Input setup moved to startGame() to avoid capturing keys during name entry
@@ -350,6 +392,7 @@ function update(time, delta) {
     checkSeedPickups();
     respawnSeedPickups(this, delta);
     updateNPCPatrol();
+    updateWildlife(delta);
 
     // === MULTIPLAYER ===
     interpolateOtherPlayers();
@@ -422,12 +465,126 @@ function handleInput(scene) {
         toggleInventory();
     }
 
-    // Lamppost lights toggle (L)
+    // Lamppost lights toggle (L) - toggle nearest lamppost
     if (Phaser.Input.Keyboard.JustDown(GameState.lamppostKey) && !GameState.isDialogOpen) {
-        if (GameState.lamppostLights) {
-            GameState.lamppostLights.visible = !GameState.lamppostLights.visible;
+        const nearestLamppost = findNearestLamppost();
+        if (nearestLamppost) {
+            nearestLamppost.lightOn = !nearestLamppost.lightOn;
+            nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
         }
     }
+}
+
+/**
+ * Find the nearest lamppost within interaction range
+ */
+function findNearestLamppost() {
+    if (!GameState.player || !GameState.lampposts) return null;
+
+    let nearest = null;
+    let nearestDist = 80; // Interaction range
+
+    GameState.lampposts.forEach(lamp => {
+        const dx = GameState.player.x - lamp.x;
+        const dy = GameState.player.y - lamp.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = lamp;
+        }
+    });
+
+    return nearest;
+}
+
+/**
+ * Update ambient wildlife (birds and butterflies)
+ */
+function updateWildlife(delta) {
+    const dt = delta / 1000;
+
+    // Update birds
+    GameState.birds?.forEach(bird => {
+        // Move toward target
+        const dx = bird.targetX - bird.x;
+        const dy = bird.targetY - bird.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 10) {
+            // Pick new random target
+            bird.targetX = 100 + Math.random() * 1200;
+            bird.targetY = 80 + Math.random() * 250;
+        } else {
+            bird.x += (dx / dist) * bird.speed * dt;
+            bird.y += (dy / dist) * bird.speed * dt;
+        }
+
+        // Animate wings
+        bird.wingPhase += dt * 15;
+
+        // Redraw
+        bird.graphics.clear();
+        const wingY = Math.sin(bird.wingPhase) * 4;
+        bird.graphics.fillStyle(0x2C2C2C, 1);
+        // Body
+        bird.graphics.fillEllipse(bird.x, bird.y, 8, 5);
+        // Head
+        bird.graphics.fillCircle(bird.x + 5, bird.y - 2, 3);
+        // Wings
+        bird.graphics.fillTriangle(
+            bird.x - 2, bird.y,
+            bird.x - 8, bird.y - 6 + wingY,
+            bird.x + 2, bird.y
+        );
+        bird.graphics.fillTriangle(
+            bird.x - 2, bird.y,
+            bird.x - 8, bird.y + 6 - wingY,
+            bird.x + 2, bird.y
+        );
+        // Beak
+        bird.graphics.fillStyle(0xFFA500, 1);
+        bird.graphics.fillTriangle(bird.x + 7, bird.y - 2, bird.x + 11, bird.y - 1, bird.x + 7, bird.y);
+    });
+
+    // Update butterflies
+    GameState.butterflies?.forEach(bf => {
+        // Move toward target (more erratic)
+        const dx = bf.targetX - bf.x;
+        const dy = bf.targetY - bf.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 20) {
+            // Pick new random target
+            bf.targetX = 100 + Math.random() * 1200;
+            bf.targetY = 250 + Math.random() * 550;
+        } else {
+            // Add some wobble
+            const wobbleX = Math.sin(bf.wingPhase * 2) * 20;
+            const wobbleY = Math.cos(bf.wingPhase * 3) * 10;
+            bf.x += ((dx / dist) * bf.speed + wobbleX * dt) * dt;
+            bf.y += ((dy / dist) * bf.speed + wobbleY * dt) * dt;
+        }
+
+        // Animate wings
+        bf.wingPhase += dt * 12;
+        const wingSpread = Math.abs(Math.sin(bf.wingPhase)) * 6;
+
+        // Redraw
+        bf.graphics.clear();
+        // Wings
+        bf.graphics.fillStyle(bf.color, 0.85);
+        bf.graphics.fillEllipse(bf.x - 4, bf.y - wingSpread, 5, 4);
+        bf.graphics.fillEllipse(bf.x + 4, bf.y - wingSpread, 5, 4);
+        bf.graphics.fillEllipse(bf.x - 3, bf.y + wingSpread * 0.5, 4, 3);
+        bf.graphics.fillEllipse(bf.x + 3, bf.y + wingSpread * 0.5, 4, 3);
+        // Body
+        bf.graphics.fillStyle(0x2C2C2C, 1);
+        bf.graphics.fillEllipse(bf.x, bf.y, 2, 6);
+        // Antennae
+        bf.graphics.lineStyle(1, 0x2C2C2C, 1);
+        bf.graphics.lineBetween(bf.x - 1, bf.y - 5, bf.x - 3, bf.y - 9);
+        bf.graphics.lineBetween(bf.x + 1, bf.y - 5, bf.x + 3, bf.y - 9);
+    });
 }
 
 /**
@@ -475,5 +632,14 @@ function updateProximityPrompts() {
         GameState.cookingPrompt.setText('🍳 C to cook').setVisible(true);
     } else {
         GameState.cookingPrompt.setVisible(false);
+    }
+
+    // Lamppost prompt
+    const nearLamp = findNearestLamppost();
+    if (nearLamp) {
+        const status = nearLamp.lightOn ? 'off' : 'on';
+        GameState.lamppostPrompt.setText(`💡 L to turn ${status}`).setVisible(true);
+    } else {
+        GameState.lamppostPrompt.setVisible(false);
     }
 }
