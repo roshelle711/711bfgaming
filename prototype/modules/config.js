@@ -75,12 +75,12 @@ export const fruitData = {
     cherry: { regrowTime: 45000, sellPrice: 8,  emoji: '🍒' }
 };
 
-// Fruit tree positions on map
+// Fruit tree positions on map - ORCHARD zone (right side, bottom)
 export const fruitTreePositions = [
-    { x: 100, y: 400, type: 'apple' },
-    { x: 150, y: 520, type: 'orange' },
-    { x: 1100, y: 350, type: 'peach' },     // Moved left, away from edge
-    { x: 1280, y: 520, type: 'cherry' }     // Behind general store (pokes out right side)
+    { x: 1050, y: 550, type: 'apple' },
+    { x: 1220, y: 550, type: 'orange' },
+    { x: 1050, y: 720, type: 'peach' },
+    { x: 1220, y: 720, type: 'cherry' }
 ];
 
 // Watering and growth constants
@@ -118,12 +118,12 @@ export const seedBuyPrices = {
     pumpkin: 25   // sells for 50, profit: 25
 };
 
-// NPC patrol waypoints - adjusted for larger screen
+// NPC patrol waypoints - Mira patrols between residential and town center
 export const npcPatrolPoints = [
-    { x: 450, y: 550 }, { x: 700, y: 500 }, { x: 600, y: 400 },
-    { x: 350, y: 450 }, { x: 400, y: 600 }
+    { x: 300, y: 350 }, { x: 500, y: 350 }, { x: 700, y: 300 },
+    { x: 500, y: 400 }, { x: 300, y: 400 }
 ];
-export const miraHome = { x: 235, y: 235 };
+export const miraHome = { x: 200, y: 230 };
 export const npcSpeed = 60;
 
 // Movement physics

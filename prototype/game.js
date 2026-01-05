@@ -95,35 +95,31 @@ function create() {
         return (seed - 1) / 2147483646;
     };
 
-    // Forbidden zones - flowers cannot spawn here (VERY generous padding)
+    // Forbidden zones - flowers cannot spawn in these areas (zone-based layout)
     const forbiddenZones = [
-        // Pond (ellipse at 180, 720 - very large exclusion)
-        { type: 'ellipse', x: 180, y: 720, rx: 160, ry: 130 },
-        // Farm area - HUGE exclusion zone to prevent ANY overlap
-        { type: 'rect', x: 300, y: 500, w: 420, h: 350 },
-        // Mira's cottage with big padding
-        { type: 'rect', x: 100, y: 50, w: 280, h: 220 },
-        // Your home with big padding
-        { type: 'rect', x: 750, y: 50, w: 280, h: 220 },
-        // General store with big padding
-        { type: 'rect', x: 1050, y: 450, w: 250, h: 220 },
-        // Main horizontal path - wider
+        // === RESIDENTIAL ZONE (top-left) ===
+        { type: 'rect', x: 80, y: 50, w: 400, h: 200 },
+
+        // === TOWN CENTER (center-top) ===
+        { type: 'rect', x: 550, y: 100, w: 300, h: 300 },
+
+        // === COMMERCIAL ZONE (top-right) ===
+        { type: 'rect', x: 1000, y: 50, w: 300, h: 350 },
+
+        // === NATURE ZONE (bottom-left) - pond area ===
+        { type: 'ellipse', x: 220, y: 680, rx: 180, ry: 150 },
+
+        // === FARM ZONE (bottom-center) ===
+        { type: 'rect', x: 500, y: 480, w: 400, h: 350 },
+
+        // === ORCHARD ZONE (bottom-right) ===
+        { type: 'rect', x: 950, y: 450, w: 350, h: 350 },
+
+        // === PATHS connecting zones ===
+        // Main horizontal path
         { type: 'rect', x: 100, y: 250, w: 1200, h: 80 },
-        // Vertical paths (much wider exclusion)
-        { type: 'rect', x: 620, y: 250, w: 150, h: 500 },
-        { type: 'rect', x: 180, y: 150, w: 120, h: 150 },
-        { type: 'rect', x: 830, y: 150, w: 120, h: 150 },
-        { type: 'rect', x: 1130, y: 450, w: 100, h: 260 },
-        // Well with big padding
-        { type: 'rect', x: 550, y: 300, w: 180, h: 200 },
-        // Cooking station with big padding
-        { type: 'rect', x: 950, y: 380, w: 200, h: 150 },
-        // Signpost area - bigger
-        { type: 'rect', x: 600, y: 280, w: 220, h: 100 },
-        // Fruit tree areas (left side)
-        { type: 'rect', x: 50, y: 350, w: 120, h: 200 },
-        // Fruit tree areas (right side)
-        { type: 'rect', x: 1230, y: 350, w: 120, h: 200 },
+        // Vertical paths
+        { type: 'rect', x: 650, y: 330, w: 100, h: 200 },
     ];
 
     // Check if a point is in a forbidden zone
@@ -217,19 +213,20 @@ function create() {
     // Obstacles group
     GameState.obstacles = this.physics.add.staticGroup();
 
-    // Trees - each on separate graphics with depth based on Y position
-    // Some trees are "foreground" (high depth) and some are "background" (low depth)
+    // Trees - decorative trees at map edges (not in playable zones)
+    // foreground: true = renders in front of player (depth 900+y)
     const trees = [
-        { x: 60, y: 100, s: 35, foreground: false },
-        { x: 1340, y: 100, s: 40, foreground: false },
-        { x: 60, y: 800, s: 42, foreground: true },    // Bottom-left in front
-        { x: 1340, y: 800, s: 38, foreground: true },  // Bottom-right in front
-        { x: 60, y: 450, s: 36, foreground: false },
-        { x: 1340, y: 450, s: 34, foreground: true },  // Middle-right in front
-        { x: 1050, y: 150, s: 32, foreground: false },
-        { x: 100, y: 650, s: 30, foreground: true },   // Lower-left in front
-        { x: 1340, y: 600, s: 33, foreground: false },
-        { x: 60, y: 250, s: 28, foreground: false }
+        // Top edge
+        { x: 50, y: 60, s: 35, foreground: false },
+        { x: 1350, y: 60, s: 38, foreground: false },
+        // Left edge
+        { x: 40, y: 350, s: 32, foreground: false },
+        // Right edge
+        { x: 1360, y: 400, s: 36, foreground: false },
+        // Bottom edge (foreground - player walks behind these)
+        { x: 50, y: 850, s: 40, foreground: true },
+        { x: 950, y: 840, s: 35, foreground: true },
+        { x: 1350, y: 850, s: 38, foreground: true },
     ];
     trees.forEach(t => {
         // Each tree gets its own graphics object for depth control
@@ -264,29 +261,28 @@ function create() {
         GameState.obstacles.add(this.add.rectangle(t.x, t.y + t.s, 18, 18, 0x000000, 0));
     });
 
-    // Houses - repositioned for larger screen
-    createHouse(graphics, 235, 150, 0xE74C3C, "🏠 Mira's Cottage", this);
-    GameState.obstacles.add(this.add.rectangle(235, 150, 120, 100, 0x000000, 0));
-    const miraDoor = this.add.rectangle(235, 205, 40, 35, 0x000000, 0);
+    // === RESIDENTIAL ZONE (top-left) ===
+    createHouse(graphics, 180, 150, 0xE74C3C, "🏠 Mira's Cottage", this);
+    GameState.obstacles.add(this.add.rectangle(180, 150, 120, 100, 0x000000, 0));
+    const miraDoor = this.add.rectangle(180, 205, 40, 35, 0x000000, 0);
     miraDoor.interactType = 'miraDoor';
     miraDoor.message = "Mira's cottage... she's probably outside gardening!";
     GameState.interactables.push(miraDoor);
 
-    createHouse(graphics, 885, 150, 0x3498DB, '🏡 Your Home', this);
-    GameState.obstacles.add(this.add.rectangle(885, 150, 120, 100, 0x000000, 0));
-    const homeDoor = this.add.rectangle(885, 205, 40, 35, 0x000000, 0);
+    createHouse(graphics, 380, 150, 0x3498DB, '🏡 Your Home', this);
+    GameState.obstacles.add(this.add.rectangle(380, 150, 120, 100, 0x000000, 0));
+    const homeDoor = this.add.rectangle(380, 205, 40, 35, 0x000000, 0);
     homeDoor.interactType = 'homeDoor';
     homeDoor.message = 'Your cozy home... maybe later you can rest here!';
     GameState.interactables.push(homeDoor);
 
-    // General Store needs separate graphics with higher depth to appear in front of nearby fruit trees
-    const storeGraphics = this.add.graphics();
-    storeGraphics.setDepth(580);  // Depth = Y position for proper layering
-    createHouse(storeGraphics, 1200, 580, 0x27AE60, '🏪 General Store', this);
-    GameState.obstacles.add(this.add.rectangle(1200, 580, 120, 100, 0x000000, 0));
+    // === COMMERCIAL ZONE (top-right) ===
+    createHouse(graphics, 1150, 150, 0x27AE60, '🏪 General Store', this);
+    GameState.obstacles.add(this.add.rectangle(1150, 150, 120, 100, 0x000000, 0));
 
+    // === NATURE ZONE (bottom-left) ===
     // Fishing pond - with depth and natural edges
-    const pondX = 180, pondY = 720;
+    const pondX = 220, pondY = 680;
 
     // Mud/dirt edge around pond
     graphics.fillStyle(0x6B4423, 0.6);
@@ -356,8 +352,9 @@ function create() {
     // Pond collision - prevent walking through the pond
     GameState.obstacles.add(this.add.ellipse(pondX, pondY, 100, 70, 0x000000, 0));
 
-    // Farm area - expanded for more plots (3 rows x 5 columns = 15 plots)
-    const farmStartX = 500, farmStartY = 700;
+    // === FARM ZONE (bottom-center) ===
+    // Farm area - 3 rows x 5 columns = 15 plots
+    const farmStartX = 700, farmStartY = 650;
     const farmWidth = 280, farmHeight = 170;
     graphics.fillStyle(0x8B7355, 1);
     graphics.fillRect(farmStartX - farmWidth/2, farmStartY - farmHeight/2, farmWidth, farmHeight);
@@ -381,8 +378,8 @@ function create() {
         }
     }
 
-    // Cooking station - repositioned for larger screen
-    const cookX = 1050, cookY = 450;
+    // Cooking station - in COMMERCIAL zone, below general store
+    const cookX = 1150, cookY = 320;
     graphics.fillStyle(0x795548, 1);
     graphics.fillRect(cookX - 35, cookY - 25, 70, 50);
     graphics.fillStyle(0x5D4037, 1);
@@ -399,75 +396,86 @@ function create() {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Seed pickups - scattered around the map (west, middle, east)
+    // Seed pickups - scattered around zones (not in farm area itself)
     const seedLocations = [
-        // West group (near pond)
-        { x: 350, y: 500, type: 'carrot' },
-        { x: 400, y: 520, type: 'tomato' },
-        { x: 320, y: 540, type: 'flower' },
-        // Middle group (near farm)
-        { x: 550, y: 600, type: 'lettuce' },
-        { x: 600, y: 620, type: 'onion' },
-        { x: 580, y: 580, type: 'flower' },
-        // East group (near store)
-        { x: 800, y: 500, type: 'carrot' },
-        { x: 850, y: 520, type: 'tomato' },
-        { x: 820, y: 550, type: 'flower' }
+        // Nature zone (near pond path)
+        { x: 350, y: 450, type: 'carrot' },
+        { x: 400, y: 480, type: 'flower' },
+        // Town center area
+        { x: 600, y: 400, type: 'tomato' },
+        { x: 800, y: 400, type: 'lettuce' },
+        // Path to orchard
+        { x: 950, y: 500, type: 'onion' },
+        { x: 1000, y: 550, type: 'flower' },
+        // Near commercial zone
+        { x: 1050, y: 400, type: 'potato' },
+        { x: 1250, y: 400, type: 'carrot' },
+        { x: 1200, y: 450, type: 'tomato' }
     ];
     seedLocations.forEach((loc, index) => {
         GameState.seedPickups.push(createSeedPickup(this, loc.x, loc.y, loc.type, index));
     });
 
+    // === TOWN CENTER (center-top) ===
     // Well - water source for crops
+    const wellX = 700, wellY = 180;
     graphics.fillStyle(0x808080, 1);
-    graphics.fillRect(610, 370, 60, 60);
+    graphics.fillRect(wellX - 30, wellY - 30, 60, 60);
     graphics.fillStyle(0x696969, 1);
-    graphics.fillRect(620, 380, 40, 40);
+    graphics.fillRect(wellX - 20, wellY - 20, 40, 40);
     graphics.fillStyle(0x5DADE2, 0.7);
-    graphics.fillRect(625, 385, 30, 30);
+    graphics.fillRect(wellX - 15, wellY - 15, 30, 30);
     graphics.fillStyle(0x8B4513, 1);
-    graphics.fillRect(605, 355, 70, 15);
-    graphics.fillRect(630, 330, 20, 25);
-    // Bucket sitting by the roadside (not on the well)
-    this.add.text(570, 380, '🪣', { fontSize: '16px' }).setOrigin(0.5);
-    this.add.text(640, 440, '💧 Well', {
+    graphics.fillRect(wellX - 35, wellY - 45, 70, 15);
+    graphics.fillRect(wellX - 10, wellY - 70, 20, 25);
+    // Bucket sitting by the roadside
+    this.add.text(wellX - 50, wellY, '🪣', { fontSize: '16px' }).setOrigin(0.5);
+    this.add.text(wellX, wellY + 50, '💧 Well', {
         fontSize: '11px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 3, y: 2 }
     }).setOrigin(0.5);
-    GameState.obstacles.add(this.add.rectangle(640, 400, 60, 60, 0x000000, 0));
+    GameState.obstacles.add(this.add.rectangle(wellX, wellY, 60, 60, 0x000000, 0));
 
     // Well interaction
-    const well = this.add.rectangle(640, 400, 70, 70, 0x000000, 0);
+    const well = this.add.rectangle(wellX, wellY, 70, 70, 0x000000, 0);
     well.interactType = 'well';
     well.message = '💧 Village Well\n\nFresh water for your crops!\nEquip the watering can (2) to water plants.';
     GameState.interactables.push(well);
 
-    // Signpost - repositioned for larger screen
+    // Signpost - in town center
+    const signX = 700, signY = 320;
     graphics.fillStyle(0x8B4513, 1);
-    graphics.fillRect(695, 320, 10, 60);
+    graphics.fillRect(signX - 5, signY, 10, 60);
     graphics.fillStyle(0xDEB887, 1);
-    graphics.fillRect(655, 325, 100, 25);
+    graphics.fillRect(signX - 60, signY + 5, 120, 28);
     graphics.lineStyle(2, 0x654321, 1);
-    graphics.strokeRect(655, 325, 100, 25);
-    this.add.text(705, 337, '← Pond  Shop →', {
-        fontSize: '10px', fill: '#654321', fontStyle: 'bold'
+    graphics.strokeRect(signX - 60, signY + 5, 120, 28);
+    this.add.text(signX, signY + 19, '← Nature | Farm ↓ | Shop →', {
+        fontSize: '9px', fill: '#654321', fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Signpost interaction
-    const signpost = this.add.rectangle(705, 345, 100, 40, 0x000000, 0);
+    const signpost = this.add.rectangle(signX, signY + 20, 120, 50, 0x000000, 0);
     signpost.interactType = 'sign';
-    signpost.message = '📍 Village Center\n← West: Fishing Pond & Mira\'s Cottage\n↓ South: Farm Plots\n→ East: Cooking Station & General Store';
+    signpost.message = '📍 Town Center\n\n← West: Nature Zone (Pond, Homes)\n↓ South: Farm Zone\n→ East: Commercial Zone (Store, Cooking)\n↘ Southeast: Orchard';
     GameState.interactables.push(signpost);
 
-    // Victorian lampposts - each individually toggleable (L key when nearby)
+    // Victorian lampposts - distributed across all zones
     const lamppostPositions = [
-        { x: 350, y: 280 },   // West path
-        { x: 550, y: 280 },   // Near village center (west)
-        { x: 850, y: 280 },   // Near village center (east)
-        { x: 1050, y: 280 },  // East path
-        { x: 320, y: 450 },   // Near Mira's patrol area
-        { x: 780, y: 500 },   // South central
-        { x: 1100, y: 500 },  // Near General Store path
-        { x: 300, y: 650 }    // Near fishing pond
+        // Residential zone
+        { x: 280, y: 280 },
+        // Town center
+        { x: 550, y: 280 },
+        { x: 850, y: 280 },
+        // Commercial zone
+        { x: 1050, y: 280 },
+        // Nature zone (near pond)
+        { x: 350, y: 550 },
+        { x: 150, y: 550 },
+        // Farm zone edges
+        { x: 550, y: 500 },
+        { x: 850, y: 500 },
+        // Orchard zone
+        { x: 1150, y: 450 },
     ];
     GameState.lampposts = [];
     lamppostPositions.forEach(pos => {

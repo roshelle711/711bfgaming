@@ -397,8 +397,8 @@ export function updatePlayerMovement() {
  * Check if a position is in the pond (forbidden zone for pet)
  */
 function isPetInPond(x, y) {
-    // Pond is an ellipse centered at (180, 720) with rx=100, ry=70
-    const pondX = 180, pondY = 720, pondRx = 100, pondRy = 70;
+    // Pond is an ellipse centered at (220, 680) with rx=100, ry=70
+    const pondX = 220, pondY = 680, pondRx = 100, pondRy = 70;
     const dx = (x - pondX) / pondRx;
     const dy = (y - pondY) / pondRy;
     return (dx * dx + dy * dy) < 1;
@@ -631,8 +631,8 @@ export function updateHeldTool() {
     } else if (tool === 'fishingRod') {
         // Fishing rod: long pole + reel + line
         // Pond center and dimensions for bobber positioning
-        const pondCenterX = 180;
-        const pondCenterY = 720;
+        const pondCenterX = 220;
+        const pondCenterY = 680;
         const facingLeft = px > pondCenterX + 50; // If right of pond, face left toward water
         const dir = facingLeft ? -1 : 1;
         const rodX = facingLeft ? px - 18 : px + 18; // Flip rod position when facing left
