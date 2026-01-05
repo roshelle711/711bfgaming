@@ -20,7 +20,7 @@
 import { classes, SERVER_URL } from './config.js';
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
-import { drawPlot, drawPlant, drawSeedPickup, drawLamppostLight } from './world.js';
+import { drawPlot, drawPlant, drawSeedPickup, drawLamppostLight, drawFruitTree } from './world.js';
 import { updateInventoryDisplay, updateSeedIndicator } from './ui.js';
 
 /**
@@ -477,11 +477,9 @@ function syncFruitTree(treeData) {
     localTree.hasFruit = treeData.hasFruit;
     localTree.fruitTimer = treeData.fruitTimer;
 
-    // Update visuals if fruit state changed
+    // Redraw tree when fruit state changes
     if (fruitChanged && localTree.graphics) {
-        // Redraw tree will be handled by world.js drawFruitTree function
-        // For now just mark for redraw
-        localTree.needsRedraw = true;
+        drawFruitTree(localTree);
     }
 }
 

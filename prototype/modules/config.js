@@ -72,8 +72,8 @@ export const fruitData = {
 export const fruitTreePositions = [
     { x: 100, y: 400, type: 'apple' },
     { x: 150, y: 520, type: 'orange' },
-    { x: 1300, y: 400, type: 'peach' },
-    { x: 1250, y: 520, type: 'cherry' }
+    { x: 1180, y: 380, type: 'peach' },
+    { x: 1220, y: 500, type: 'cherry' }
 ];
 
 // Watering and growth constants

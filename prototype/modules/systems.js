@@ -24,7 +24,7 @@
 import { seedTypes, fishTypes, recipes, sellPrices, cropData, fruitData, fruitTreePositions } from './config.js';
 import { GameState } from './state.js';
 import { showDialog, closeDialog, updateInventoryDisplay, updateCoinDisplay, updateSeedIndicator } from './ui.js';
-import { drawPlot, drawPlant, drawSeedPickup } from './world.js';
+import { drawPlot, drawPlant, drawSeedPickup, drawFruitTree } from './world.js';
 import { sendFarmAction, sendCollectSeed, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './multiplayer.js';
 
 /**
@@ -470,6 +470,7 @@ export function harvestFruit(tree) {
         GameState.inventory.fruits[tree.treeType]++;
         tree.hasFruit = false;
         tree.fruitTimer = fruitData[tree.treeType]?.regrowTime || 60000;
+        drawFruitTree(tree);
         updateInventoryDisplay();
         return true;
     }
@@ -512,6 +513,7 @@ export function updateFruitRegrowth(delta) {
             if (tree.fruitTimer <= 0) {
                 tree.hasFruit = true;
                 tree.fruitTimer = 0;
+                drawFruitTree(tree);
             }
         }
     });

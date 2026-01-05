@@ -334,15 +334,11 @@ function startGame(scene) {
     GameState.cursors = scene.input.keyboard.createCursorKeys();
     GameState.wasd = scene.input.keyboard.addKeys('W,S,A,D');
     GameState.interactKey = scene.input.keyboard.addKey('E');
+    GameState.escapeKey = scene.input.keyboard.addKey('ESC');
     GameState.hoeKey = scene.input.keyboard.addKey('H');
     GameState.plantKey = scene.input.keyboard.addKey('P');
     GameState.tabKey = scene.input.keyboard.addKey('TAB');
-    GameState.fishKey = scene.input.keyboard.addKey('F');
-    GameState.craftKey = scene.input.keyboard.addKey('C');
     GameState.inventoryKey = scene.input.keyboard.addKey('I');
-    GameState.lamppostKey = scene.input.keyboard.addKey('L');
-    GameState.waterKey = scene.input.keyboard.addKey('W');
-    GameState.removeHazardKey = scene.input.keyboard.addKey('R');
 
     // Create tool graphics
     createToolGraphics(scene);
@@ -442,34 +438,103 @@ function update(time, delta) {
  * Handle keyboard input
  */
 function handleInput(scene) {
-    // Interact key (E)
-    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey)) {
+    // Escape key - close any open menu/dialog
+    if (Phaser.Input.Keyboard.JustDown(GameState.escapeKey)) {
         if (GameState.isDialogOpen) {
             closeDialog();
-        } else if (GameState.canInteract && GameState.currentInteractable) {
+        } else if (GameState.inventoryOpen) {
+            toggleInventory();
+        }
+        return;
+    }
+
+    // Interact key (E) - context-aware interaction
+    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.inventoryOpen) {
+        // Priority order for E key interactions:
+        // 1. NPC/Shop interactions (canInteract)
+        if (GameState.canInteract && GameState.currentInteractable) {
             if (GameState.currentInteractable.interactType === 'shop') {
                 showShopMenu();
             } else if (GameState.currentInteractable.message) {
                 showDialog(GameState.currentInteractable.message);
             }
+            return;
+        }
+
+        // 2. Lamppost toggle
+        const nearestLamppost = findNearestLamppost();
+        if (nearestLamppost) {
+            const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
+            if (!sendToggleLamppost(lamppostIndex)) {
+                nearestLamppost.lightOn = !nearestLamppost.lightOn;
+                nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
+            }
+            return;
+        }
+
+        // 3. Fruit tree harvest
+        const nearestTree = findNearestFruitTree();
+        if (nearestTree && nearestTree.hasFruit) {
+            harvestFruit(nearestTree);
+            return;
+        }
+
+        // 4. Farm plot interactions (water, remove hazard, harvest)
+        const plot = findNearestFarmPlot();
+        if (plot) {
+            // Remove hazard/dead plant first
+            if (plot.hazard || plot.state === 'dead') {
+                removeHazard(plot);
+                return;
+            }
+            // Water unwatered plants
+            if ((plot.state === 'planted' || plot.state === 'growing') && !plot.isWatered) {
+                equipTool('wateringCan');
+                GameState.isWatering = true;
+                waterPlot(plot);
+                setTimeout(() => {
+                    GameState.isWatering = false;
+                    equipTool('none');
+                }, 500);
+                return;
+            }
+            // Harvest ready crops
+            if (plot.state === 'ready') {
+                harvestCrop(plot);
+                return;
+            }
+        }
+
+        // 5. Fishing
+        if (isNearPond()) {
+            startFishing();
+            return;
+        }
+
+        // 6. Cooking
+        if (isNearCookingStation()) {
+            showCraftingMenu();
+            return;
         }
     }
 
-    // Hoe key (H)
-    if (Phaser.Input.Keyboard.JustDown(GameState.hoeKey) && !GameState.isDialogOpen) {
-        const plot = findNearestFarmPlot();
-        if (plot) hoePlot(plot);
+    // Also allow E to close dialogs
+    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && GameState.isDialogOpen) {
+        closeDialog();
+        return;
     }
 
-    // Plant key (P)
+    // Hoe key (H) - still needed for tilling
+    if (Phaser.Input.Keyboard.JustDown(GameState.hoeKey) && !GameState.isDialogOpen) {
+        const plot = findNearestFarmPlot();
+        if (plot && plot.state === 'grass') hoePlot(plot);
+    }
+
+    // Plant key (P) - still needed for planting
     if (Phaser.Input.Keyboard.JustDown(GameState.plantKey) && !GameState.isDialogOpen) {
         const plot = findNearestFarmPlot();
-        if (plot) {
-            if (plot.state === 'ready') {
-                harvestCrop(plot);
-            } else {
-                plantSeed(plot, scene);
-            }
+        if (plot && plot.state === 'tilled') {
+            plantSeed(plot, scene);
         }
     }
 
@@ -478,67 +543,9 @@ function handleInput(scene) {
         cycleSeedType();
     }
 
-    // Fish key (F)
-    if (Phaser.Input.Keyboard.JustDown(GameState.fishKey) && !GameState.isDialogOpen) {
-        if (isNearPond()) {
-            startFishing();
-        }
-    }
-
-    // Craft key (C)
-    if (Phaser.Input.Keyboard.JustDown(GameState.craftKey) && !GameState.isDialogOpen && !GameState.inventoryOpen) {
-        if (isNearCookingStation()) {
-            showCraftingMenu();
-        }
-    }
-
     // Inventory key (I)
     if (Phaser.Input.Keyboard.JustDown(GameState.inventoryKey) && !GameState.isDialogOpen) {
         toggleInventory();
-    }
-
-    // Lamppost lights toggle (L) - toggle nearest lamppost
-    if (Phaser.Input.Keyboard.JustDown(GameState.lamppostKey) && !GameState.isDialogOpen) {
-        const nearestLamppost = findNearestLamppost();
-        if (nearestLamppost) {
-            const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
-            // Send to server for sync, or toggle locally if offline
-            if (!sendToggleLamppost(lamppostIndex)) {
-                nearestLamppost.lightOn = !nearestLamppost.lightOn;
-                nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
-            }
-        }
-    }
-
-    // Water key (W) - water nearest planted plot
-    if (Phaser.Input.Keyboard.JustDown(GameState.waterKey) && !GameState.isDialogOpen) {
-        const plot = findNearestFarmPlot();
-        if (plot && (plot.state === 'planted' || plot.state === 'growing') && !plot.isWatered) {
-            equipTool('wateringCan');
-            GameState.isWatering = true;
-            waterPlot(plot);
-            // Brief watering animation, then unequip
-            setTimeout(() => {
-                GameState.isWatering = false;
-                equipTool('none');
-            }, 500);
-        }
-    }
-
-    // Remove hazard key (R) - remove weeds, bugs, or dead plants
-    if (Phaser.Input.Keyboard.JustDown(GameState.removeHazardKey) && !GameState.isDialogOpen) {
-        const plot = findNearestFarmPlot();
-        if (plot && (plot.hazard || plot.state === 'dead')) {
-            removeHazard(plot);
-        }
-    }
-
-    // Harvest fruit from trees (E key near fruit tree)
-    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.canInteract) {
-        const nearestTree = findNearestFruitTree();
-        if (nearestTree && nearestTree.hasFruit) {
-            harvestFruit(nearestTree);
-        }
     }
 }
 
@@ -683,30 +690,29 @@ function updateProximityPrompts() {
 
     GameState.interactPrompt.setVisible(GameState.canInteract);
 
-    // Farm prompts
+    // Farm prompts - show most relevant action
     const nearPlot = findNearestFarmPlot();
     if (nearPlot) {
         let promptText = '';
-        if (nearPlot.state === 'grass') promptText = '🔨 H to hoe';
-        else if (nearPlot.state === 'tilled') promptText = '🌱 P to plant';
-        else if (nearPlot.state === 'ready') promptText = '✋ P to harvest';
-        else if (nearPlot.state === 'dead') promptText = '💀 R to clear';
-        GameState.farmPrompt.setText(promptText).setVisible(!!promptText);
-
-        // Water prompt for unwatered plants
-        if ((nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
-            GameState.waterPrompt.setText('💧 W to water').setVisible(true);
-        } else {
-            GameState.waterPrompt.setVisible(false);
-        }
-
-        // Hazard prompt for weeds/bugs
+        // Priority: hazard > water > state-based action
         if (nearPlot.hazard) {
             const hazardName = nearPlot.hazard === 'weeds' ? '🌿 Weeds' : '🐛 Bugs';
-            GameState.hazardPrompt.setText(`${hazardName} - R to remove`).setVisible(true);
-        } else {
-            GameState.hazardPrompt.setVisible(false);
+            promptText = `${hazardName} - E to remove`;
+        } else if (nearPlot.state === 'dead') {
+            promptText = '💀 E to clear';
+        } else if ((nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
+            promptText = '💧 E to water';
+        } else if (nearPlot.state === 'grass') {
+            promptText = '🔨 H to hoe';
+        } else if (nearPlot.state === 'tilled') {
+            promptText = '🌱 P to plant';
+        } else if (nearPlot.state === 'ready') {
+            promptText = '✋ E to harvest';
         }
+        GameState.farmPrompt.setText(promptText).setVisible(!!promptText);
+        // Hide separate water/hazard prompts (consolidated into main prompt)
+        GameState.waterPrompt.setVisible(false);
+        GameState.hazardPrompt.setVisible(false);
     } else {
         GameState.farmPrompt.setVisible(false);
         GameState.waterPrompt.setVisible(false);
@@ -729,14 +735,14 @@ function updateProximityPrompts() {
 
     // Fishing prompt
     if (isNearPond() && !GameState.isFishing) {
-        GameState.fishingPrompt.setText('🎣 F to fish').setVisible(true);
+        GameState.fishingPrompt.setText('🎣 E to fish').setVisible(true);
     } else {
         GameState.fishingPrompt.setVisible(false);
     }
 
     // Cooking prompt
     if (isNearCookingStation()) {
-        GameState.cookingPrompt.setText('🍳 C to cook').setVisible(true);
+        GameState.cookingPrompt.setText('🍳 E to cook').setVisible(true);
     } else {
         GameState.cookingPrompt.setVisible(false);
     }
@@ -745,7 +751,7 @@ function updateProximityPrompts() {
     const nearLamp = findNearestLamppost();
     if (nearLamp) {
         const status = nearLamp.lightOn ? 'off' : 'on';
-        GameState.lamppostPrompt.setText(`💡 L to turn ${status}`).setVisible(true);
+        GameState.lamppostPrompt.setText(`💡 E to turn ${status}`).setVisible(true);
     } else {
         GameState.lamppostPrompt.setVisible(false);
     }

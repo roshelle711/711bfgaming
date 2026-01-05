@@ -82,16 +82,12 @@ export const GameState = {
     // Input references (set by game.js)
     cursors: null,
     wasd: null,
-    interactKey: null,
-    hoeKey: null,
-    plantKey: null,
-    tabKey: null,
-    fishKey: null,
-    craftKey: null,
-    inventoryKey: null,
-    waterKey: null,
-    removeHazardKey: null,
-    lamppostKey: null,
+    interactKey: null,       // E - universal interact
+    escapeKey: null,         // ESC - close menus
+    hoeKey: null,            // H - hoe ground
+    plantKey: null,          // P - plant seed
+    tabKey: null,            // TAB - cycle seeds
+    inventoryKey: null,      // I - inventory
 
     // UI elements (set by ui.js)
     interactPrompt: null,
