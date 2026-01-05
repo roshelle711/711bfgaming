@@ -479,16 +479,15 @@ function update(time, delta) {
  */
 function useActiveItem(scene) {
     const tool = GameState.equippedTool;
-    const targetPlot = findTargetPlot();
     const nearPlot = findNearestFarmPlot();
 
-    // HOE: Till grass plots
+    // HOE: Till grass plots (uses nearest plot, not directional)
     if (tool === 'hoe') {
-        if (targetPlot && targetPlot.state === 'grass') {
+        if (nearPlot && nearPlot.state === 'grass') {
             // Small wind-up delay for satisfying feel
             GameState.isHoeing = true;
             setTimeout(() => {
-                hoePlot(targetPlot);
+                hoePlot(nearPlot);
                 GameState.isHoeing = false;
             }, 150);
         }
@@ -497,9 +496,9 @@ function useActiveItem(scene) {
 
     // WATERING CAN: Water plants
     if (tool === 'wateringCan') {
-        if (targetPlot && (targetPlot.state === 'planted' || targetPlot.state === 'growing') && !targetPlot.isWatered) {
+        if (nearPlot && (nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
             GameState.isWatering = true;
-            waterPlot(targetPlot);
+            waterPlot(nearPlot);
             setTimeout(() => {
                 GameState.isWatering = false;
             }, 500);
@@ -586,21 +585,21 @@ function updateTargetHighlight() {
     // Only show highlight when hoe is equipped
     if (GameState.equippedTool !== 'hoe') return;
 
-    const targetPlot = findTargetPlot();
-    if (!targetPlot) return;
+    const nearPlot = findNearestFarmPlot();
+    if (!nearPlot) return;
 
     // Different colors based on plot state
-    if (targetPlot.state === 'grass') {
+    if (nearPlot.state === 'grass') {
         // Green highlight - can hoe this
         GameState.targetHighlight.lineStyle(3, 0x00FF00, 0.8);
-        GameState.targetHighlight.strokeRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
+        GameState.targetHighlight.strokeRect(nearPlot.x - 22, nearPlot.y - 22, 44, 44);
         // Corner brackets
         GameState.targetHighlight.fillStyle(0x00FF00, 0.3);
-        GameState.targetHighlight.fillRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
+        GameState.targetHighlight.fillRect(nearPlot.x - 22, nearPlot.y - 22, 44, 44);
     } else {
         // Red highlight - can't hoe this
         GameState.targetHighlight.lineStyle(2, 0xFF0000, 0.5);
-        GameState.targetHighlight.strokeRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
+        GameState.targetHighlight.strokeRect(nearPlot.x - 22, nearPlot.y - 22, 44, 44);
     }
 }
 
