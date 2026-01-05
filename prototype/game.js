@@ -492,67 +492,62 @@ function useActiveItem(scene) {
     const tool = GameState.equippedTool;
     // Use mouse-based selection for plots
     const targetPlot = findPlotUnderMouse(100);
-    // Fallback to nearest for non-plot actions
-    const nearPlot = targetPlot || findNearestFarmPlot();
 
-    // HOE: Till grass plots
-    if (tool === 'hoe') {
-        if (targetPlot && targetPlot.state === 'grass') {
-            GameState.isHoeing = true;
-            setTimeout(() => {
-                hoePlot(targetPlot);
-                GameState.isHoeing = false;
-            }, 150);
-        }
-        return;
-    }
+    // === UNIVERSAL ACTIONS FIRST (work with any tool) ===
 
-    // WATERING CAN: Water plants
-    if (tool === 'wateringCan') {
-        if (targetPlot && (targetPlot.state === 'planted' || targetPlot.state === 'growing') && !targetPlot.isWatered) {
-            GameState.isWatering = true;
-            waterPlot(targetPlot);
-            setTimeout(() => {
-                GameState.isWatering = false;
-            }, 500);
-        }
-        return;
-    }
-
-    // FISHING ROD: Cast at pond
-    if (tool === 'fishingRod') {
-        if (isNearPond() && !GameState.isFishing) {
-            startFishing();
-        }
-        return;
-    }
-
-    // === UNIVERSAL CLICK ACTIONS (work with any tool) ===
-
-    // Fruit tree harvest (use mouse position check)
+    // Fruit tree harvest
     const nearTree = findNearestFruitTree();
     if (nearTree && nearTree.hasFruit) {
         harvestFruit(nearTree);
         return;
     }
 
-    // Farm plot actions (mouse-targeted)
+    // Farm plot universal actions (harvest, remove hazard, plant)
     if (targetPlot) {
-        // Remove hazard/dead plant
-        if (targetPlot.hazard || targetPlot.state === 'dead') {
-            removeHazard(targetPlot);
-            return;
-        }
-        // Harvest ready crops
+        // Harvest ready crops - works with any tool
         if (targetPlot.state === 'ready') {
             harvestCrop(targetPlot);
             return;
         }
-        // Plant seeds in tilled soil
+        // Remove hazard/dead plant - works with any tool
+        if (targetPlot.hazard || targetPlot.state === 'dead') {
+            removeHazard(targetPlot);
+            return;
+        }
+        // Plant seeds in tilled soil - works with any tool
         if (targetPlot.state === 'tilled') {
             plantSeed(targetPlot, scene);
             return;
         }
+    }
+
+    // === TOOL-SPECIFIC ACTIONS ===
+
+    // HOE: Till grass plots
+    if (tool === 'hoe' && targetPlot && targetPlot.state === 'grass') {
+        GameState.isHoeing = true;
+        setTimeout(() => {
+            hoePlot(targetPlot);
+            GameState.isHoeing = false;
+        }, 150);
+        return;
+    }
+
+    // WATERING CAN: Water plants
+    if (tool === 'wateringCan' && targetPlot &&
+        (targetPlot.state === 'planted' || targetPlot.state === 'growing') && !targetPlot.isWatered) {
+        GameState.isWatering = true;
+        waterPlot(targetPlot);
+        setTimeout(() => {
+            GameState.isWatering = false;
+        }, 500);
+        return;
+    }
+
+    // FISHING ROD: Cast at pond
+    if (tool === 'fishingRod' && isNearPond() && !GameState.isFishing) {
+        startFishing();
+        return;
     }
 }
 
