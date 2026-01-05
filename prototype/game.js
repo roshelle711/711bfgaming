@@ -381,6 +381,14 @@ function startGame(scene) {
     GameState.targetHighlight = scene.add.graphics();
     GameState.targetHighlight.setDepth(5);
 
+    // Track mouse position for plot selection
+    GameState.mouseX = 0;
+    GameState.mouseY = 0;
+    scene.input.on('pointermove', (pointer) => {
+        GameState.mouseX = pointer.worldX;
+        GameState.mouseY = pointer.worldY;
+    });
+
     // Create tool graphics
     createToolGraphics(scene);
 
@@ -478,21 +486,21 @@ function update(time, delta) {
 
 /**
  * Use the active item/tool on left click
+ * Uses mouse position to select plot within player reach
  */
 function useActiveItem(scene) {
     const tool = GameState.equippedTool;
-    const nearPlot = findNearestFarmPlot();
-    console.log('useActiveItem - tool:', tool, 'nearPlot:', nearPlot ? nearPlot.state : 'none');
+    // Use mouse-based selection for plots
+    const targetPlot = findPlotUnderMouse(100);
+    // Fallback to nearest for non-plot actions
+    const nearPlot = targetPlot || findNearestFarmPlot();
 
-    // HOE: Till grass plots (uses nearest plot, not directional)
+    // HOE: Till grass plots
     if (tool === 'hoe') {
-        console.log('Hoe equipped, nearPlot state:', nearPlot?.state);
-        if (nearPlot && nearPlot.state === 'grass') {
-            console.log('Hoeing plot!');
-            // Small wind-up delay for satisfying feel
+        if (targetPlot && targetPlot.state === 'grass') {
             GameState.isHoeing = true;
             setTimeout(() => {
-                hoePlot(nearPlot);
+                hoePlot(targetPlot);
                 GameState.isHoeing = false;
             }, 150);
         }
@@ -501,9 +509,9 @@ function useActiveItem(scene) {
 
     // WATERING CAN: Water plants
     if (tool === 'wateringCan') {
-        if (nearPlot && (nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
+        if (targetPlot && (targetPlot.state === 'planted' || targetPlot.state === 'growing') && !targetPlot.isWatered) {
             GameState.isWatering = true;
-            waterPlot(nearPlot);
+            waterPlot(targetPlot);
             setTimeout(() => {
                 GameState.isWatering = false;
             }, 500);
@@ -521,28 +529,28 @@ function useActiveItem(scene) {
 
     // === UNIVERSAL CLICK ACTIONS (work with any tool) ===
 
-    // Fruit tree harvest
+    // Fruit tree harvest (use mouse position check)
     const nearTree = findNearestFruitTree();
     if (nearTree && nearTree.hasFruit) {
         harvestFruit(nearTree);
         return;
     }
 
-    // Farm plot actions
-    if (nearPlot) {
+    // Farm plot actions (mouse-targeted)
+    if (targetPlot) {
         // Remove hazard/dead plant
-        if (nearPlot.hazard || nearPlot.state === 'dead') {
-            removeHazard(nearPlot);
+        if (targetPlot.hazard || targetPlot.state === 'dead') {
+            removeHazard(targetPlot);
             return;
         }
         // Harvest ready crops
-        if (nearPlot.state === 'ready') {
-            harvestCrop(nearPlot);
+        if (targetPlot.state === 'ready') {
+            harvestCrop(targetPlot);
             return;
         }
-        // Plant seeds in tilled soil (uses current seed selection from Tab)
-        if (nearPlot.state === 'tilled') {
-            plantSeed(nearPlot, scene);
+        // Plant seeds in tilled soil
+        if (targetPlot.state === 'tilled') {
+            plantSeed(targetPlot, scene);
             return;
         }
     }
@@ -580,31 +588,81 @@ function findTargetPlot() {
 }
 
 /**
- * Update target tile highlight (shows which plot hoe will hit)
+ * Find the plot under mouse cursor that's within player reach
+ * Returns null if no plot is under mouse or player is too far
+ */
+function findPlotUnderMouse(playerRange = 100) {
+    if (!GameState.player) return null;
+
+    let closestToMouse = null;
+    let closestMouseDist = 30; // Must click within 30px of plot center
+
+    GameState.farmPlots.forEach(plot => {
+        // Check distance from mouse to plot
+        const mouseDx = GameState.mouseX - plot.x;
+        const mouseDy = GameState.mouseY - plot.y;
+        const mouseDist = Math.sqrt(mouseDx * mouseDx + mouseDy * mouseDy);
+
+        // Check distance from player to plot
+        const playerDx = GameState.player.x - plot.x;
+        const playerDy = GameState.player.y - plot.y;
+        const playerDist = Math.sqrt(playerDx * playerDx + playerDy * playerDy);
+
+        // Plot must be close to mouse AND within player range
+        if (mouseDist < closestMouseDist && playerDist < playerRange) {
+            closestMouseDist = mouseDist;
+            closestToMouse = plot;
+        }
+    });
+
+    return closestToMouse;
+}
+
+/**
+ * Update target tile highlight (follows mouse, shows which plot will be affected)
  */
 function updateTargetHighlight() {
     if (!GameState.targetHighlight || !GameState.player) return;
 
     GameState.targetHighlight.clear();
 
-    // Only show highlight when hoe is equipped
-    if (GameState.equippedTool !== 'hoe') return;
+    const tool = GameState.equippedTool;
 
-    const nearPlot = findNearestFarmPlot();
-    if (!nearPlot) return;
+    // Find plot under mouse within player reach
+    const targetPlot = findPlotUnderMouse(100);
+    if (!targetPlot) return;
 
-    // Different colors based on plot state
-    if (nearPlot.state === 'grass') {
-        // Green highlight - can hoe this
-        GameState.targetHighlight.lineStyle(3, 0x00FF00, 0.8);
-        GameState.targetHighlight.strokeRect(nearPlot.x - 22, nearPlot.y - 22, 44, 44);
-        // Corner brackets
-        GameState.targetHighlight.fillStyle(0x00FF00, 0.3);
-        GameState.targetHighlight.fillRect(nearPlot.x - 22, nearPlot.y - 22, 44, 44);
+    // Determine highlight color based on tool and plot state
+    let canAct = false;
+    let highlightColor = 0xFF0000; // Red = can't act
+
+    if (tool === 'hoe' && targetPlot.state === 'grass') {
+        canAct = true;
+        highlightColor = 0x00FF00; // Green = can hoe
+    } else if (tool === 'wateringCan' && (targetPlot.state === 'planted' || targetPlot.state === 'growing') && !targetPlot.isWatered) {
+        canAct = true;
+        highlightColor = 0x00BFFF; // Blue = can water
+    } else if (targetPlot.state === 'tilled') {
+        canAct = true;
+        highlightColor = 0xFFD700; // Gold = can plant
+    } else if (targetPlot.state === 'ready') {
+        canAct = true;
+        highlightColor = 0x00FF00; // Green = can harvest
+    } else if (targetPlot.hazard || targetPlot.state === 'dead') {
+        canAct = true;
+        highlightColor = 0xFFA500; // Orange = can remove
+    }
+
+    // Draw highlight
+    if (canAct) {
+        GameState.targetHighlight.lineStyle(3, highlightColor, 0.9);
+        GameState.targetHighlight.strokeRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
+        GameState.targetHighlight.fillStyle(highlightColor, 0.25);
+        GameState.targetHighlight.fillRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
     } else {
-        // Red highlight - can't hoe this
-        GameState.targetHighlight.lineStyle(2, 0xFF0000, 0.5);
-        GameState.targetHighlight.strokeRect(nearPlot.x - 22, nearPlot.y - 22, 44, 44);
+        // Show red outline for plots you can't interact with
+        GameState.targetHighlight.lineStyle(2, 0xFF0000, 0.4);
+        GameState.targetHighlight.strokeRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
     }
 }
 

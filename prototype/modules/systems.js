@@ -40,6 +40,7 @@ export function hoePlot(plot) {
     } else {
         // Single-player fallback
         plot.state = 'tilled';
+        plot.usageCount = 0; // Reset usage when freshly hoed
         drawPlot(plot);
     }
 }
@@ -91,10 +92,23 @@ export function harvestCrop(plot) {
     } else {
         // Single-player fallback
         GameState.inventory.crops[plot.crop]++;
-        plot.state = 'tilled';
+
+        // Increment usage and check if plot is exhausted
+        plot.usageCount = (plot.usageCount || 0) + 1;
+        const USAGE_LIMIT = 5;
+
+        if (plot.usageCount >= USAGE_LIMIT) {
+            // Plot exhausted - revert to grass
+            plot.state = 'grass';
+            plot.usageCount = 0;
+        } else {
+            plot.state = 'tilled';
+        }
+
         plot.crop = null;
         plot.growthTimer = 0;
-        plot.harvestTime = GameState.gameTime; // Track when harvested for reset
+        plot.isWatered = false;
+        plot.harvestTime = GameState.gameTime;
         if (plot.plantGraphics) {
             plot.plantGraphics.destroy();
             plot.plantGraphics = null;

@@ -5,7 +5,7 @@ import { Schema, type, MapSchema } from "@colyseus/schema";
  */
 export class FarmPlot extends Schema {
   @type("number")
-  index: number = 0; // 0-7 for 8 plots
+  index: number = 0; // 0-14 for 15 plots (3x5 grid)
 
   @type("string")
   state: string = "grass"; // grass | tilled | planted | growing | ready | wilted | dead
@@ -27,6 +27,9 @@ export class FarmPlot extends Schema {
 
   @type("string")
   hazard: string = ""; // "" | "weeds" | "bugs"
+
+  @type("number")
+  usageCount: number = 0; // harvests since last hoe - reverts to grass at 5
 }
 
 /**

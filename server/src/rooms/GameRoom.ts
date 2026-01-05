@@ -592,6 +592,7 @@ export class GameRoom extends Room<GameState> {
       case "hoe":
         if (plot.state === "grass") {
           plot.state = "tilled";
+          plot.usageCount = 0; // Reset usage count when freshly hoed
           plot.lastActionBy = client.sessionId;
           this.debouncedPersist();
           this.roomLogger.debug(
@@ -624,13 +625,30 @@ export class GameRoom extends Room<GameState> {
             harvestedBy: client.sessionId,
           });
 
-          plot.state = "tilled";
+          // Increment usage count and check if plot needs re-hoeing
+          plot.usageCount++;
+          const USAGE_LIMIT = 5;
+
+          if (plot.usageCount >= USAGE_LIMIT) {
+            // Plot is exhausted - revert to grass
+            plot.state = "grass";
+            plot.usageCount = 0;
+            this.roomLogger.debug(
+              { event: "plot_exhausted", plotIndex: message.plotIndex },
+              "Plot reverted to grass after 5 harvests"
+            );
+          } else {
+            // Plot still usable
+            plot.state = "tilled";
+          }
+
           plot.crop = "";
           plot.growthTimer = 0;
+          plot.isWatered = false;
           plot.lastActionBy = client.sessionId;
           this.debouncedPersist();
           this.roomLogger.debug(
-            { event: "crop_harvested", plotIndex: message.plotIndex, sessionId: client.sessionId },
+            { event: "crop_harvested", plotIndex: message.plotIndex, usageCount: plot.usageCount, sessionId: client.sessionId },
             "Crop harvested"
           );
         }
