@@ -11,7 +11,7 @@ import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool } from './modules/player.js';
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree } from './modules/world.js';
-import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory } from './modules/ui.js';
+import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './modules/multiplayer.js';
 
@@ -339,6 +339,14 @@ function startGame(scene) {
     GameState.plantKey = scene.input.keyboard.addKey('P');
     GameState.tabKey = scene.input.keyboard.addKey('TAB');
     GameState.inventoryKey = scene.input.keyboard.addKey('I');
+    // Hotbar slot keys 1-5
+    GameState.hotbarKeys = [
+        scene.input.keyboard.addKey('ONE'),
+        scene.input.keyboard.addKey('TWO'),
+        scene.input.keyboard.addKey('THREE'),
+        scene.input.keyboard.addKey('FOUR'),
+        scene.input.keyboard.addKey('FIVE')
+    ];
 
     // Create tool graphics
     createToolGraphics(scene);
@@ -546,6 +554,16 @@ function handleInput(scene) {
     // Inventory key (I)
     if (Phaser.Input.Keyboard.JustDown(GameState.inventoryKey) && !GameState.isDialogOpen) {
         toggleInventory();
+    }
+
+    // Hotbar slot selection (1-5)
+    if (!GameState.isDialogOpen && !GameState.inventoryOpen && GameState.hotbarKeys) {
+        for (let i = 0; i < 5; i++) {
+            if (Phaser.Input.Keyboard.JustDown(GameState.hotbarKeys[i])) {
+                setActiveHotbarSlot(i);
+                break;
+            }
+        }
     }
 }
 

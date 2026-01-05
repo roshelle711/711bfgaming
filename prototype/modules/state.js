@@ -32,6 +32,7 @@ export const GameState = {
 
     // Inventory & economy
     inventory: {
+        tools: { hoe: 1, wateringCan: 1, fishingRod: 1 },  // Player starts with basic tools
         seeds: { carrot: 3, tomato: 3, flower: 3, lettuce: 2, onion: 2, potato: 2, pepper: 1, corn: 1, pumpkin: 1 },
         crops: { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
         fruits: { apple: 0, orange: 0, peach: 0, cherry: 0 },
@@ -40,8 +41,19 @@ export const GameState = {
     },
     coins: 50,
 
-    // Equipped tool
-    equippedTool: 'none',  // 'none' | 'hoe' | 'wateringCan'
+    // Hotbar system - 5 slots for tools and items
+    // type: 'tool' | 'seed' | 'crop' | 'fruit' | 'fish' | 'empty'
+    hotbar: [
+        { type: 'tool', item: 'hoe', count: 1 },
+        { type: 'tool', item: 'wateringCan', count: 1 },
+        { type: 'tool', item: 'fishingRod', count: 1 },
+        { type: 'empty', item: null, count: 0 },
+        { type: 'empty', item: null, count: 0 }
+    ],
+    activeHotbarSlot: 0,  // Currently selected slot (0-4)
+
+    // Equipped tool (derived from active hotbar slot)
+    equippedTool: 'hoe',   // 'none' | 'hoe' | 'wateringCan' | 'fishingRod'
     isWatering: false,     // True during watering animation
 
     // Time & day/night
@@ -88,6 +100,11 @@ export const GameState = {
     plantKey: null,          // P - plant seed
     tabKey: null,            // TAB - cycle seeds
     inventoryKey: null,      // I - inventory
+    hotbarKeys: null,        // 1-5 - hotbar slots
+
+    // Hotbar UI elements (set by ui.js)
+    hotbarSlots: null,       // Array of slot UI objects
+    hotbarPanel: null,       // Background panel
 
     // UI elements (set by ui.js)
     interactPrompt: null,

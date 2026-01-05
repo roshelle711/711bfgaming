@@ -390,6 +390,27 @@ export function updateHeldTool() {
                 toolGraphics.fillCircle(toolX + 18 + i * 3, toolY - 8 + i * 4, 2);
             }
         }
+    } else if (tool === 'fishingRod') {
+        // Fishing rod: long pole + reel + line
+        toolGraphics.fillStyle(0x8B4513, 1); // Brown pole
+        toolGraphics.fillRect(toolX, toolY - 35, 3, 45); // Main pole
+        toolGraphics.fillStyle(0x654321, 1); // Darker tip
+        toolGraphics.fillRect(toolX, toolY - 40, 2, 8);
+        // Reel
+        toolGraphics.fillStyle(0x696969, 1);
+        toolGraphics.fillCircle(toolX + 1, toolY + 5, 5);
+        toolGraphics.fillStyle(0x505050, 1);
+        toolGraphics.fillCircle(toolX + 1, toolY + 5, 3);
+        // Line (when fishing)
+        if (GameState.isFishing) {
+            toolGraphics.lineStyle(1, 0xAAAAAA, 0.8);
+            toolGraphics.lineBetween(toolX + 1, toolY - 40, toolX + 25, toolY + 10);
+            // Bobber
+            toolGraphics.fillStyle(0xFF6347, 1);
+            toolGraphics.fillCircle(toolX + 25, toolY + 12, 4);
+            toolGraphics.fillStyle(0xFFFFFF, 1);
+            toolGraphics.fillCircle(toolX + 25, toolY + 14, 2);
+        }
     }
 }
 

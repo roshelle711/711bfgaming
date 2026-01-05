@@ -18,6 +18,13 @@
 export const GAME_WIDTH = 1400;
 export const GAME_HEIGHT = 900;
 
+// Tool types with emojis
+export const toolTypes = {
+    hoe: { emoji: '🔨', name: 'Hoe' },
+    wateringCan: { emoji: '💧', name: 'Watering Can' },
+    fishingRod: { emoji: '🎣', name: 'Fishing Rod' }
+};
+
 // Character classes
 export const classes = {
     druid: { color: 0x228B22, accent: 0x90EE90, emoji: '🌿', bonus: 'Crops grow 20% faster' },

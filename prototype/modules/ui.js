@@ -13,7 +13,7 @@
  * - setupUI(scene): Initialize all UI elements
  */
 
-import { classes, petTypes, skinTones, hairColors, seedTypes, GAME_WIDTH, GAME_HEIGHT } from './config.js';
+import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT } from './config.js';
 import { GameState, loadPreset, saveCurrentAsPreset } from './state.js';
 import { createWhimsicalCharacter, createPet } from './player.js';
 
@@ -321,6 +321,148 @@ export function updateCoinDisplay() {
     GameState.coinDisplay.setText(`💰 ${GameState.coins}`);
 }
 
+// ===== HOTBAR SYSTEM =====
+
+/**
+ * Create the hotbar UI elements
+ */
+function createHotbarUI(scene) {
+    const slotSize = 50;
+    const slotGap = 8;
+    const totalWidth = (slotSize * 5) + (slotGap * 4);
+    const startX = (GAME_WIDTH - totalWidth) / 2 + slotSize / 2;
+    const y = GAME_HEIGHT - 40;
+
+    GameState.hotbarSlots = [];
+
+    for (let i = 0; i < 5; i++) {
+        const x = startX + i * (slotSize + slotGap);
+
+        // Slot background
+        const bg = scene.add.rectangle(x, y, slotSize, slotSize, 0x2C3E50, 0.9)
+            .setStrokeStyle(3, 0x3498DB)
+            .setDepth(100);
+
+        // Slot number (1-5)
+        const numText = scene.add.text(x - slotSize/2 + 5, y - slotSize/2 + 2, `${i + 1}`, {
+            fontSize: '10px', fill: '#888'
+        }).setDepth(101);
+
+        // Item icon (emoji)
+        const icon = scene.add.text(x, y - 5, '', {
+            fontSize: '22px'
+        }).setOrigin(0.5).setDepth(101);
+
+        // Count text (for stackable items)
+        const count = scene.add.text(x + slotSize/2 - 5, y + slotSize/2 - 5, '', {
+            fontSize: '11px', fill: '#fff', fontStyle: 'bold'
+        }).setOrigin(1).setDepth(101);
+
+        GameState.hotbarSlots.push({ bg, numText, icon, count, x, y });
+    }
+
+    // Hotbar background panel
+    GameState.hotbarPanel = scene.add.rectangle(GAME_WIDTH / 2, y, totalWidth + 20, slotSize + 16, 0x1a1a2e, 0.8)
+        .setStrokeStyle(2, 0x9B59B6)
+        .setDepth(99);
+}
+
+/**
+ * Update the hotbar display to reflect current state
+ */
+export function updateHotbarDisplay() {
+    if (!GameState.hotbarSlots) return;
+
+    const emojis = {
+        // Tools
+        hoe: '🔨', wateringCan: '💧', fishingRod: '🎣',
+        // Seeds
+        carrot: '🥕', tomato: '🍅', flower: '🌸',
+        lettuce: '🥬', onion: '🧅', potato: '🥔',
+        pepper: '🌶️', corn: '🌽', pumpkin: '🎃',
+        // Fruits
+        apple: '🍎', orange: '🍊', peach: '🍑', cherry: '🍒',
+        // Fish
+        bass: '🐟', salmon: '🐠', goldfish: '✨'
+    };
+
+    for (let i = 0; i < 5; i++) {
+        const slot = GameState.hotbarSlots[i];
+        const hotbarItem = GameState.hotbar[i];
+        const isActive = GameState.activeHotbarSlot === i;
+
+        // Update border color for active slot
+        slot.bg.setStrokeStyle(3, isActive ? 0xFFD700 : 0x3498DB);
+
+        if (hotbarItem.type === 'empty' || !hotbarItem.item) {
+            slot.icon.setText('');
+            slot.count.setText('');
+        } else {
+            slot.icon.setText(emojis[hotbarItem.item] || '?');
+            // Only show count for stackable items (not tools)
+            if (hotbarItem.type !== 'tool' && hotbarItem.count > 1) {
+                slot.count.setText(hotbarItem.count.toString());
+            } else {
+                slot.count.setText('');
+            }
+        }
+    }
+}
+
+/**
+ * Set the active hotbar slot
+ * @param {number} slotIndex - 0-4 for slots 1-5
+ */
+export function setActiveHotbarSlot(slotIndex) {
+    if (slotIndex < 0 || slotIndex > 4) return;
+
+    GameState.activeHotbarSlot = slotIndex;
+    const hotbarItem = GameState.hotbar[slotIndex];
+
+    // Update equipped tool based on active slot
+    if (hotbarItem.type === 'tool') {
+        GameState.equippedTool = hotbarItem.item;
+    } else {
+        GameState.equippedTool = 'none';
+    }
+
+    updateHotbarDisplay();
+}
+
+/**
+ * Add an item to the hotbar
+ * @param {string} type - 'tool' | 'seed' | 'crop' | 'fruit' | 'fish'
+ * @param {string} item - Item type name
+ * @param {number} count - Stack count (1 for tools)
+ * @returns {boolean} True if item was added
+ */
+export function addToHotbar(type, item, count = 1) {
+    // Find first empty slot
+    const emptyIndex = GameState.hotbar.findIndex(slot => slot.type === 'empty');
+    if (emptyIndex === -1) return false; // Hotbar full
+
+    GameState.hotbar[emptyIndex] = { type, item, count };
+    updateHotbarDisplay();
+    return true;
+}
+
+/**
+ * Remove item from hotbar slot
+ * @param {number} slotIndex - 0-4 for slots 1-5
+ */
+export function removeFromHotbar(slotIndex) {
+    if (slotIndex < 0 || slotIndex > 4) return;
+
+    GameState.hotbar[slotIndex] = { type: 'empty', item: null, count: 0 };
+
+    // If this was the active slot, update equipped tool
+    if (GameState.activeHotbarSlot === slotIndex) {
+        GameState.equippedTool = 'none';
+    }
+
+    updateHotbarDisplay();
+}
+
 /**
  * Initialize UI elements
  */
@@ -387,9 +529,13 @@ export function setupUI(scene) {
         fontSize: '11px', fill: '#888'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
+    // Hotbar UI - 5 slots at bottom of screen
+    createHotbarUI(scene);
+
     // Initial updates (inventory starts hidden, updates when opened)
     updateSeedIndicator();
     updateCoinDisplay();
+    updateHotbarDisplay();
 }
 
 /**
