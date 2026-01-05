@@ -14,7 +14,7 @@
  */
 
 import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT } from './config.js';
-import { GameState, loadPreset, saveCurrentAsPreset } from './state.js';
+import { GameState, loadPreset, saveCurrentAsPreset, deletePreset } from './state.js';
 import { createWhimsicalCharacter, createPet } from './player.js';
 
 /**
@@ -179,7 +179,7 @@ export function createInventoryIcons(scene) {
     });
 
     // Close hint
-    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 210, '[ Press I to close ]', {
+    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 210, '[ I or ESC to close ]', {
         fontSize: '12px', fill: '#666'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
@@ -525,7 +525,7 @@ export function setupUI(scene) {
         fontSize: '14px', fill: '#fff', wordWrap: { width: 560 }, lineSpacing: 6, align: 'center'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
-    scene.dialogCloseText = scene.add.text(centerX, bottomY - 10, '[ Press E to close ]', {
+    scene.dialogCloseText = scene.add.text(centerX, bottomY - 10, '[ E or ESC to close ]', {
         fontSize: '11px', fill: '#888'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
@@ -739,23 +739,42 @@ export function showCharacterCreation(scene, onComplete) {
         });
     });
 
-    // === BOTTOM CENTER: Presets ===
-    const presetLabel = scene.add.text(centerX, 380, 'Quick Start Presets', { fontSize: '14px', fill: '#fff' }).setOrigin(0.5).setDepth(201);
+    // === BOTTOM CENTER: Character Profiles (6 slots in 2x3 grid) ===
+    const presetLabel = scene.add.text(centerX, 365, 'Character Profiles', { fontSize: '14px', fill: '#fff' }).setOrigin(0.5).setDepth(201);
     creationUI.push(presetLabel);
 
-    for (let i = 0; i < 3; i++) {
-        const x = centerX - 100 + i * 100;
+    for (let i = 0; i < 6; i++) {
+        const row = Math.floor(i / 3);
+        const col = i % 3;
+        const x = centerX - 90 + col * 90;
+        const y = 410 + row * 55;
         const preset = GameState.characterPresets[i];
 
-        const slotBtn = scene.add.rectangle(x, 430, 80, 60, preset ? 0x2C3E50 : 0x1a1a2e, 0.9)
+        const slotBtn = scene.add.rectangle(x, y, 75, 45, preset ? 0x2C3E50 : 0x1a1a2e, 0.9)
             .setStrokeStyle(2, preset ? 0x27AE60 : 0x444444).setDepth(201).setInteractive();
         creationUI.push(slotBtn);
 
         if (preset) {
-            const emoji = scene.add.text(x, 415, classes[preset.class]?.emoji || '?', { fontSize: '18px' }).setOrigin(0.5).setDepth(202);
+            const emoji = scene.add.text(x - 20, y - 5, classes[preset.class]?.emoji || '?', { fontSize: '16px' }).setOrigin(0.5).setDepth(202);
             creationUI.push(emoji);
-            const pname = scene.add.text(x, 440, preset.name.substring(0, 8), { fontSize: '10px', fill: '#fff' }).setOrigin(0.5).setDepth(202);
+            const pname = scene.add.text(x + 5, y - 5, preset.name.substring(0, 6), { fontSize: '10px', fill: '#fff' }).setOrigin(0, 0.5).setDepth(202);
             creationUI.push(pname);
+
+            // Delete button (X in corner)
+            const delBtn = scene.add.rectangle(x + 30, y - 15, 16, 16, 0xC0392B, 0.9)
+                .setStrokeStyle(1, 0xE74C3C).setDepth(203).setInteractive();
+            creationUI.push(delBtn);
+            const delX = scene.add.text(x + 30, y - 15, '×', { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(204);
+            creationUI.push(delX);
+
+            delBtn.on('pointerdown', (pointer) => {
+                pointer.event.stopPropagation();
+                deletePreset(i);
+                creationUI.forEach(obj => obj.destroy());
+                showCharacterCreation(scene, onComplete);
+            });
+            delBtn.on('pointerover', () => delBtn.setFillStyle(0xE74C3C, 1));
+            delBtn.on('pointerout', () => delBtn.setFillStyle(0xC0392B, 0.9));
 
             slotBtn.on('pointerdown', () => {
                 loadPreset(i);
@@ -769,18 +788,19 @@ export function showCharacterCreation(scene, onComplete) {
                 refreshPreview();
             });
         } else {
-            const plus = scene.add.text(x, 425, '💾', { fontSize: '16px' }).setOrigin(0.5).setDepth(202);
+            const plus = scene.add.text(x, y - 3, '💾', { fontSize: '14px' }).setOrigin(0.5).setDepth(202);
             creationUI.push(plus);
-            const saveLabel = scene.add.text(x, 445, 'Save', { fontSize: '9px', fill: '#666' }).setOrigin(0.5).setDepth(202);
+            const saveLabel = scene.add.text(x, y + 12, 'Save', { fontSize: '8px', fill: '#666' }).setOrigin(0.5).setDepth(202);
             creationUI.push(saveLabel);
 
             slotBtn.on('pointerdown', () => {
                 saveCurrentAsPreset(i);
-                // Refresh the UI
                 creationUI.forEach(obj => obj.destroy());
                 showCharacterCreation(scene, onComplete);
             });
         }
+        slotBtn.on('pointerover', () => slotBtn.setAlpha(0.8));
+        slotBtn.on('pointerout', () => slotBtn.setAlpha(1));
     }
 
     // === BOTTOM RIGHT: Actions ===

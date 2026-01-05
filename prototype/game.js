@@ -9,7 +9,7 @@
 import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions } from './modules/config.js';
 import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
-import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool } from './modules/player.js';
+import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations } from './modules/player.js';
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth } from './modules/systems.js';
@@ -36,7 +36,7 @@ const config = {
     render: {
         pixelArt: false,
         antialias: true,
-        roundPixels: false
+        roundPixels: true  // Prevents blurry text from subpixel rendering
     },
     scene: { preload, create, update },
     dom: { createContainer: true }
@@ -55,38 +55,112 @@ function create() {
     const graphics = this.add.graphics();
 
     // === WORLD SETUP ===
-    // Background grass
+    // Background grass with subtle gradient effect
     graphics.fillStyle(0x90EE90, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Grass variation - lighter areas (sun patches)
+    graphics.fillStyle(0xA8F0A8, 0.4);
+    for (let i = 0; i < 15; i++) {
+        const patchX = Math.random() * GAME_WIDTH;
+        const patchY = Math.random() * GAME_HEIGHT;
+        graphics.fillEllipse(patchX, patchY, 80 + Math.random() * 100, 40 + Math.random() * 60);
+    }
+
+    // Grass variation - darker tufts
     graphics.fillStyle(0x7CCD7C, 1);
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 250; i++) {
         graphics.fillCircle(Math.random() * GAME_WIDTH, Math.random() * GAME_HEIGHT, 2 + Math.random() * 5);
     }
 
-    // Flowers scattered
-    const flowerColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xFFB6C1, 0xDDA0DD];
-    for (let i = 0; i < 80; i++) {
-        graphics.fillStyle(flowerColors[Math.floor(Math.random() * flowerColors.length)], 0.7);
-        graphics.fillCircle(Math.random() * GAME_WIDTH, Math.random() * GAME_HEIGHT, 3 + Math.random() * 2);
+    // Small grass blades for texture
+    graphics.fillStyle(0x6BBF6B, 0.6);
+    for (let i = 0; i < 300; i++) {
+        const gx = Math.random() * GAME_WIDTH;
+        const gy = Math.random() * GAME_HEIGHT;
+        graphics.fillTriangle(gx, gy, gx - 1, gy + 6, gx + 1, gy + 6);
     }
 
-    // Paths - extended for larger screen
-    graphics.fillStyle(0xD2B48C, 1);
-    graphics.fillRect(150, 280, 1100, 30);  // Main horizontal path
-    graphics.fillRect(680, 280, 30, 420);   // Main vertical path (center)
-    graphics.fillRect(235, 200, 30, 85);    // To Mira's cottage
-    graphics.fillRect(885, 200, 30, 85);    // To Your Home
-    graphics.fillRect(1180, 500, 30, 180);  // To General Store
+    // Flowers in varied clusters across the map
+    const flowerColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xFFB6C1, 0xDDA0DD];
 
-    // Path texture
+    // Define cluster spawn areas (avoiding buildings, pond, farm)
+    const clusterZones = [
+        { x: 50, y: 100, w: 150, h: 100 },    // Top-left meadow
+        { x: 250, y: 50, w: 200, h: 80 },     // Top center
+        { x: 550, y: 30, w: 150, h: 100 },    // Top middle
+        { x: 800, y: 50, w: 200, h: 100 },    // Top right area
+        { x: 1100, y: 100, w: 150, h: 120 },  // Far top right
+        { x: 50, y: 600, w: 180, h: 150 },    // Bottom-left near trees
+        { x: 300, y: 750, w: 200, h: 100 },   // Bottom center-left
+        { x: 600, y: 800, w: 250, h: 80 },    // Bottom center
+        { x: 900, y: 700, w: 200, h: 150 },   // Bottom right area
+        { x: 1200, y: 600, w: 150, h: 200 },  // Far right edge
+        { x: 700, y: 150, w: 100, h: 80 },    // Between paths
+        { x: 1050, y: 250, w: 120, h: 80 },   // Near general store approach
+    ];
+
+    // Generate 10-15 clusters
+    const numClusters = 10 + Math.floor(Math.random() * 6);
+    for (let c = 0; c < numClusters; c++) {
+        const zone = clusterZones[Math.floor(Math.random() * clusterZones.length)];
+        const clusterX = zone.x + Math.random() * zone.w;
+        const clusterY = zone.y + Math.random() * zone.h;
+        const clusterSize = 5 + Math.floor(Math.random() * 8); // 5-12 flowers per cluster
+        const clusterColor = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+
+        for (let f = 0; f < clusterSize; f++) {
+            // Mix of cluster color and random colors for variety
+            const useClusterColor = Math.random() > 0.3;
+            const color = useClusterColor ? clusterColor : flowerColors[Math.floor(Math.random() * flowerColors.length)];
+            graphics.fillStyle(color, 0.6 + Math.random() * 0.3);
+
+            // Flowers spread within 25-40px of cluster center
+            const spread = 25 + Math.random() * 15;
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * spread;
+            const fx = clusterX + Math.cos(angle) * dist;
+            const fy = clusterY + Math.sin(angle) * dist;
+
+            graphics.fillCircle(fx, fy, 2 + Math.random() * 3);
+        }
+    }
+
+    // Paths - with subtle edge shadows for depth
+    const pathData = [
+        { x: 150, y: 280, w: 1100, h: 30 },  // Main horizontal path
+        { x: 680, y: 280, w: 30, h: 420 },   // Main vertical path (center)
+        { x: 235, y: 200, w: 30, h: 85 },    // To Mira's cottage
+        { x: 885, y: 200, w: 30, h: 85 },    // To Your Home
+        { x: 1180, y: 500, w: 30, h: 180 }   // To General Store
+    ];
+
+    // Path shadows (underneath)
+    graphics.fillStyle(0x8B7355, 0.3);
+    pathData.forEach(p => graphics.fillRect(p.x + 2, p.y + 2, p.w, p.h));
+
+    // Main path surface
+    graphics.fillStyle(0xD2B48C, 1);
+    pathData.forEach(p => graphics.fillRect(p.x, p.y, p.w, p.h));
+
+    // Path highlight (top edge)
+    graphics.fillStyle(0xE8D4B8, 0.5);
+    pathData.forEach(p => graphics.fillRect(p.x, p.y, p.w, 3));
+
+    // Path texture - pebbles and dirt
     graphics.fillStyle(0xC4A77D, 0.5);
-    for (let i = 0; i < 100; i++) {
-        graphics.fillCircle(150 + Math.random() * 1100, 282 + Math.random() * 26, 5);
+    for (let i = 0; i < 120; i++) {
+        graphics.fillCircle(150 + Math.random() * 1100, 282 + Math.random() * 26, 3 + Math.random() * 4);
+    }
+    // Darker pebbles for variety
+    graphics.fillStyle(0xA68B5B, 0.4);
+    for (let i = 0; i < 60; i++) {
+        graphics.fillCircle(150 + Math.random() * 1100, 282 + Math.random() * 26, 2 + Math.random() * 3);
     }
 
     // Obstacles group
     GameState.obstacles = this.physics.add.staticGroup();
 
-    // Trees - spread across larger map
+    // Trees - spread across larger map with shadows
     const trees = [
         { x: 60, y: 100, s: 35 }, { x: 1340, y: 100, s: 40 }, { x: 60, y: 800, s: 42 },
         { x: 1340, y: 800, s: 38 }, { x: 60, y: 450, s: 36 }, { x: 1340, y: 450, s: 34 },
@@ -94,15 +168,29 @@ function create() {
         { x: 60, y: 250, s: 28 }
     ];
     trees.forEach(t => {
-        graphics.fillStyle(0x2ECC71, 1);
+        // Ground shadow (ellipse beneath tree)
+        graphics.fillStyle(0x1a3a1a, 0.25);
+        graphics.fillEllipse(t.x + 5, t.y + t.s + 15, t.s * 1.2, t.s * 0.5);
+
+        // Trunk
+        graphics.fillStyle(0x5D4037, 1);
+        graphics.fillRect(t.x - 7, t.y + t.s - 10, 14, 32);
+        graphics.fillStyle(0x4A3328, 0.6);
+        graphics.fillRect(t.x - 4, t.y + t.s - 5, 3, 25);  // Bark texture
+
+        // Foliage layers (back to front for depth)
+        graphics.fillStyle(0x1B5E20, 0.8);  // Deep shadow
+        graphics.fillCircle(t.x + 5, t.y + 5, t.s * 0.75);
+        graphics.fillStyle(0x2ECC71, 1);     // Mid leaves
         graphics.fillCircle(t.x - 12, t.y - 6, t.s * 0.7);
         graphics.fillCircle(t.x + 12, t.y - 6, t.s * 0.7);
-        graphics.fillStyle(0x27AE60, 1);
+        graphics.fillStyle(0x27AE60, 1);     // Main canopy
         graphics.fillCircle(t.x, t.y - 12, t.s * 0.8);
-        graphics.fillStyle(0x229954, 1);
+        graphics.fillStyle(0x229954, 1);     // Top layer
         graphics.fillCircle(t.x, t.y, t.s);
-        graphics.fillStyle(0x8B4513, 1);
-        graphics.fillRect(t.x - 7, t.y + t.s - 10, 14, 30);
+        graphics.fillStyle(0x58D68D, 0.5);   // Highlight (sun)
+        graphics.fillCircle(t.x - 8, t.y - 10, t.s * 0.4);
+
         GameState.obstacles.add(this.add.rectangle(t.x, t.y + t.s, 18, 18, 0x000000, 0));
     });
 
@@ -124,25 +212,71 @@ function create() {
     createHouse(graphics, 1200, 580, 0x27AE60, '🏪 General Store', this);
     GameState.obstacles.add(this.add.rectangle(1200, 580, 120, 100, 0x000000, 0));
 
-    // Fishing pond - moved down for larger screen
+    // Fishing pond - with depth and natural edges
     const pondX = 180, pondY = 720;
-    graphics.fillStyle(0x5DADE2, 0.9);
+
+    // Mud/dirt edge around pond
+    graphics.fillStyle(0x6B4423, 0.6);
+    graphics.fillEllipse(pondX, pondY, 155, 115);
+
+    // Deep water (center)
+    graphics.fillStyle(0x2980B9, 0.95);
     graphics.fillEllipse(pondX, pondY, 140, 100);
-    graphics.fillStyle(0x85C1E9, 0.6);
-    graphics.fillEllipse(pondX - 20, pondY - 15, 60, 40);
-    graphics.lineStyle(3, 0x8B4513, 1);
+
+    // Mid water
+    graphics.fillStyle(0x3498DB, 0.8);
+    graphics.fillEllipse(pondX, pondY, 120, 85);
+
+    // Shallow edges (lighter)
+    graphics.fillStyle(0x5DADE2, 0.9);
+    graphics.fillEllipse(pondX, pondY, 100, 70);
+
+    // Surface highlights
+    graphics.fillStyle(0x85C1E9, 0.5);
+    graphics.fillEllipse(pondX - 25, pondY - 20, 50, 30);
+    graphics.fillStyle(0xAED6F1, 0.3);
+    graphics.fillEllipse(pondX - 30, pondY - 25, 30, 18);
+
+    // Water ripples
+    graphics.lineStyle(1, 0x85C1E9, 0.4);
+    graphics.strokeEllipse(pondX + 20, pondY + 10, 25, 15);
+    graphics.strokeEllipse(pondX - 35, pondY + 20, 20, 12);
+
+    // Natural edge with rocks
+    graphics.lineStyle(3, 0x5D4037, 0.8);
     graphics.strokeEllipse(pondX, pondY, 145, 105);
+    for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const rockDist = 68 + Math.random() * 5;
+        graphics.fillStyle(0x808080, 0.8);
+        graphics.fillCircle(pondX + Math.cos(angle) * rockDist, pondY + Math.sin(angle) * rockDist * 0.72, 4 + Math.random() * 4);
+    }
+
+    // Lily pads and reeds
     for (let i = 0; i < 8; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = 55 + Math.random() * 15;
-        graphics.fillStyle(0x90EE90, 1);
-        graphics.fillCircle(pondX + Math.cos(angle) * dist, pondY + Math.sin(angle) * dist * 0.7, 6 + Math.random() * 4);
+        const dist = 35 + Math.random() * 25;
+        graphics.fillStyle(0x228B22, 0.9);
+        graphics.fillEllipse(pondX + Math.cos(angle) * dist, pondY + Math.sin(angle) * dist * 0.7, 10, 7);
+        graphics.fillStyle(0x90EE90, 0.7);
+        graphics.fillEllipse(pondX + Math.cos(angle) * dist - 1, pondY + Math.sin(angle) * dist * 0.7 - 1, 6, 4);
     }
-    graphics.fillStyle(0x228B22, 1);
-    graphics.fillCircle(pondX - 60, pondY + 35, 4);
-    graphics.fillCircle(pondX + 50, pondY + 40, 5);
-    graphics.fillCircle(pondX + 65, pondY - 30, 4);
-    this.add.text(pondX, pondY - 70, '🎣 Fishing Pond', {
+
+    // Cattails/reeds on edges
+    const reedPositions = [
+        { x: pondX - 65, y: pondY + 30 },
+        { x: pondX + 60, y: pondY + 35 },
+        { x: pondX + 70, y: pondY - 25 },
+        { x: pondX - 70, y: pondY - 15 }
+    ];
+    reedPositions.forEach(r => {
+        graphics.fillStyle(0x2E7D32, 1);
+        graphics.fillRect(r.x - 1, r.y - 20, 2, 25);
+        graphics.fillStyle(0x5D4037, 1);
+        graphics.fillEllipse(r.x, r.y - 22, 4, 8);
+    });
+
+    this.add.text(pondX, pondY - 75, '🎣 Fishing Pond', {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
@@ -389,8 +523,9 @@ function startGame(scene) {
         GameState.mouseY = pointer.worldY;
     });
 
-    // Create tool graphics
+    // Create tool graphics and action animations
     createToolGraphics(scene);
+    initActionAnimations(scene);
 
     // Create player
     GameState.player = createWhimsicalCharacter(scene, 700, 450, GameState.playerClass, false, null, GameState.customization);
@@ -470,6 +605,7 @@ function update(time, delta) {
     updateWildlife(delta);
     updateFruitRegrowth(delta);
     updateHeldTool();
+    updateActionAnimations(delta);
     updateTargetHighlight();
 
     // === MULTIPLAYER ===
@@ -498,7 +634,9 @@ function useActiveItem(scene) {
     // Fruit tree harvest
     const nearTree = findNearestFruitTree();
     if (nearTree && nearTree.hasFruit) {
+        GameState.isHarvesting = true;
         harvestFruit(nearTree);
+        setTimeout(() => { GameState.isHarvesting = false; }, 400);
         return;
     }
 
@@ -506,17 +644,23 @@ function useActiveItem(scene) {
     if (targetPlot) {
         // Harvest ready crops - works with any tool
         if (targetPlot.state === 'ready') {
+            GameState.isHarvesting = true;
             harvestCrop(targetPlot);
+            setTimeout(() => { GameState.isHarvesting = false; }, 400);
             return;
         }
         // Remove hazard/dead plant - works with any tool
         if (targetPlot.hazard || targetPlot.state === 'dead') {
+            GameState.isRemoving = true;
             removeHazard(targetPlot);
+            setTimeout(() => { GameState.isRemoving = false; }, 350);
             return;
         }
         // Plant seeds in tilled soil - works with any tool
         if (targetPlot.state === 'tilled') {
+            GameState.isPlanting = true;
             plantSeed(targetPlot, scene);
+            setTimeout(() => { GameState.isPlanting = false; }, 400);
             return;
         }
     }
@@ -835,22 +979,24 @@ function updateWildlife(delta) {
         const wingY = Math.sin(bird.wingPhase) * 4;
         const dir = bird.facingRight ? 1 : -1;
 
+        // Wings first (behind body) - extend from center upward
+        bird.graphics.fillStyle(bird.color - 0x222222, 1);
+        bird.graphics.fillTriangle(
+            bird.x - 2, bird.y,           // Wing base left
+            bird.x, bird.y - 8 + wingY,   // Wing tip (flaps up/down)
+            bird.x + 2, bird.y            // Wing base right
+        );
         // Body
         bird.graphics.fillStyle(bird.color, 1);
         bird.graphics.fillEllipse(bird.x, bird.y, 8, 5);
         // Head
         bird.graphics.fillCircle(bird.x + 5 * dir, bird.y - 2, 3);
-        // Wings (darker shade)
-        bird.graphics.fillStyle(bird.color - 0x222222, 1);
+        // Tail feathers
+        bird.graphics.fillStyle(bird.color - 0x111111, 1);
         bird.graphics.fillTriangle(
-            bird.x - 2 * dir, bird.y,
-            bird.x - 8 * dir, bird.y - 6 + wingY,
-            bird.x + 2 * dir, bird.y
-        );
-        bird.graphics.fillTriangle(
-            bird.x - 2 * dir, bird.y,
-            bird.x - 8 * dir, bird.y + 6 - wingY,
-            bird.x + 2 * dir, bird.y
+            bird.x - 4 * dir, bird.y - 1,
+            bird.x - 8 * dir, bird.y - 2,
+            bird.x - 4 * dir, bird.y + 2
         );
         // Eye
         bird.graphics.fillStyle(0x000000, 1);

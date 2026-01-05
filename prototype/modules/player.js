@@ -414,6 +414,128 @@ export function updateHeldTool() {
     }
 }
 
+// Action animation graphics (particles, effects)
+let actionGraphics = null;
+
+/**
+ * Initialize action animation graphics
+ */
+export function initActionAnimations(scene) {
+    actionGraphics = scene.add.graphics();
+    actionGraphics.setDepth(1001); // Above tools
+}
+
+/**
+ * Update action animations - call in game update loop
+ * Renders particle effects for actions
+ */
+export function updateActionAnimations(delta) {
+    if (!actionGraphics || !GameState.player) return;
+
+    actionGraphics.clear();
+    const px = GameState.player.x;
+    const py = GameState.player.y;
+
+    // Update animation timer
+    if (GameState.isHoeing || GameState.isPlanting || GameState.isHarvesting ||
+        GameState.isRemoving || GameState.isWatering) {
+        GameState.actionAnimTimer = Math.min(1, GameState.actionAnimTimer + delta / 300);
+    } else {
+        GameState.actionAnimTimer = 0;
+    }
+
+    const t = GameState.actionAnimTimer;
+
+    // HOEING: Dirt particles flying up
+    if (GameState.isHoeing) {
+        const numParticles = 5;
+        for (let i = 0; i < numParticles; i++) {
+            const spread = 15 + i * 8;
+            const height = 20 * t * (1 - t * 0.5);
+            const angle = (i / numParticles) * Math.PI - Math.PI / 2;
+            const dx = Math.cos(angle) * spread * t;
+            const dy = -height + Math.sin(angle) * 5;
+            actionGraphics.fillStyle(0x8B4513, 0.8 - t * 0.6);
+            actionGraphics.fillCircle(px + dx, py + 15 + dy, 2 + Math.random());
+        }
+        // Dust cloud
+        actionGraphics.fillStyle(0xD2B48C, 0.3 * (1 - t));
+        actionGraphics.fillEllipse(px, py + 20, 30 * t, 10);
+    }
+
+    // PLANTING: Seed dropping + sparkles
+    if (GameState.isPlanting) {
+        // Falling seed
+        const seedY = py - 10 + t * 35;
+        actionGraphics.fillStyle(0x228B22, 0.9);
+        actionGraphics.fillCircle(px, seedY, 3);
+        // Green sparkles around plot
+        for (let i = 0; i < 4; i++) {
+            const angle = (i / 4) * Math.PI * 2 + t * 3;
+            const dist = 12 + t * 8;
+            actionGraphics.fillStyle(0x90EE90, 0.7 * (1 - t));
+            actionGraphics.fillCircle(
+                px + Math.cos(angle) * dist,
+                py + 20 + Math.sin(angle) * dist * 0.5,
+                2
+            );
+        }
+    }
+
+    // HARVESTING: Crop rising + sparkles
+    if (GameState.isHarvesting) {
+        // Rising crop icon
+        const cropY = py + 15 - t * 30;
+        actionGraphics.fillStyle(0xFFD700, 0.9);
+        actionGraphics.fillCircle(px + 5, cropY, 5);
+        // Golden sparkles
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + t * 5;
+            const dist = 20 * t;
+            actionGraphics.fillStyle(0xFFD700, 0.8 * (1 - t * 0.7));
+            actionGraphics.fillCircle(
+                px + Math.cos(angle) * dist,
+                cropY + Math.sin(angle) * dist * 0.3,
+                2 + t * 2
+            );
+        }
+    }
+
+    // REMOVING (weeds/bugs): Debris scattering
+    if (GameState.isRemoving) {
+        // Debris flying away
+        for (let i = 0; i < 4; i++) {
+            const angle = (i / 4) * Math.PI + t * 2;
+            const dist = 25 * t;
+            const debrisY = py + 15 - t * 15;
+            actionGraphics.fillStyle(i % 2 === 0 ? 0x228B22 : 0x8B4513, 0.7 * (1 - t));
+            actionGraphics.fillCircle(
+                px + Math.cos(angle) * dist,
+                debrisY + Math.sin(angle) * 5,
+                2
+            );
+        }
+    }
+
+    // WATERING: Enhanced water arc
+    if (GameState.isWatering) {
+        const numDrops = 8;
+        for (let i = 0; i < numDrops; i++) {
+            const dropT = (t + i * 0.1) % 1;
+            const arc = Math.sin(dropT * Math.PI);
+            const dx = 15 + dropT * 25;
+            const dy = -arc * 20 + dropT * 15;
+            actionGraphics.fillStyle(0x87CEEB, 0.6 * (1 - dropT * 0.5));
+            actionGraphics.fillCircle(px + dx, py + dy, 2 + arc);
+        }
+        // Splash at landing
+        if (t > 0.5) {
+            actionGraphics.fillStyle(0x87CEEB, 0.4 * (1 - t));
+            actionGraphics.fillEllipse(px + 35, py + 15, 15 * (t - 0.5) * 2, 5);
+        }
+    }
+}
+
 /**
  * Equip a tool
  * @param {string} toolType - 'hoe', 'wateringCan', or 'none'

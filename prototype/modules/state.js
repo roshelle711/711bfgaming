@@ -56,6 +56,10 @@ export const GameState = {
     equippedTool: 'hoe',   // 'none' | 'hoe' | 'wateringCan' | 'fishingRod'
     isWatering: false,     // True during watering animation
     isHoeing: false,       // True during hoeing animation
+    isPlanting: false,     // True during planting animation
+    isHarvesting: false,   // True during harvesting animation
+    isRemoving: false,     // True during hazard removal animation
+    actionAnimTimer: 0,    // Animation frame timer (0-1)
 
     // Time & day/night
     gameTime: 480,      // Minutes (8:00 AM start)
@@ -146,9 +150,12 @@ GameState.characterPresets = loadPresetsFromStorage();
 function loadPresetsFromStorage() {
     try {
         const saved = localStorage.getItem('711bf_presets');
-        return saved ? JSON.parse(saved) : [null, null, null];
+        const presets = saved ? JSON.parse(saved) : [null, null, null, null, null, null];
+        // Ensure we always have 6 slots
+        while (presets.length < 6) presets.push(null);
+        return presets.slice(0, 6);
     } catch (e) {
-        return [null, null, null];
+        return [null, null, null, null, null, null];
     }
 }
 
@@ -169,7 +176,15 @@ export function saveCurrentAsPreset(slot) {
     GameState.characterPresets[slot] = {
         name: GameState.playerName,
         class: GameState.playerClass,
-        customization: { ...GameState.customization }
+        customization: { ...GameState.customization },
+        inventory: {
+            seeds: { ...GameState.inventory.seeds },
+            crops: { ...GameState.inventory.crops },
+            fruits: { ...GameState.inventory.fruits },
+            fish: { ...GameState.inventory.fish },
+            crafted: { ...GameState.inventory.crafted }
+        },
+        coins: GameState.coins
     };
     savePresets();
 }
@@ -180,6 +195,28 @@ export function loadPreset(slot) {
         GameState.playerName = preset.name;
         GameState.playerClass = preset.class;
         GameState.customization = { ...preset.customization };
+        // Load inventory if saved (backwards compatible with old presets)
+        if (preset.inventory) {
+            GameState.inventory = {
+                seeds: { ...preset.inventory.seeds },
+                crops: { ...preset.inventory.crops },
+                fruits: { ...preset.inventory.fruits },
+                fish: { ...preset.inventory.fish },
+                crafted: { ...preset.inventory.crafted }
+            };
+        }
+        if (preset.coins !== undefined) {
+            GameState.coins = preset.coins;
+        }
+        return true;
+    }
+    return false;
+}
+
+export function deletePreset(slot) {
+    if (slot >= 0 && slot < GameState.characterPresets.length) {
+        GameState.characterPresets[slot] = null;
+        savePresets();
         return true;
     }
     return false;

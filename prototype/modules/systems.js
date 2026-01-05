@@ -21,7 +21,7 @@
  * - respawnSeedPickups(delta): Respawn collected seeds
  */
 
-import { seedTypes, fishTypes, recipes, sellPrices, cropData, fruitData, fruitTreePositions } from './config.js';
+import { seedTypes, fishTypes, recipes, sellPrices, seedBuyPrices, cropData, fruitData, fruitTreePositions } from './config.js';
 import { GameState } from './state.js';
 import { showDialog, closeDialog, updateInventoryDisplay, updateCoinDisplay, updateSeedIndicator } from './ui.js';
 import { drawPlot, drawPlant, drawSeedPickup, drawFruitTree } from './world.js';
@@ -258,29 +258,39 @@ export function updateFishing(delta) {
 }
 
 /**
- * Show the shop selling menu
+ * Show the shop menu with sell and buy options
  */
 export function showShopMenu() {
     const inv = GameState.inventory;
     const prices = sellPrices;
 
-    let text = "═══ 🛒 FINN'S SHOP ═══\n\n";
-    text += "SELL CROPS:\n";
-    text += `1: 🥕 Carrot (${inv.crops.carrot}) → ${prices.crops.carrot}💰\n`;
-    text += `2: 🍅 Tomato (${inv.crops.tomato}) → ${prices.crops.tomato}💰\n`;
+    let text = `═══ 🛒 FINN'S SHOP ═══  (You have: ${GameState.coins}💰)\n\n`;
+    text += "─── SELL ───────────────────────────────────────\n";
+    text += `1: 🥕 Carrot (${inv.crops.carrot}) → ${prices.crops.carrot}💰  `;
+    text += `2: 🍅 Tomato (${inv.crops.tomato}) → ${prices.crops.tomato}💰  `;
     text += `3: 🌸 Flower (${inv.crops.flower}) → ${prices.crops.flower}💰\n`;
-    text += "SELL FISH:\n";
-    text += `4: 🐟 Bass (${inv.fish.bass}) → ${prices.fish.bass}💰\n`;
-    text += `5: 🐠 Salmon (${inv.fish.salmon}) → ${prices.fish.salmon}💰\n`;
+    text += `4: 🐟 Bass (${inv.fish.bass}) → ${prices.fish.bass}💰  `;
+    text += `5: 🐠 Salmon (${inv.fish.salmon}) → ${prices.fish.salmon}💰  `;
     text += `6: ✨ Goldfish (${inv.fish.goldfish}) → ${prices.fish.goldfish}💰\n`;
-    text += "SELL COOKED:\n";
-    text += `7: 🥗 Salad (${inv.crafted.salad}) → 50💰 | 8: 💐 Bouquet (${inv.crafted.bouquet}) → 80💰\n`;
-    text += "[Press 1-8 to sell, E to close]";
+    text += `7: 🥗 Salad (${inv.crafted.salad}) → 50💰  `;
+    text += `8: 💐 Bouquet (${inv.crafted.bouquet}) → 80💰\n\n`;
+    text += "─── BUY SEEDS ──────────────────────────────────\n";
+    text += `Q: 🥕 Carrot ${seedBuyPrices.carrot}💰  `;
+    text += `W: 🍅 Tomato ${seedBuyPrices.tomato}💰  `;
+    text += `R: 🌸 Flower ${seedBuyPrices.flower}💰\n`;
+    text += `A: 🥬 Lettuce ${seedBuyPrices.lettuce}💰  `;
+    text += `S: 🧅 Onion ${seedBuyPrices.onion}💰  `;
+    text += `D: 🥔 Potato ${seedBuyPrices.potato}💰\n`;
+    text += `Z: 🌶️ Pepper ${seedBuyPrices.pepper}💰  `;
+    text += `X: 🌽 Corn ${seedBuyPrices.corn}💰  `;
+    text += `C: 🎃 Pumpkin ${seedBuyPrices.pumpkin}💰\n\n`;
+    text += "[1-8 sell, Q/W/R/A/S/D/Z/X/C buy, ESC to close]";
 
     showDialog(text);
 
     const scene = GameState.scene;
     if (scene) {
+        // Sell keys
         scene.input.keyboard.once('keydown-ONE', () => sellItem('crops', 'carrot'));
         scene.input.keyboard.once('keydown-TWO', () => sellItem('crops', 'tomato'));
         scene.input.keyboard.once('keydown-THREE', () => sellItem('crops', 'flower'));
@@ -289,7 +299,36 @@ export function showShopMenu() {
         scene.input.keyboard.once('keydown-SIX', () => sellItem('fish', 'goldfish'));
         scene.input.keyboard.once('keydown-SEVEN', () => sellItem('crafted', 'salad'));
         scene.input.keyboard.once('keydown-EIGHT', () => sellItem('crafted', 'bouquet'));
+        // Buy seed keys
+        scene.input.keyboard.once('keydown-Q', () => buySeed('carrot'));
+        scene.input.keyboard.once('keydown-W', () => buySeed('tomato'));
+        scene.input.keyboard.once('keydown-R', () => buySeed('flower'));
+        scene.input.keyboard.once('keydown-A', () => buySeed('lettuce'));
+        scene.input.keyboard.once('keydown-S', () => buySeed('onion'));
+        scene.input.keyboard.once('keydown-D', () => buySeed('potato'));
+        scene.input.keyboard.once('keydown-Z', () => buySeed('pepper'));
+        scene.input.keyboard.once('keydown-X', () => buySeed('corn'));
+        scene.input.keyboard.once('keydown-C', () => buySeed('pumpkin'));
     }
+}
+
+/**
+ * Buy a seed from the shop
+ */
+export function buySeed(seedType) {
+    const price = seedBuyPrices[seedType];
+    if (!price) return false;
+
+    if (GameState.coins >= price) {
+        GameState.coins -= price;
+        GameState.inventory.seeds[seedType]++;
+        updateInventoryDisplay();
+        updateCoinDisplay();
+        updateSeedIndicator();
+        showShopMenu(); // Refresh menu
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -305,7 +344,7 @@ export function showCraftingMenu() {
     text += `2: 💐 Bouquet = 🌸3 (have: ${inv.crops.flower})\n`;
     text += `3: 🍲 Fish Stew = 🐟2 + 🍅1 (have: ${inv.fish.bass}/${inv.crops.tomato})\n`;
     text += `4: ✨ Magic Potion = 🌸2 + ✨🐟1 (have: ${inv.crops.flower}/${inv.fish.goldfish})\n\n`;
-    text += "[Press 1-4 to cook, E to close]";
+    text += "[1-4 to cook, E/ESC to close]";
 
     showDialog(text);
 

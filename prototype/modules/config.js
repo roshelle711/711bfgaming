@@ -79,8 +79,8 @@ export const fruitData = {
 export const fruitTreePositions = [
     { x: 100, y: 400, type: 'apple' },
     { x: 150, y: 520, type: 'orange' },
-    { x: 1180, y: 380, type: 'peach' },
-    { x: 1220, y: 500, type: 'cherry' }
+    { x: 1100, y: 350, type: 'peach' },     // Moved left, away from edge
+    { x: 1280, y: 520, type: 'cherry' }     // Behind general store (pokes out right side)
 ];
 
 // Watering and growth constants
@@ -103,6 +103,19 @@ export const sellPrices = {
     fruits: { apple: 12, orange: 15, peach: 20, cherry: 8 },
     fish: { bass: 10, salmon: 25, goldfish: 50 },
     crafted: { salad: 50, bouquet: 80, fishStew: 75, magicPotion: 150 }
+};
+
+// Buy prices for seeds (at the general store)
+export const seedBuyPrices = {
+    carrot: 8,    // sells for 15, profit: 7
+    tomato: 10,   // sells for 20, profit: 10
+    flower: 12,   // sells for 25, profit: 13
+    lettuce: 6,   // sells for 12, profit: 6
+    onion: 9,     // sells for 18, profit: 9
+    potato: 11,   // sells for 22, profit: 11
+    pepper: 15,   // sells for 30, profit: 15
+    corn: 18,     // sells for 35, profit: 17
+    pumpkin: 25   // sells for 50, profit: 25
 };
 
 // NPC patrol waypoints - adjusted for larger screen

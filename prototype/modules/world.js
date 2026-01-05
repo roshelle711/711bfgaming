@@ -590,10 +590,10 @@ export function drawFruitTree(tree) {
 
     // Foliage colors vary by tree type
     const foliageColors = {
-        apple: 0x228B22,
-        orange: 0x2E8B57,
-        peach: 0x90EE90,
-        cherry: 0x228B22
+        apple: 0x228B22,   // Forest green
+        orange: 0x2E8B57,  // Sea green
+        peach: 0x3CB371,   // Medium sea green (natural, not too yellow)
+        cherry: 0x2E8B57   // Sea green
     };
 
     // Draw foliage (layered circles)
