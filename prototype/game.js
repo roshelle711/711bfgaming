@@ -323,11 +323,17 @@ function create() {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Seed pickups - scattered around the map
+    // Seed pickups - scattered around the map (west, middle, east)
     const seedLocations = [
+        // West group (near pond)
         { x: 350, y: 500, type: 'carrot' },
         { x: 400, y: 520, type: 'tomato' },
         { x: 320, y: 540, type: 'flower' },
+        // Middle group (near farm)
+        { x: 550, y: 600, type: 'lettuce' },
+        { x: 600, y: 620, type: 'onion' },
+        { x: 580, y: 580, type: 'flower' },
+        // East group (near store)
         { x: 800, y: 500, type: 'carrot' },
         { x: 850, y: 520, type: 'tomato' },
         { x: 820, y: 550, type: 'flower' }
@@ -336,7 +342,7 @@ function create() {
         GameState.seedPickups.push(createSeedPickup(this, loc.x, loc.y, loc.type, index));
     });
 
-    // Well decoration - repositioned for larger screen
+    // Well - water source for crops
     graphics.fillStyle(0x808080, 1);
     graphics.fillRect(610, 370, 60, 60);
     graphics.fillStyle(0x696969, 1);
@@ -347,7 +353,16 @@ function create() {
     graphics.fillRect(605, 355, 70, 15);
     graphics.fillRect(630, 330, 20, 25);
     this.add.text(640, 315, '🪣', { fontSize: '16px' }).setOrigin(0.5);
+    this.add.text(640, 440, '💧 Well', {
+        fontSize: '11px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 3, y: 2 }
+    }).setOrigin(0.5);
     GameState.obstacles.add(this.add.rectangle(640, 400, 60, 60, 0x000000, 0));
+
+    // Well interaction
+    const well = this.add.rectangle(640, 400, 70, 70, 0x000000, 0);
+    well.interactType = 'well';
+    well.message = '💧 Village Well\n\nFresh water for your crops!\nEquip the watering can (2) to water plants.';
+    GameState.interactables.push(well);
 
     // Signpost - repositioned for larger screen
     graphics.fillStyle(0x8B4513, 1);
@@ -408,7 +423,10 @@ function create() {
             speed: 40 + Math.random() * 30,
             color: birdColors[i % birdColors.length],
             facingRight: true,
-            graphics: bird
+            graphics: bird,
+            perched: false,        // Is the bird perched on a lamppost?
+            perchTimer: 0,         // How long until it takes off again
+            perchLamppost: null    // Which lamppost it's on
         };
         GameState.birds.push(birdData);
     }
@@ -955,55 +973,111 @@ function updateWildlife(delta) {
 
     // Update birds
     GameState.birds?.forEach(bird => {
-        // Move toward target
-        const dx = bird.targetX - bird.x;
-        const dy = bird.targetY - bird.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 10) {
-            // Pick new random target
-            bird.targetX = 100 + Math.random() * 1200;
-            bird.targetY = 80 + Math.random() * 250;
+        // Handle perched state
+        if (bird.perched) {
+            bird.perchTimer -= dt;
+            if (bird.perchTimer <= 0) {
+                // Take off! Pick a random flying target or another lamppost
+                bird.perched = false;
+                bird.perchLamppost = null;
+                bird.targetX = 100 + Math.random() * 1200;
+                bird.targetY = 80 + Math.random() * 250;
+            }
         } else {
-            bird.x += (dx / dist) * bird.speed * dt;
-            bird.y += (dy / dist) * bird.speed * dt;
-            // Update facing direction based on movement
-            if (Math.abs(dx) > 1) bird.facingRight = dx > 0;
+            // Move toward target
+            const dx = bird.targetX - bird.x;
+            const dy = bird.targetY - bird.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 10) {
+                // Reached target - decide what to do next
+                const shouldPerch = Math.random() < 0.25 && GameState.lampposts?.length > 0;
+                if (shouldPerch) {
+                    // Pick a random lamppost to land on
+                    const lamp = GameState.lampposts[Math.floor(Math.random() * GameState.lampposts.length)];
+                    bird.targetX = lamp.x + (Math.random() - 0.5) * 10;
+                    bird.targetY = lamp.y - 55;  // Top of lamppost
+                    bird.perchLamppost = lamp;
+                } else {
+                    // Pick new random flying target
+                    bird.targetX = 100 + Math.random() * 1200;
+                    bird.targetY = 80 + Math.random() * 250;
+                }
+            } else {
+                bird.x += (dx / dist) * bird.speed * dt;
+                bird.y += (dy / dist) * bird.speed * dt;
+                // Update facing direction based on movement
+                if (Math.abs(dx) > 1) bird.facingRight = dx > 0;
+
+                // Check if arrived at lamppost target
+                if (bird.perchLamppost && dist < 15) {
+                    bird.perched = true;
+                    bird.perchTimer = 3 + Math.random() * 5;  // Perch for 3-8 seconds
+                    bird.x = bird.targetX;
+                    bird.y = bird.targetY;
+                }
+            }
         }
 
-        // Animate wings
-        bird.wingPhase += dt * 15;
-
-        // Redraw with color and correct direction
+        // Redraw bird
         bird.graphics.clear();
-        const wingY = Math.sin(bird.wingPhase) * 4;
         const dir = bird.facingRight ? 1 : -1;
 
-        // Wings first (behind body) - extend from center upward
-        bird.graphics.fillStyle(bird.color - 0x222222, 1);
-        bird.graphics.fillTriangle(
-            bird.x - 2, bird.y,           // Wing base left
-            bird.x, bird.y - 8 + wingY,   // Wing tip (flaps up/down)
-            bird.x + 2, bird.y            // Wing base right
-        );
-        // Body
-        bird.graphics.fillStyle(bird.color, 1);
-        bird.graphics.fillEllipse(bird.x, bird.y, 8, 5);
-        // Head
-        bird.graphics.fillCircle(bird.x + 5 * dir, bird.y - 2, 3);
-        // Tail feathers
-        bird.graphics.fillStyle(bird.color - 0x111111, 1);
-        bird.graphics.fillTriangle(
-            bird.x - 4 * dir, bird.y - 1,
-            bird.x - 8 * dir, bird.y - 2,
-            bird.x - 4 * dir, bird.y + 2
-        );
-        // Eye
-        bird.graphics.fillStyle(0x000000, 1);
-        bird.graphics.fillCircle(bird.x + 6 * dir, bird.y - 3, 1.5);
-        // Beak
-        bird.graphics.fillStyle(0xFFA500, 1);
-        bird.graphics.fillTriangle(bird.x + 7 * dir, bird.y - 2, bird.x + 11 * dir, bird.y - 1, bird.x + 7 * dir, bird.y);
+        if (bird.perched) {
+            // Perched pose - wings folded, legs visible
+            // Legs
+            bird.graphics.fillStyle(0x333333, 1);
+            bird.graphics.fillRect(bird.x - 2, bird.y + 3, 1, 4);
+            bird.graphics.fillRect(bird.x + 1, bird.y + 3, 1, 4);
+            // Body (slightly upright)
+            bird.graphics.fillStyle(bird.color, 1);
+            bird.graphics.fillEllipse(bird.x, bird.y, 6, 6);
+            // Folded wing line
+            bird.graphics.lineStyle(1, bird.color - 0x222222, 1);
+            bird.graphics.lineBetween(bird.x - 3, bird.y - 1, bird.x + 2, bird.y + 3);
+            // Head
+            bird.graphics.fillStyle(bird.color, 1);
+            bird.graphics.fillCircle(bird.x + 3 * dir, bird.y - 4, 3);
+            // Eye
+            bird.graphics.fillStyle(0x000000, 1);
+            bird.graphics.fillCircle(bird.x + 4 * dir, bird.y - 4, 1.2);
+            // Beak
+            bird.graphics.fillStyle(0xFFA500, 1);
+            bird.graphics.fillTriangle(bird.x + 5 * dir, bird.y - 4, bird.x + 8 * dir, bird.y - 3, bird.x + 5 * dir, bird.y - 2);
+            // Tail
+            bird.graphics.fillStyle(bird.color - 0x111111, 1);
+            bird.graphics.fillTriangle(bird.x - 3 * dir, bird.y + 1, bird.x - 6 * dir, bird.y + 4, bird.x - 2 * dir, bird.y + 4);
+        } else {
+            // Flying pose - animate wings
+            bird.wingPhase += dt * 15;
+            const wingY = Math.sin(bird.wingPhase) * 4;
+
+            // Wings first (behind body)
+            bird.graphics.fillStyle(bird.color - 0x222222, 1);
+            bird.graphics.fillTriangle(
+                bird.x - 2, bird.y,
+                bird.x, bird.y - 8 + wingY,
+                bird.x + 2, bird.y
+            );
+            // Body
+            bird.graphics.fillStyle(bird.color, 1);
+            bird.graphics.fillEllipse(bird.x, bird.y, 8, 5);
+            // Head
+            bird.graphics.fillCircle(bird.x + 5 * dir, bird.y - 2, 3);
+            // Tail feathers
+            bird.graphics.fillStyle(bird.color - 0x111111, 1);
+            bird.graphics.fillTriangle(
+                bird.x - 4 * dir, bird.y - 1,
+                bird.x - 8 * dir, bird.y - 2,
+                bird.x - 4 * dir, bird.y + 2
+            );
+            // Eye
+            bird.graphics.fillStyle(0x000000, 1);
+            bird.graphics.fillCircle(bird.x + 6 * dir, bird.y - 3, 1.5);
+            // Beak
+            bird.graphics.fillStyle(0xFFA500, 1);
+            bird.graphics.fillTriangle(bird.x + 7 * dir, bird.y - 2, bird.x + 11 * dir, bird.y - 1, bird.x + 7 * dir, bird.y);
+        }
     });
 
     // Update butterflies

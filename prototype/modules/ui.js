@@ -35,12 +35,19 @@ export function showDialog(message) {
 
     const padding = 30;
     const boxWidth = Math.min(Math.max(bounds.width + padding * 2, 300), 1000);
-    const boxHeight = Math.min(Math.max(bounds.height + padding * 2 + 30, 80), 300);
+    const boxHeight = Math.min(Math.max(bounds.height + padding * 2 + 40, 80), 450);  // Increased max height for shop
+
+    // Position box so it sits above bottom of screen
+    const boxY = GAME_HEIGHT - boxHeight / 2 - 25;
 
     GameState.dialogBox.setSize(boxWidth, boxHeight);
-    GameState.dialogBox.setPosition(GAME_WIDTH / 2, GAME_HEIGHT - boxHeight/2 - 20);
-    GameState.dialogText.setPosition(GAME_WIDTH / 2, GAME_HEIGHT - boxHeight/2 - 30);
-    scene.dialogCloseText.setPosition(GAME_WIDTH / 2, GAME_HEIGHT - 35);
+    GameState.dialogBox.setPosition(GAME_WIDTH / 2, boxY);
+
+    // Position text at top of box with padding (change origin to top-center for multi-line)
+    const textY = boxY - boxHeight / 2 + padding;
+    GameState.dialogText.setOrigin(0.5, 0);  // Top-center origin
+    GameState.dialogText.setPosition(GAME_WIDTH / 2, textY);
+    scene.dialogCloseText.setPosition(GAME_WIDTH / 2, boxY + boxHeight / 2 - 15);
 
     GameState.dialogBox.setVisible(true);
     GameState.dialogText.setText(message).setVisible(true);
@@ -410,11 +417,19 @@ export function updateHotbarDisplay() {
 }
 
 /**
- * Set the active hotbar slot
+ * Set the active hotbar slot (toggles off if same slot pressed again)
  * @param {number} slotIndex - 0-4 for slots 1-5
  */
 export function setActiveHotbarSlot(slotIndex) {
     if (slotIndex < 0 || slotIndex > 4) return;
+
+    // Toggle off if pressing same slot
+    if (GameState.activeHotbarSlot === slotIndex) {
+        GameState.activeHotbarSlot = -1;  // -1 means no slot selected
+        GameState.equippedTool = 'none';
+        updateHotbarDisplay();
+        return;
+    }
 
     GameState.activeHotbarSlot = slotIndex;
     const hotbarItem = GameState.hotbar[slotIndex];
