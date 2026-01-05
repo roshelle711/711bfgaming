@@ -283,6 +283,9 @@ function create() {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
+    // Pond collision - prevent walking through the pond
+    GameState.obstacles.add(this.add.ellipse(pondX, pondY, 100, 70, 0x000000, 0));
+
     // Farm area - expanded for more plots (3 rows x 5 columns = 15 plots)
     const farmStartX = 500, farmStartY = 700;
     const farmWidth = 280, farmHeight = 170;
@@ -355,7 +358,8 @@ function create() {
     graphics.fillStyle(0x8B4513, 1);
     graphics.fillRect(605, 355, 70, 15);
     graphics.fillRect(630, 330, 20, 25);
-    this.add.text(640, 315, '🪣', { fontSize: '16px' }).setOrigin(0.5);
+    // Bucket sitting by the roadside (not on the well)
+    this.add.text(570, 380, '🪣', { fontSize: '16px' }).setOrigin(0.5);
     this.add.text(640, 440, '💧 Well', {
         fontSize: '11px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 3, y: 2 }
     }).setOrigin(0.5);

@@ -416,6 +416,8 @@ export function createNPCs(scene) {
         body: 0x27AE60, accent: 0x2ECC71, skin: 0xC68642, hair: 0x1E8449, accessory: 'apron'
     });
     GameState.shopkeeper.body.setImmovable(true);
+    // Set depth above the General Store graphics (which is at depth 580)
+    GameState.shopkeeper.setDepth(700);
 
     // Add nameplate to Finn's container
     const finnName = scene.add.text(0, -60, 'Finn 🛒', {

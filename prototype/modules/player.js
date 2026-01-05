@@ -237,8 +237,7 @@ export function createPet(scene, x, y, petType) {
         container.add(scene.add.ellipse(16, 4, 4, 6, pet.accent));
     }
 
-    const nameTag = scene.add.text(0, -35, pet.emoji, { fontSize: '12px' }).setOrigin(0.5);
-    container.add(nameTag);
+    // No nameTag - pets are visually distinct without labels
 
     scene.physics.add.existing(container);
     container.body.setSize(20, 20).setOffset(-10, -5);
@@ -422,7 +421,7 @@ export function isNearPet() {
 
     const dx = player.x - pet.x;
     const dy = player.y - pet.y;
-    return Math.sqrt(dx * dx + dy * dy) < 50;
+    return Math.sqrt(dx * dx + dy * dy) < 80;  // Allow petting within 80px (pet wanders ~100px)
 }
 
 /**
@@ -449,7 +448,7 @@ export function createToolGraphics(scene) {
     if (toolGraphics) return toolGraphics;
 
     toolGraphics = scene.add.graphics();
-    toolGraphics.setDepth(1000); // Above player
+    toolGraphics.setDepth(50); // Above player but below UI modals (depth 150+)
     return toolGraphics;
 }
 
@@ -539,7 +538,7 @@ let actionGraphics = null;
  */
 export function initActionAnimations(scene) {
     actionGraphics = scene.add.graphics();
-    actionGraphics.setDepth(1001); // Above tools
+    actionGraphics.setDepth(51); // Above tools (50) but below UI modals (depth 150+)
 }
 
 /**

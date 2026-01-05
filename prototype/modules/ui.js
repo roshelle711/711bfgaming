@@ -142,10 +142,10 @@ export function createInventoryIcons(scene) {
         }).setDepth(151).setVisible(false);
         GameState.inventoryIcons.push({ type: 'label', obj: label });
 
-        // Item icons - arranged in a row with smaller spacing for more items
+        // Item icons - arranged in a row with tighter spacing to avoid label overlap
         cat.items.forEach((itemKey, i) => {
             const item = inventoryItems[itemKey];
-            const x = centerX - 220 + i * 60;
+            const x = centerX - 165 + i * 55;  // Start further right, tighter spacing
             const y = centerY + cat.y;
 
             // Icon background (interactive)
