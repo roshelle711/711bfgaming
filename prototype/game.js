@@ -84,9 +84,10 @@ function create() {
     const flowerColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xFFB6C1, 0xDDA0DD];
 
     // Proper seeded random using Linear Congruential Generator (LCG)
-    // This produces different results each game load based on timestamp
-    let seed = Date.now() % 2147483647;
+    // Use current timestamp + performance.now() for better entropy
+    let seed = (Date.now() ^ (Math.floor(performance.now() * 1000))) % 2147483647;
     if (seed <= 0) seed += 2147483646;
+    console.log('[Flowers] Random seed:', seed);
 
     const seededRandom = () => {
         // LCG parameters from Numerical Recipes
@@ -605,9 +606,10 @@ function startGame(scene) {
     GameState.targetHighlight = scene.add.graphics();
     GameState.targetHighlight.setDepth(5);
 
-    // Track mouse position for plot selection
-    GameState.mouseX = 0;
-    GameState.mouseY = 0;
+    // Track mouse position for plot selection and dialog positioning
+    // Initialize to player spawn position, then track mouse movement
+    GameState.mouseX = 700;  // Player spawn X
+    GameState.mouseY = 350;  // Above player spawn Y
     scene.input.on('pointermove', (pointer) => {
         GameState.mouseX = pointer.worldX;
         GameState.mouseY = pointer.worldY;
@@ -923,21 +925,24 @@ function handleInput(scene) {
 
     // Interact key (E) - tool actions AND interact actions (fallback for click)
     if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.inventoryOpen && !GameState.pauseMenuOpen) {
+        console.log('[E key] Pressed! Starting interaction checks...');
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
 
         // === PET INTERACTION (HIGHEST priority - check first!) ===
-        const petExists = !!GameState.playerPet;
-        if (petExists) {
-            const pet = GameState.playerPet;
-            const player = GameState.player;
+        const pet = GameState.playerPet;
+        const player = GameState.player;
+        console.log('[E key] Pet exists:', !!pet, '| Player exists:', !!player);
+
+        if (pet && player) {
             const petDist = Math.sqrt(Math.pow(player.x - pet.x, 2) + Math.pow(player.y - pet.y, 2));
             const petState = pet.petState;
-            console.log('[E key] Pet dist:', petDist.toFixed(0), '| State:', petState, '| Pos:', pet.x.toFixed(0), pet.y.toFixed(0));
+            console.log('[E key] Pet dist:', petDist.toFixed(0), '| State:', petState);
 
             if (petDist < 120 && petState !== 'trick') {
                 console.log('[E key] Triggering pet trick!');
                 const trick = petDoTrick();
+                console.log('[E key] Trick result:', trick);
                 if (trick) {
                     const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
                     const trickMessages = {
@@ -953,12 +958,14 @@ function handleInput(scene) {
 
         // === LAMPPOST TOGGLE ===
         const nearestLamppost = findNearestLamppost();
+        console.log('[E key] Nearest lamppost:', nearestLamppost ? 'found at ' + nearestLamppost.x + ',' + nearestLamppost.y : 'none');
         if (nearestLamppost) {
-            console.log('[E key] Toggling lamppost');
+            console.log('[E key] Toggling lamppost - light was:', nearestLamppost.lightOn);
             const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
             if (!sendToggleLamppost(lamppostIndex)) {
                 nearestLamppost.lightOn = !nearestLamppost.lightOn;
-                nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
+                nearestLamppost.lightGraphics.setVisible(nearestLamppost.lightOn);
+                console.log('[E key] Lamppost light now:', nearestLamppost.lightOn);
             }
             return;
         }

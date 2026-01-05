@@ -388,6 +388,37 @@ export function updatePlayerMovement() {
     const lerpFactor = 0.2;
     player.body.velocity.x = lerp(player.body.velocity.x, GameState.targetVelocity.x, lerpFactor);
     player.body.velocity.y = lerp(player.body.velocity.y, GameState.targetVelocity.y, lerpFactor);
+
+    // Update player depth based on Y position for proper layering with trees
+    player.setDepth(player.y);
+}
+
+/**
+ * Check if a position is in the pond (forbidden zone for pet)
+ */
+function isPetInPond(x, y) {
+    // Pond is an ellipse centered at (180, 720) with rx=100, ry=70
+    const pondX = 180, pondY = 720, pondRx = 100, pondRy = 70;
+    const dx = (x - pondX) / pondRx;
+    const dy = (y - pondY) / pondRy;
+    return (dx * dx + dy * dy) < 1;
+}
+
+/**
+ * Get a valid wander target for the pet (avoiding pond)
+ */
+function getValidWanderTarget(playerX, playerY) {
+    for (let attempts = 0; attempts < 10; attempts++) {
+        const target = {
+            x: playerX + (Math.random() - 0.5) * 100,
+            y: playerY + (Math.random() - 0.5) * 100
+        };
+        if (!isPetInPond(target.x, target.y)) {
+            return target;
+        }
+    }
+    // Fallback: stay near player
+    return { x: playerX + 20, y: playerY + 20 };
 }
 
 /**
@@ -429,6 +460,14 @@ export function updatePetFollow(delta = 16) {
         return;
     }
 
+    // If pet somehow ends up in pond, push it out
+    if (isPetInPond(pet.x, pet.y)) {
+        // Move toward player to escape pond
+        pet.x += (dx / dist) * 100 * delta / 1000;
+        pet.y += (dy / dist) * 100 * delta / 1000;
+        return;
+    }
+
     // If player is too far, follow them
     if (dist > 120) {
         pet.petState = 'following';
@@ -438,16 +477,18 @@ export function updatePetFollow(delta = 16) {
         // Follow the player
         if (dist > 50) {
             const speed = Math.min(dist * 2, 180);
-            pet.x += (dx / dist) * speed * delta / 1000;
-            pet.y += (dy / dist) * speed * delta / 1000;
+            const newX = pet.x + (dx / dist) * speed * delta / 1000;
+            const newY = pet.y + (dy / dist) * speed * delta / 1000;
+            // Only move if not entering pond
+            if (!isPetInPond(newX, newY)) {
+                pet.x = newX;
+                pet.y = newY;
+            }
         } else if (dist < 40) {
             // Close enough, start wandering
             pet.petState = 'wandering';
             pet.wanderTimer = 1000 + Math.random() * 2000;
-            pet.wanderTarget = {
-                x: player.x + (Math.random() - 0.5) * 80,
-                y: player.y + (Math.random() - 0.5) * 80
-            };
+            pet.wanderTarget = getValidWanderTarget(player.x, player.y);
         }
     } else if (pet.petState === 'wandering') {
         // Wander around near the player
@@ -460,17 +501,19 @@ export function updatePetFollow(delta = 16) {
 
         if (wdist > 5) {
             const wanderSpeed = 40;
-            pet.x += (wdx / wdist) * wanderSpeed * delta / 1000;
-            pet.y += (wdy / wdist) * wanderSpeed * delta / 1000;
+            const newX = pet.x + (wdx / wdist) * wanderSpeed * delta / 1000;
+            const newY = pet.y + (wdy / wdist) * wanderSpeed * delta / 1000;
+            // Only move if not entering pond
+            if (!isPetInPond(newX, newY)) {
+                pet.x = newX;
+                pet.y = newY;
+            }
         }
 
         // Pick new wander target periodically
         if (pet.wanderTimer <= 0) {
             pet.wanderTimer = 1500 + Math.random() * 2500;
-            pet.wanderTarget = {
-                x: player.x + (Math.random() - 0.5) * 100,
-                y: player.y + (Math.random() - 0.5) * 100
-            };
+            pet.wanderTarget = getValidWanderTarget(player.x, player.y);
         }
     }
 
