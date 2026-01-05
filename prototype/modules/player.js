@@ -392,24 +392,32 @@ export function updateHeldTool() {
         }
     } else if (tool === 'fishingRod') {
         // Fishing rod: long pole + reel + line
+        // Determine if player is right of pond center (pond at x=180)
+        const pondCenterX = 180;
+        const facingLeft = px > pondCenterX + 50; // If right of pond, face left toward water
+        const dir = facingLeft ? -1 : 1;
+        const rodX = facingLeft ? px - 18 : px + 18; // Flip rod position when facing left
+
         toolGraphics.fillStyle(0x8B4513, 1); // Brown pole
-        toolGraphics.fillRect(toolX, toolY - 35, 3, 45); // Main pole
+        toolGraphics.fillRect(rodX, toolY - 35, 3, 45); // Main pole
         toolGraphics.fillStyle(0x654321, 1); // Darker tip
-        toolGraphics.fillRect(toolX, toolY - 40, 2, 8);
+        toolGraphics.fillRect(rodX, toolY - 40, 2, 8);
         // Reel
         toolGraphics.fillStyle(0x696969, 1);
-        toolGraphics.fillCircle(toolX + 1, toolY + 5, 5);
+        toolGraphics.fillCircle(rodX + 1, toolY + 5, 5);
         toolGraphics.fillStyle(0x505050, 1);
-        toolGraphics.fillCircle(toolX + 1, toolY + 5, 3);
+        toolGraphics.fillCircle(rodX + 1, toolY + 5, 3);
         // Line (when fishing)
         if (GameState.isFishing) {
+            const lineEndX = rodX + dir * 35; // Line extends toward pond
+            const lineEndY = toolY + 20;
             toolGraphics.lineStyle(1, 0xAAAAAA, 0.8);
-            toolGraphics.lineBetween(toolX + 1, toolY - 40, toolX + 25, toolY + 10);
+            toolGraphics.lineBetween(rodX + 1, toolY - 40, lineEndX, lineEndY);
             // Bobber
             toolGraphics.fillStyle(0xFF6347, 1);
-            toolGraphics.fillCircle(toolX + 25, toolY + 12, 4);
+            toolGraphics.fillCircle(lineEndX, lineEndY + 2, 5);
             toolGraphics.fillStyle(0xFFFFFF, 1);
-            toolGraphics.fillCircle(toolX + 25, toolY + 14, 2);
+            toolGraphics.fillCircle(lineEndX, lineEndY + 4, 2);
         }
     }
 }
@@ -446,92 +454,120 @@ export function updateActionAnimations(delta) {
 
     const t = GameState.actionAnimTimer;
 
-    // HOEING: Dirt particles flying up
+    // HOEING: Dirt particles flying up (offset to the right of player)
     if (GameState.isHoeing) {
-        const numParticles = 5;
+        const offsetX = 30; // Offset from player center
+        const numParticles = 8;
         for (let i = 0; i < numParticles; i++) {
-            const spread = 15 + i * 8;
-            const height = 20 * t * (1 - t * 0.5);
+            const spread = 20 + i * 10;
+            const height = 35 * t * (1 - t * 0.5);
             const angle = (i / numParticles) * Math.PI - Math.PI / 2;
             const dx = Math.cos(angle) * spread * t;
-            const dy = -height + Math.sin(angle) * 5;
-            actionGraphics.fillStyle(0x8B4513, 0.8 - t * 0.6);
-            actionGraphics.fillCircle(px + dx, py + 15 + dy, 2 + Math.random());
+            const dy = -height + Math.sin(angle) * 8;
+            actionGraphics.fillStyle(0x8B4513, 0.9 - t * 0.5);
+            actionGraphics.fillCircle(px + offsetX + dx, py + 20 + dy, 3 + Math.random() * 2);
         }
         // Dust cloud
-        actionGraphics.fillStyle(0xD2B48C, 0.3 * (1 - t));
-        actionGraphics.fillEllipse(px, py + 20, 30 * t, 10);
+        actionGraphics.fillStyle(0xD2B48C, 0.5 * (1 - t));
+        actionGraphics.fillEllipse(px + offsetX, py + 30, 45 * t, 15);
     }
 
-    // PLANTING: Seed dropping + sparkles
+    // PLANTING: Seed dropping + sparkles (offset forward)
     if (GameState.isPlanting) {
+        const offsetX = 25;
         // Falling seed
-        const seedY = py - 10 + t * 35;
-        actionGraphics.fillStyle(0x228B22, 0.9);
-        actionGraphics.fillCircle(px, seedY, 3);
+        const seedY = py - 15 + t * 45;
+        actionGraphics.fillStyle(0x228B22, 1);
+        actionGraphics.fillCircle(px + offsetX, seedY, 5);
+        actionGraphics.fillStyle(0x90EE90, 0.8);
+        actionGraphics.fillCircle(px + offsetX - 1, seedY - 1, 2);
         // Green sparkles around plot
-        for (let i = 0; i < 4; i++) {
-            const angle = (i / 4) * Math.PI * 2 + t * 3;
-            const dist = 12 + t * 8;
-            actionGraphics.fillStyle(0x90EE90, 0.7 * (1 - t));
-            actionGraphics.fillCircle(
-                px + Math.cos(angle) * dist,
-                py + 20 + Math.sin(angle) * dist * 0.5,
-                2
-            );
-        }
-    }
-
-    // HARVESTING: Crop rising + sparkles
-    if (GameState.isHarvesting) {
-        // Rising crop icon
-        const cropY = py + 15 - t * 30;
-        actionGraphics.fillStyle(0xFFD700, 0.9);
-        actionGraphics.fillCircle(px + 5, cropY, 5);
-        // Golden sparkles
         for (let i = 0; i < 6; i++) {
-            const angle = (i / 6) * Math.PI * 2 + t * 5;
-            const dist = 20 * t;
-            actionGraphics.fillStyle(0xFFD700, 0.8 * (1 - t * 0.7));
+            const angle = (i / 6) * Math.PI * 2 + t * 4;
+            const dist = 18 + t * 12;
+            actionGraphics.fillStyle(0x90EE90, 0.9 * (1 - t * 0.7));
             actionGraphics.fillCircle(
-                px + Math.cos(angle) * dist,
-                cropY + Math.sin(angle) * dist * 0.3,
-                2 + t * 2
+                px + offsetX + Math.cos(angle) * dist,
+                py + 25 + Math.sin(angle) * dist * 0.5,
+                3 + Math.random()
             );
         }
+        // Ground glow
+        actionGraphics.fillStyle(0x228B22, 0.3 * (1 - t));
+        actionGraphics.fillEllipse(px + offsetX, py + 30, 35, 12);
     }
 
-    // REMOVING (weeds/bugs): Debris scattering
-    if (GameState.isRemoving) {
-        // Debris flying away
-        for (let i = 0; i < 4; i++) {
-            const angle = (i / 4) * Math.PI + t * 2;
+    // HARVESTING: Crop rising + sparkles (offset forward)
+    if (GameState.isHarvesting) {
+        const offsetX = 25;
+        // Rising crop icon
+        const cropY = py + 20 - t * 45;
+        actionGraphics.fillStyle(0xFFD700, 1);
+        actionGraphics.fillCircle(px + offsetX, cropY, 8);
+        actionGraphics.fillStyle(0xFFF8DC, 0.9);
+        actionGraphics.fillCircle(px + offsetX - 2, cropY - 2, 3);
+        // Golden sparkles
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2 + t * 6;
             const dist = 25 * t;
-            const debrisY = py + 15 - t * 15;
-            actionGraphics.fillStyle(i % 2 === 0 ? 0x228B22 : 0x8B4513, 0.7 * (1 - t));
+            actionGraphics.fillStyle(0xFFD700, 0.9 * (1 - t * 0.6));
             actionGraphics.fillCircle(
-                px + Math.cos(angle) * dist,
-                debrisY + Math.sin(angle) * 5,
-                2
+                px + offsetX + Math.cos(angle) * dist,
+                cropY + Math.sin(angle) * dist * 0.4,
+                3 + t * 3
             );
         }
+        // Burst effect
+        actionGraphics.fillStyle(0xFFD700, 0.4 * (1 - t));
+        actionGraphics.fillCircle(px + offsetX, py + 20, 30 * t);
     }
 
-    // WATERING: Enhanced water arc
+    // REMOVING (weeds/bugs): Debris scattering (offset forward)
+    if (GameState.isRemoving) {
+        const offsetX = 25;
+        // Debris flying away
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + t * 3;
+            const dist = 35 * t;
+            const debrisY = py + 20 - t * 25;
+            actionGraphics.fillStyle(i % 2 === 0 ? 0x228B22 : 0x8B4513, 0.9 * (1 - t * 0.7));
+            actionGraphics.fillCircle(
+                px + offsetX + Math.cos(angle) * dist,
+                debrisY + Math.sin(angle) * 10,
+                3 + Math.random() * 2
+            );
+        }
+        // Poof cloud
+        actionGraphics.fillStyle(0xD2B48C, 0.4 * (1 - t));
+        actionGraphics.fillCircle(px + offsetX, py + 20, 25 * t);
+    }
+
+    // WATERING: Enhanced water arc (offset forward)
     if (GameState.isWatering) {
-        const numDrops = 8;
+        const offsetX = 20;
+        const numDrops = 12;
         for (let i = 0; i < numDrops; i++) {
-            const dropT = (t + i * 0.1) % 1;
+            const dropT = (t + i * 0.08) % 1;
             const arc = Math.sin(dropT * Math.PI);
-            const dx = 15 + dropT * 25;
-            const dy = -arc * 20 + dropT * 15;
-            actionGraphics.fillStyle(0x87CEEB, 0.6 * (1 - dropT * 0.5));
-            actionGraphics.fillCircle(px + dx, py + dy, 2 + arc);
+            const dx = offsetX + dropT * 35;
+            const dy = -arc * 30 + dropT * 20;
+            actionGraphics.fillStyle(0x87CEEB, 0.8 * (1 - dropT * 0.4));
+            actionGraphics.fillCircle(px + dx, py + dy, 3 + arc * 2);
         }
         // Splash at landing
-        if (t > 0.5) {
-            actionGraphics.fillStyle(0x87CEEB, 0.4 * (1 - t));
-            actionGraphics.fillEllipse(px + 35, py + 15, 15 * (t - 0.5) * 2, 5);
+        if (t > 0.4) {
+            const splashT = (t - 0.4) / 0.6;
+            actionGraphics.fillStyle(0x87CEEB, 0.5 * (1 - splashT));
+            actionGraphics.fillEllipse(px + offsetX + 35, py + 25, 25 * splashT, 10 * splashT);
+            // Splash droplets
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI - Math.PI / 2;
+                actionGraphics.fillCircle(
+                    px + offsetX + 35 + Math.cos(angle) * 15 * splashT,
+                    py + 25 - Math.sin(angle) * 12 * splashT,
+                    2
+                );
+            }
         }
     }
 }
