@@ -326,7 +326,8 @@ export class GameRoom extends Room<GameState> {
   // ===== World Initialization =====
 
   private initializeFarmPlots(): void {
-    for (let i = 0; i < 8; i++) {
+    // 3 rows x 5 columns = 15 plots (must match client)
+    for (let i = 0; i < 15; i++) {
       const plot = new FarmPlot();
       plot.index = i;
       plot.state = "grass";
@@ -334,7 +335,7 @@ export class GameRoom extends Room<GameState> {
       plot.growthTimer = 0;
       this.state.farmPlots.set(String(i), plot);
     }
-    this.roomLogger.debug({ event: "farm_plots_initialized", count: 8 }, "Initialized farm plots");
+    this.roomLogger.debug({ event: "farm_plots_initialized", count: 15 }, "Initialized farm plots");
   }
 
   private initializeNPCs(): void {
