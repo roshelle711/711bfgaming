@@ -83,29 +83,38 @@ function create() {
     // Flowers in small random clusters across the map
     const flowerColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xFFB6C1, 0xDDA0DD];
 
-    // Forbidden zones - flowers cannot spawn here
+    // Seed randomness with current time for variety each game load
+    const timeSeed = Date.now() % 10000;
+    const seededRandom = () => {
+        const x = Math.sin(timeSeed + Math.random() * 1000) * 10000;
+        return x - Math.floor(x);
+    };
+
+    // Forbidden zones - flowers cannot spawn here (with extra padding)
     const forbiddenZones = [
-        // Pond (ellipse at 180, 720 with radius ~80x60)
-        { type: 'ellipse', x: 180, y: 720, rx: 90, ry: 70 },
-        // Farm area (500, 700 with 280x170)
-        { type: 'rect', x: 360, y: 615, w: 280, h: 170 },
-        // Mira's cottage
-        { type: 'rect', x: 175, y: 100, w: 120, h: 110 },
-        // Your home
-        { type: 'rect', x: 825, y: 100, w: 120, h: 110 },
-        // General store
-        { type: 'rect', x: 1140, y: 530, w: 120, h: 110 },
+        // Pond (ellipse at 180, 720 with larger exclusion)
+        { type: 'ellipse', x: 180, y: 720, rx: 110, ry: 90 },
+        // Farm area with LOTS of padding (the whole farm region)
+        { type: 'rect', x: 340, y: 580, w: 320, h: 230 },
+        // Mira's cottage with padding
+        { type: 'rect', x: 155, y: 80, w: 160, h: 150 },
+        // Your home with padding
+        { type: 'rect', x: 805, y: 80, w: 160, h: 150 },
+        // General store with padding
+        { type: 'rect', x: 1120, y: 510, w: 160, h: 150 },
         // Main horizontal path
-        { type: 'rect', x: 150, y: 275, w: 1100, h: 40 },
-        // Vertical paths
-        { type: 'rect', x: 675, y: 280, w: 40, h: 420 },
-        { type: 'rect', x: 230, y: 195, w: 40, h: 90 },
-        { type: 'rect', x: 880, y: 195, w: 40, h: 90 },
-        { type: 'rect', x: 1175, y: 495, w: 40, h: 190 },
-        // Well
-        { type: 'rect', x: 600, y: 350, w: 80, h: 100 },
-        // Cooking station
-        { type: 'rect', x: 1015, y: 425, w: 70, h: 50 },
+        { type: 'rect', x: 140, y: 265, w: 1120, h: 55 },
+        // Vertical paths (wider exclusion)
+        { type: 'rect', x: 665, y: 270, w: 60, h: 440 },
+        { type: 'rect', x: 220, y: 185, w: 60, h: 100 },
+        { type: 'rect', x: 870, y: 185, w: 60, h: 100 },
+        { type: 'rect', x: 1165, y: 485, w: 60, h: 210 },
+        // Well with padding
+        { type: 'rect', x: 580, y: 330, w: 120, h: 130 },
+        // Cooking station with padding
+        { type: 'rect', x: 1000, y: 410, w: 100, h: 80 },
+        // Signpost area
+        { type: 'rect', x: 640, y: 310, w: 130, h: 60 },
     ];
 
     // Check if a point is in a forbidden zone
@@ -126,40 +135,40 @@ function create() {
         return false;
     }
 
-    // Generate 25-35 small random clusters (1-3 flowers each)
-    const numClusters = 25 + Math.floor(Math.random() * 11);
+    // Generate 30-40 small random clusters (1-3 flowers each)
+    const numClusters = 30 + Math.floor(seededRandom() * 11);
     for (let c = 0; c < numClusters; c++) {
-        // Pick random position across entire map
+        // Pick random position across entire map using seeded random
         let clusterX, clusterY;
         let attempts = 0;
         do {
-            clusterX = 50 + Math.random() * (GAME_WIDTH - 100);
-            clusterY = 50 + Math.random() * (GAME_HEIGHT - 100);
+            clusterX = 50 + seededRandom() * (GAME_WIDTH - 100);
+            clusterY = 50 + seededRandom() * (GAME_HEIGHT - 100);
             attempts++;
-        } while (isInForbiddenZone(clusterX, clusterY) && attempts < 20);
+        } while (isInForbiddenZone(clusterX, clusterY) && attempts < 30);
 
         // Skip if we couldn't find a valid position
         if (isInForbiddenZone(clusterX, clusterY)) continue;
 
-        const clusterSize = 1 + Math.floor(Math.random() * 3); // 1-3 flowers per cluster
-        const clusterColor = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+        const clusterSize = 1 + Math.floor(seededRandom() * 3); // 1-3 flowers per cluster
+        const clusterColor = flowerColors[Math.floor(seededRandom() * flowerColors.length)];
 
         for (let f = 0; f < clusterSize; f++) {
             // Mix of cluster color and random colors for variety
-            const useClusterColor = Math.random() > 0.3;
-            const color = useClusterColor ? clusterColor : flowerColors[Math.floor(Math.random() * flowerColors.length)];
-            graphics.fillStyle(color, 0.6 + Math.random() * 0.3);
+            const useClusterColor = seededRandom() > 0.3;
+            const color = useClusterColor ? clusterColor : flowerColors[Math.floor(seededRandom() * flowerColors.length)];
+            graphics.fillStyle(color, 0.6 + seededRandom() * 0.3);
 
             // Flowers spread within 10-20px of cluster center
-            const spread = 10 + Math.random() * 10;
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * spread;
+            const spread = 10 + seededRandom() * 10;
+            const angle = seededRandom() * Math.PI * 2;
+            const dist = seededRandom() * spread;
             const fx = clusterX + Math.cos(angle) * dist;
             const fy = clusterY + Math.sin(angle) * dist;
 
             // Double check the flower position isn't forbidden
             if (!isInForbiddenZone(fx, fy)) {
-                graphics.fillCircle(fx, fy, 2 + Math.random() * 3);
+                graphics.fillCircle(fx, fy, 2 + seededRandom() * 3);
             }
         }
     }
@@ -900,10 +909,30 @@ function handleInput(scene) {
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
 
-        // === PET INTERACTION (highest priority) ===
+        // Debug logging for pet interaction
+        const petExists = !!GameState.playerPet;
+        const nearPet = isNearPet();
+        const petState = GameState.playerPet?.petState;
+        console.log('[E key] Pet exists:', petExists, '| Near pet:', nearPet, '| Pet state:', petState);
+
+        // === LAMPPOST TOGGLE (check early - was getting blocked) ===
+        const nearestLamppost = findNearestLamppost();
+        if (nearestLamppost) {
+            console.log('[E key] Near lamppost, toggling');
+            const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
+            if (!sendToggleLamppost(lamppostIndex)) {
+                nearestLamppost.lightOn = !nearestLamppost.lightOn;
+                nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
+            }
+            return;
+        }
+
+        // === PET INTERACTION (highest priority after lamppost) ===
         // Pet interaction - pet the pet to make it do a trick!
-        if (isNearPet() && GameState.playerPet?.petState !== 'trick') {
+        if (nearPet && petState !== 'trick') {
+            console.log('[E key] Attempting pet trick');
             const trick = petDoTrick();
+            console.log('[E key] Trick result:', trick);
             if (trick) {
                 const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
                 const trickMessages = {
@@ -968,17 +997,6 @@ function handleInput(scene) {
                 showShopMenu();
             } else if (GameState.currentInteractable.message) {
                 showDialog(GameState.currentInteractable.message);
-            }
-            return;
-        }
-
-        // Lamppost toggle
-        const nearestLamppost = findNearestLamppost();
-        if (nearestLamppost) {
-            const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
-            if (!sendToggleLamppost(lamppostIndex)) {
-                nearestLamppost.lightOn = !nearestLamppost.lightOn;
-                nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
             }
             return;
         }
