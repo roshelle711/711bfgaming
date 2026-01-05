@@ -913,14 +913,18 @@ function updateTargetHighlight() {
  * Handle keyboard input
  */
 function handleInput(scene) {
+    // Cache JustDown results - they only return true ONCE per frame!
+    const escapeJustDown = Phaser.Input.Keyboard.JustDown(GameState.escapeKey);
+    const interactJustDown = Phaser.Input.Keyboard.JustDown(GameState.interactKey);
+
     // Debug: Log EVERY E key press to verify input is working
-    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey)) {
+    if (interactJustDown) {
         console.log('[INPUT] E pressed! Dialog:', GameState.isDialogOpen, '| Inventory:', GameState.inventoryOpen, '| Pause:', GameState.pauseMenuOpen);
     }
 
     // Escape key OR E key - close any open menu/dialog, or open pause menu
-    if (Phaser.Input.Keyboard.JustDown(GameState.escapeKey) ||
-        (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && (GameState.isDialogOpen || GameState.inventoryOpen || GameState.pauseMenuOpen))) {
+    if (escapeJustDown ||
+        (interactJustDown && (GameState.isDialogOpen || GameState.inventoryOpen || GameState.pauseMenuOpen))) {
         if (GameState.pauseMenuOpen) {
             closePauseMenu();
             return;
@@ -941,7 +945,7 @@ function handleInput(scene) {
     }
 
     // Interact key (E) - tool actions AND interact actions (fallback for click)
-    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.inventoryOpen && !GameState.pauseMenuOpen) {
+    if (interactJustDown && !GameState.isDialogOpen && !GameState.inventoryOpen && !GameState.pauseMenuOpen) {
         console.log('[E key] Pressed! Starting interaction checks...');
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
