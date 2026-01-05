@@ -9,7 +9,7 @@
 import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions } from './modules/config.js';
 import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
-import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations } from './modules/player.js';
+import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations, petDoTrick, isNearPet } from './modules/player.js';
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay, showPauseMenu, closePauseMenu } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth } from './modules/systems.js';
@@ -615,7 +615,7 @@ function update(time, delta) {
     // === PLAYER UPDATES ===
     updatePlayerSparkles(time);
     updatePlayerMovement();
-    updatePetFollow();
+    updatePetFollow(delta);
 
     // === SYSTEMS UPDATES ===
     updatePlantGrowth(this, delta);
@@ -879,6 +879,20 @@ function handleInput(scene) {
         }
 
         // === UNIVERSAL ACTIONS ===
+
+        // Pet interaction - pet the pet to make it do a trick!
+        if (isNearPet()) {
+            const trick = petDoTrick();
+            if (trick) {
+                const trickMessages = {
+                    spin: `${GameState.playerPet.petType} does a happy spin! 🎉`,
+                    jump: `${GameState.playerPet.petType} jumps with joy! 🎉`,
+                    flip: `${GameState.playerPet.petType} does a cute flip! 🎉`
+                };
+                showDialog(trickMessages[trick]);
+                return;
+            }
+        }
 
         // Fruit tree harvest
         const nearTree = findNearestFruitTree();
@@ -1155,7 +1169,14 @@ function updateProximityPrompts() {
         }
     });
 
-    GameState.interactPrompt.setVisible(GameState.canInteract);
+    // Show pet prompt if near pet and no other interaction
+    if (!GameState.canInteract && isNearPet() && GameState.playerPet?.petState !== 'trick') {
+        GameState.interactPrompt.setText('🐾 Press E to pet');
+        GameState.interactPrompt.setVisible(true);
+    } else {
+        GameState.interactPrompt.setText('🔵 Press E to interact');
+        GameState.interactPrompt.setVisible(GameState.canInteract);
+    }
 
     // Farm prompts - tool-aware with click actions
     const nearPlot = findNearestFarmPlot();

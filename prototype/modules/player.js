@@ -243,7 +243,15 @@ export function createPet(scene, x, y, petType) {
     scene.physics.add.existing(container);
     container.body.setSize(20, 20).setOffset(-10, -5);
 
+    // Pet state for wandering and tricks
     container.petType = petType;
+    container.petState = 'following';  // 'following', 'wandering', 'trick'
+    container.wanderTarget = { x: x, y: y };
+    container.wanderTimer = 0;
+    container.trickTimer = 0;
+    container.trickType = null;
+    container.originalScale = { x: 1, y: 1 };
+
     return container;
 }
 
@@ -297,10 +305,10 @@ export function updatePlayerMovement() {
 }
 
 /**
- * Update pet following behavior
- * Call this in the update loop
+ * Update pet behavior - following, wandering, and tricks
+ * @param {number} delta - Time delta in ms
  */
-export function updatePetFollow() {
+export function updatePetFollow(delta = 16) {
     const pet = GameState.playerPet;
     const player = GameState.player;
     if (!pet || !player) return;
@@ -309,11 +317,112 @@ export function updatePetFollow() {
     const dy = player.y - pet.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > 50) {
-        const speed = Math.min(dist * 2, 180);
-        pet.x += (dx / dist) * speed * 0.016;
-        pet.y += (dy / dist) * speed * 0.016;
+    // Update trick animation
+    if (pet.petState === 'trick') {
+        pet.trickTimer -= delta;
+        const progress = 1 - (pet.trickTimer / 800);
+
+        if (pet.trickType === 'spin') {
+            // Spin animation
+            pet.rotation = progress * Math.PI * 4;
+        } else if (pet.trickType === 'jump') {
+            // Jump animation
+            const jumpHeight = Math.sin(progress * Math.PI) * 25;
+            pet.y = pet.baseY - jumpHeight;
+        } else if (pet.trickType === 'flip') {
+            // Flip animation (scale Y)
+            pet.scaleY = Math.cos(progress * Math.PI * 2);
+        }
+
+        if (pet.trickTimer <= 0) {
+            pet.petState = 'following';
+            pet.rotation = 0;
+            pet.scaleY = 1;
+            if (pet.baseY) pet.y = pet.baseY;
+        }
+        return;
     }
+
+    // If player is too far, follow them
+    if (dist > 120) {
+        pet.petState = 'following';
+    }
+
+    if (pet.petState === 'following') {
+        // Follow the player
+        if (dist > 50) {
+            const speed = Math.min(dist * 2, 180);
+            pet.x += (dx / dist) * speed * delta / 1000;
+            pet.y += (dy / dist) * speed * delta / 1000;
+        } else if (dist < 40) {
+            // Close enough, start wandering
+            pet.petState = 'wandering';
+            pet.wanderTimer = 1000 + Math.random() * 2000;
+            pet.wanderTarget = {
+                x: player.x + (Math.random() - 0.5) * 80,
+                y: player.y + (Math.random() - 0.5) * 80
+            };
+        }
+    } else if (pet.petState === 'wandering') {
+        // Wander around near the player
+        pet.wanderTimer -= delta;
+
+        // Move toward wander target
+        const wdx = pet.wanderTarget.x - pet.x;
+        const wdy = pet.wanderTarget.y - pet.y;
+        const wdist = Math.sqrt(wdx * wdx + wdy * wdy);
+
+        if (wdist > 5) {
+            const wanderSpeed = 40;
+            pet.x += (wdx / wdist) * wanderSpeed * delta / 1000;
+            pet.y += (wdy / wdist) * wanderSpeed * delta / 1000;
+        }
+
+        // Pick new wander target periodically
+        if (pet.wanderTimer <= 0) {
+            pet.wanderTimer = 1500 + Math.random() * 2500;
+            pet.wanderTarget = {
+                x: player.x + (Math.random() - 0.5) * 100,
+                y: player.y + (Math.random() - 0.5) * 100
+            };
+        }
+    }
+
+    // Update depth based on Y position
+    pet.setDepth(pet.y);
+}
+
+/**
+ * Make the pet do a trick animation
+ * @returns {string} The trick performed
+ */
+export function petDoTrick() {
+    const pet = GameState.playerPet;
+    if (!pet || pet.petState === 'trick') return null;
+
+    const tricks = ['spin', 'jump', 'flip'];
+    const trick = tricks[Math.floor(Math.random() * tricks.length)];
+
+    pet.petState = 'trick';
+    pet.trickType = trick;
+    pet.trickTimer = 800;
+    pet.baseY = pet.y;
+
+    return trick;
+}
+
+/**
+ * Check if player is near their pet
+ * @returns {boolean}
+ */
+export function isNearPet() {
+    const pet = GameState.playerPet;
+    const player = GameState.player;
+    if (!pet || !player) return false;
+
+    const dx = player.x - pet.x;
+    const dy = player.y - pet.y;
+    return Math.sqrt(dx * dx + dy * dy) < 50;
 }
 
 /**
