@@ -94,6 +94,7 @@ export function harvestCrop(plot) {
         plot.state = 'tilled';
         plot.crop = null;
         plot.growthTimer = 0;
+        plot.harvestTime = GameState.gameTime; // Track when harvested for reset
         if (plot.plantGraphics) {
             plot.plantGraphics.destroy();
             plot.plantGraphics = null;
@@ -115,6 +116,8 @@ export function updatePlantGrowth(scene, delta) {
     // Single-player fallback
     const isDruid = GameState.playerClass === 'druid';
     const growthMultiplier = isDruid ? 1.2 : 1.0;
+    const GAME_DAY_MINUTES = 1440;
+    const RESET_DAYS = 3;
 
     GameState.farmPlots.forEach(plot => {
         if (plot.state === 'planted' || plot.state === 'growing') {
@@ -126,6 +129,24 @@ export function updatePlantGrowth(scene, delta) {
             } else if (plot.state === 'growing' && plot.growthTimer >= 8000) {
                 plot.state = 'ready';
                 drawPlant(scene, plot);
+            }
+        }
+
+        // Reset tilled plots to grass after 3 game days
+        if (plot.state === 'tilled' && plot.harvestTime !== undefined) {
+            // Calculate time elapsed since harvest (handle day wraparound)
+            let elapsed = GameState.gameTime - plot.harvestTime;
+            if (elapsed < 0) elapsed += GAME_DAY_MINUTES; // Handle day change
+
+            // Track cumulative time if we've been tilled for a while
+            if (!plot.tilledDuration) plot.tilledDuration = 0;
+            plot.tilledDuration += delta / 1000 * GameState.timeSpeed; // Convert to game minutes
+
+            if (plot.tilledDuration >= GAME_DAY_MINUTES * RESET_DAYS) {
+                plot.state = 'grass';
+                plot.harvestTime = undefined;
+                plot.tilledDuration = 0;
+                drawPlot(plot);
             }
         }
     });
@@ -147,7 +168,29 @@ export function startFishing() {
 
     GameState.isFishing = true;
     GameState.fishingTimer = 0;
-    showDialog('🎣 Fishing...\n(Wait for a catch!)');
+    GameState.fishingCatchTime = 2000 + Math.random() * 3000; // Set catch time once
+    showFishingStatus('🎣 Casting...');
+}
+
+/**
+ * Show brief fishing status (non-blocking notification)
+ */
+function showFishingStatus(text) {
+    if (!GameState.fishingNotification) {
+        // Create notification if it doesn't exist
+        const scene = GameState.scene;
+        if (scene) {
+            GameState.fishingNotification = scene.add.text(180, 650, '', {
+                fontSize: '16px',
+                fill: '#fff',
+                backgroundColor: '#00000099',
+                padding: { x: 10, y: 6 }
+            }).setOrigin(0.5).setDepth(100);
+        }
+    }
+    if (GameState.fishingNotification) {
+        GameState.fishingNotification.setText(text).setVisible(true);
+    }
 }
 
 /**
@@ -158,34 +201,46 @@ export function updateFishing(delta) {
 
     GameState.fishingTimer += delta;
 
-    // Random catch time between 2-5 seconds
-    const catchTime = 2000 + Math.random() * 3000;
-
-    if (GameState.fishingTimer >= catchTime) {
-        const isShaman = GameState.playerClass === 'shaman';
-        const weights = isShaman ? [0.3, 0.4, 0.3] : [0.5, 0.35, 0.15];
-
-        const roll = Math.random();
-        let fishIndex = 0;
-        let cumulative = 0;
-        for (let i = 0; i < weights.length; i++) {
-            cumulative += weights[i];
-            if (roll < cumulative) {
-                fishIndex = i;
-                break;
-            }
-        }
-
-        const fish = fishTypes[fishIndex];
-        GameState.inventory.fish[fish]++;
-        updateInventoryDisplay();
-
-        const emoji = { bass: '🐟', salmon: '🐠', goldfish: '✨' };
-        showDialog(`🎣 You caught a ${fish}! ${emoji[fish]}`);
-
-        GameState.isFishing = false;
-        GameState.fishingTimer = 0;
+    // Update status while waiting
+    if (GameState.fishingTimer < GameState.fishingCatchTime) {
+        const dots = '.'.repeat(Math.floor(GameState.fishingTimer / 500) % 4);
+        showFishingStatus(`🎣 Waiting${dots}`);
+        return;
     }
+
+    // Catch the fish!
+    const isShaman = GameState.playerClass === 'shaman';
+    const weights = isShaman ? [0.3, 0.4, 0.3] : [0.5, 0.35, 0.15];
+
+    const roll = Math.random();
+    let fishIndex = 0;
+    let cumulative = 0;
+    for (let i = 0; i < weights.length; i++) {
+        cumulative += weights[i];
+        if (roll < cumulative) {
+            fishIndex = i;
+            break;
+        }
+    }
+
+    const fish = fishTypes[fishIndex];
+    GameState.inventory.fish[fish]++;
+    updateInventoryDisplay();
+
+    const emoji = { bass: '🐟', salmon: '🐠', goldfish: '✨' };
+    showFishingStatus(`${emoji[fish]} Caught ${fish}!`);
+
+    // Brief pause, then continue fishing automatically
+    GameState.isFishing = false;
+    GameState.fishingTimer = 0;
+
+    // Auto-continue fishing after showing catch for 1 second
+    setTimeout(() => {
+        if (GameState.fishingNotification) {
+            GameState.fishingNotification.setVisible(false);
+        }
+        // Don't auto-restart - let player click again if they want to continue
+    }, 1500);
 }
 
 /**

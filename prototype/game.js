@@ -522,15 +522,18 @@ function useActiveItem(scene) {
         return;
     }
 
-    // No tool - default to nearest plot interactions (harvest, remove hazard)
-    if (tool === 'none' || !tool) {
-        const nearPlot = findNearestFarmPlot();
-        if (nearPlot) {
-            if (nearPlot.state === 'ready') {
-                harvestCrop(nearPlot);
-            } else if (nearPlot.hazard || nearPlot.state === 'dead') {
-                removeHazard(nearPlot);
-            }
+    // Harvest and hazard removal work with any tool (or no tool)
+    const nearPlot = findNearestFarmPlot();
+    if (nearPlot) {
+        // Remove hazard/dead plant (works with any tool - you just pull weeds)
+        if (nearPlot.hazard || nearPlot.state === 'dead') {
+            removeHazard(nearPlot);
+            return;
+        }
+        // Harvest ready crops
+        if (nearPlot.state === 'ready') {
+            harvestCrop(nearPlot);
+            return;
         }
     }
 }

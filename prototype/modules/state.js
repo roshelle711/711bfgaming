@@ -71,6 +71,8 @@ export const GameState = {
     // Fishing
     isFishing: false,
     fishingTimer: 0,
+    fishingCatchTime: 0,
+    fishingNotification: null,
 
     // UI state
     isDialogOpen: false,
