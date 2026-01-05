@@ -352,7 +352,9 @@ function startGame(scene) {
     GameState.holdRepeatTimer = null;
 
     scene.input.on('pointerdown', (pointer) => {
+        console.log('Click detected:', pointer.leftButtonDown(), 'Dialog:', GameState.isDialogOpen, 'Inventory:', GameState.inventoryOpen);
         if (pointer.leftButtonDown() && !GameState.isDialogOpen && !GameState.inventoryOpen) {
+            console.log('Calling useActiveItem, tool:', GameState.equippedTool);
             GameState.isHoldingClick = true;
             useActiveItem(scene);
 
@@ -480,10 +482,13 @@ function update(time, delta) {
 function useActiveItem(scene) {
     const tool = GameState.equippedTool;
     const nearPlot = findNearestFarmPlot();
+    console.log('useActiveItem - tool:', tool, 'nearPlot:', nearPlot ? nearPlot.state : 'none');
 
     // HOE: Till grass plots (uses nearest plot, not directional)
     if (tool === 'hoe') {
+        console.log('Hoe equipped, nearPlot state:', nearPlot?.state);
         if (nearPlot && nearPlot.state === 'grass') {
+            console.log('Hoeing plot!');
             // Small wind-up delay for satisfying feel
             GameState.isHoeing = true;
             setTimeout(() => {
@@ -617,8 +622,57 @@ function handleInput(scene) {
         return;
     }
 
-    // Interact key (E) - ONLY for interact actions, NOT tool actions
+    // Interact key (E) - tool actions AND interact actions (fallback for click)
     if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.inventoryOpen) {
+        const tool = GameState.equippedTool;
+        const nearPlot = findNearestFarmPlot();
+
+        // === TOOL ACTIONS (E key as fallback for click) ===
+
+        // HOE: Till grass plots
+        if (tool === 'hoe' && nearPlot && nearPlot.state === 'grass') {
+            hoePlot(nearPlot);
+            return;
+        }
+
+        // WATERING CAN: Water plants
+        if (tool === 'wateringCan' && nearPlot &&
+            (nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
+            waterPlot(nearPlot);
+            return;
+        }
+
+        // FISHING ROD: Fish at pond
+        if (tool === 'fishingRod' && isNearPond() && !GameState.isFishing) {
+            startFishing();
+            return;
+        }
+
+        // === UNIVERSAL ACTIONS ===
+
+        // Fruit tree harvest
+        const nearTree = findNearestFruitTree();
+        if (nearTree && nearTree.hasFruit) {
+            harvestFruit(nearTree);
+            return;
+        }
+
+        // Farm plot actions (plant, harvest, remove hazard)
+        if (nearPlot) {
+            if (nearPlot.hazard || nearPlot.state === 'dead') {
+                removeHazard(nearPlot);
+                return;
+            }
+            if (nearPlot.state === 'ready') {
+                harvestCrop(nearPlot);
+                return;
+            }
+            if (nearPlot.state === 'tilled') {
+                plantSeed(nearPlot, GameState.scene);
+                return;
+            }
+        }
+
         // NPC/Shop interactions
         if (GameState.canInteract && GameState.currentInteractable) {
             if (GameState.currentInteractable.interactType === 'shop') {
