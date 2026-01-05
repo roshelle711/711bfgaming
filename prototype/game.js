@@ -95,31 +95,35 @@ function create() {
         return (seed - 1) / 2147483646;
     };
 
-    // Forbidden zones - flowers cannot spawn here (with extra padding)
+    // Forbidden zones - flowers cannot spawn here (VERY generous padding)
     const forbiddenZones = [
-        // Pond (ellipse at 180, 720 with larger exclusion)
-        { type: 'ellipse', x: 180, y: 720, rx: 110, ry: 90 },
-        // Farm area with LOTS of padding (the whole farm region)
-        { type: 'rect', x: 340, y: 580, w: 320, h: 230 },
-        // Mira's cottage with padding
-        { type: 'rect', x: 155, y: 80, w: 160, h: 150 },
-        // Your home with padding
-        { type: 'rect', x: 805, y: 80, w: 160, h: 150 },
-        // General store with padding
-        { type: 'rect', x: 1120, y: 510, w: 160, h: 150 },
-        // Main horizontal path
-        { type: 'rect', x: 140, y: 265, w: 1120, h: 55 },
-        // Vertical paths (wider exclusion)
-        { type: 'rect', x: 665, y: 270, w: 60, h: 440 },
-        { type: 'rect', x: 220, y: 185, w: 60, h: 100 },
-        { type: 'rect', x: 870, y: 185, w: 60, h: 100 },
-        { type: 'rect', x: 1165, y: 485, w: 60, h: 210 },
-        // Well with padding
-        { type: 'rect', x: 580, y: 330, w: 120, h: 130 },
-        // Cooking station with padding
-        { type: 'rect', x: 1000, y: 410, w: 100, h: 80 },
-        // Signpost area
-        { type: 'rect', x: 640, y: 310, w: 130, h: 60 },
+        // Pond (ellipse at 180, 720 - very large exclusion)
+        { type: 'ellipse', x: 180, y: 720, rx: 160, ry: 130 },
+        // Farm area - HUGE exclusion zone to prevent ANY overlap
+        { type: 'rect', x: 300, y: 500, w: 420, h: 350 },
+        // Mira's cottage with big padding
+        { type: 'rect', x: 100, y: 50, w: 280, h: 220 },
+        // Your home with big padding
+        { type: 'rect', x: 750, y: 50, w: 280, h: 220 },
+        // General store with big padding
+        { type: 'rect', x: 1050, y: 450, w: 250, h: 220 },
+        // Main horizontal path - wider
+        { type: 'rect', x: 100, y: 250, w: 1200, h: 80 },
+        // Vertical paths (much wider exclusion)
+        { type: 'rect', x: 620, y: 250, w: 150, h: 500 },
+        { type: 'rect', x: 180, y: 150, w: 120, h: 150 },
+        { type: 'rect', x: 830, y: 150, w: 120, h: 150 },
+        { type: 'rect', x: 1130, y: 450, w: 100, h: 260 },
+        // Well with big padding
+        { type: 'rect', x: 550, y: 300, w: 180, h: 200 },
+        // Cooking station with big padding
+        { type: 'rect', x: 950, y: 380, w: 200, h: 150 },
+        // Signpost area - bigger
+        { type: 'rect', x: 600, y: 280, w: 220, h: 100 },
+        // Fruit tree areas (left side)
+        { type: 'rect', x: 50, y: 350, w: 120, h: 200 },
+        // Fruit tree areas (right side)
+        { type: 'rect', x: 1230, y: 350, w: 120, h: 200 },
     ];
 
     // Check if a point is in a forbidden zone
@@ -901,6 +905,11 @@ function updateTargetHighlight() {
  * Handle keyboard input
  */
 function handleInput(scene) {
+    // Debug: Log EVERY E key press to verify input is working
+    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey)) {
+        console.log('[INPUT] E pressed! Dialog:', GameState.isDialogOpen, '| Inventory:', GameState.inventoryOpen, '| Pause:', GameState.pauseMenuOpen);
+    }
+
     // Escape key OR E key - close any open menu/dialog, or open pause menu
     if (Phaser.Input.Keyboard.JustDown(GameState.escapeKey) ||
         (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && (GameState.isDialogOpen || GameState.inventoryOpen || GameState.pauseMenuOpen))) {
