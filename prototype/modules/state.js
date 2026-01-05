@@ -55,6 +55,7 @@ export const GameState = {
     // Equipped tool (derived from active hotbar slot)
     equippedTool: 'hoe',   // 'none' | 'hoe' | 'wateringCan' | 'fishingRod'
     isWatering: false,     // True during watering animation
+    isHoeing: false,       // True during hoeing animation
 
     // Time & day/night
     gameTime: 480,      // Minutes (8:00 AM start)
@@ -94,17 +95,18 @@ export const GameState = {
     // Input references (set by game.js)
     cursors: null,
     wasd: null,
-    interactKey: null,       // E - universal interact
+    interactKey: null,       // E - interact (NPC, shop, lamppost, etc.)
     escapeKey: null,         // ESC - close menus
-    hoeKey: null,            // H - hoe ground
-    plantKey: null,          // P - plant seed
     tabKey: null,            // TAB - cycle seeds
     inventoryKey: null,      // I - inventory
     hotbarKeys: null,        // 1-5 - hotbar slots
+    isHoldingClick: false,   // For hold-to-repeat hoe
+    holdRepeatTimer: null,   // Timer for hold-to-repeat
 
     // Hotbar UI elements (set by ui.js)
     hotbarSlots: null,       // Array of slot UI objects
     hotbarPanel: null,       // Background panel
+    targetHighlight: null,   // Graphics for target tile highlight
 
     // UI elements (set by ui.js)
     interactPrompt: null,

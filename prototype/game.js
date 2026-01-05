@@ -335,8 +335,6 @@ function startGame(scene) {
     GameState.wasd = scene.input.keyboard.addKeys('W,S,A,D');
     GameState.interactKey = scene.input.keyboard.addKey('E');
     GameState.escapeKey = scene.input.keyboard.addKey('ESC');
-    GameState.hoeKey = scene.input.keyboard.addKey('H');
-    GameState.plantKey = scene.input.keyboard.addKey('P');
     GameState.tabKey = scene.input.keyboard.addKey('TAB');
     GameState.inventoryKey = scene.input.keyboard.addKey('I');
     // Hotbar slot keys 1-5
@@ -347,6 +345,38 @@ function startGame(scene) {
         scene.input.keyboard.addKey('FOUR'),
         scene.input.keyboard.addKey('FIVE')
     ];
+
+    // Left click for tool use (with hold-to-repeat for hoe)
+    GameState.isHoldingClick = false;
+    GameState.holdRepeatTimer = null;
+
+    scene.input.on('pointerdown', (pointer) => {
+        if (pointer.leftButtonDown() && !GameState.isDialogOpen && !GameState.inventoryOpen) {
+            GameState.isHoldingClick = true;
+            useActiveItem(scene);
+
+            // Set up hold-to-repeat for hoe
+            if (GameState.equippedTool === 'hoe') {
+                GameState.holdRepeatTimer = setInterval(() => {
+                    if (GameState.isHoldingClick && !GameState.isHoeing) {
+                        useActiveItem(scene);
+                    }
+                }, 350); // Repeat every 350ms while holding
+            }
+        }
+    });
+
+    scene.input.on('pointerup', () => {
+        GameState.isHoldingClick = false;
+        if (GameState.holdRepeatTimer) {
+            clearInterval(GameState.holdRepeatTimer);
+            GameState.holdRepeatTimer = null;
+        }
+    });
+
+    // Create target highlight graphics for hoe
+    GameState.targetHighlight = scene.add.graphics();
+    GameState.targetHighlight.setDepth(5);
 
     // Create tool graphics
     createToolGraphics(scene);
@@ -429,6 +459,7 @@ function update(time, delta) {
     updateWildlife(delta);
     updateFruitRegrowth(delta);
     updateHeldTool();
+    updateTargetHighlight();
 
     // === MULTIPLAYER ===
     interpolateOtherPlayers();
@@ -440,6 +471,128 @@ function update(time, delta) {
 
     // === PROXIMITY PROMPTS ===
     updateProximityPrompts();
+}
+
+/**
+ * Use the active item/tool on left click
+ */
+function useActiveItem(scene) {
+    const tool = GameState.equippedTool;
+    const targetPlot = findTargetPlot();
+
+    // HOE: Till grass plots
+    if (tool === 'hoe') {
+        if (targetPlot && targetPlot.state === 'grass') {
+            // Small wind-up delay for satisfying feel
+            GameState.isHoeing = true;
+            setTimeout(() => {
+                hoePlot(targetPlot);
+                GameState.isHoeing = false;
+            }, 150);
+        }
+        return;
+    }
+
+    // WATERING CAN: Water plants
+    if (tool === 'wateringCan') {
+        if (targetPlot && (targetPlot.state === 'planted' || targetPlot.state === 'growing') && !targetPlot.isWatered) {
+            GameState.isWatering = true;
+            waterPlot(targetPlot);
+            setTimeout(() => {
+                GameState.isWatering = false;
+            }, 500);
+        }
+        return;
+    }
+
+    // FISHING ROD: Cast at pond
+    if (tool === 'fishingRod') {
+        if (isNearPond() && !GameState.isFishing) {
+            startFishing();
+        }
+        return;
+    }
+
+    // SEEDS: Plant in tilled soil
+    const hotbarItem = GameState.hotbar[GameState.activeHotbarSlot];
+    if (hotbarItem.type === 'seed') {
+        if (targetPlot && targetPlot.state === 'tilled') {
+            plantSeed(targetPlot, scene);
+        }
+        return;
+    }
+
+    // No tool - default to nearest plot interactions (harvest, remove hazard)
+    if (tool === 'none' || !tool) {
+        const nearPlot = findNearestFarmPlot();
+        if (nearPlot) {
+            if (nearPlot.state === 'ready') {
+                harvestCrop(nearPlot);
+            } else if (nearPlot.hazard || nearPlot.state === 'dead') {
+                removeHazard(nearPlot);
+            }
+        }
+    }
+}
+
+/**
+ * Find the farm plot in front of the player based on facing direction
+ */
+function findTargetPlot() {
+    if (!GameState.player) return null;
+
+    // Get player facing direction (use last non-zero velocity or default to down)
+    let facingX = GameState.moveDirection?.x || 0;
+    let facingY = GameState.moveDirection?.y || 1; // Default facing down
+
+    // Target position is ~50px in front of player
+    const targetX = GameState.player.x + facingX * 50;
+    const targetY = GameState.player.y + facingY * 50;
+
+    // Find closest plot to target position
+    let closestPlot = null;
+    let closestDist = 40; // Must be within 40px of target
+
+    GameState.farmPlots.forEach(plot => {
+        const dx = targetX - plot.x;
+        const dy = targetY - plot.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < closestDist) {
+            closestDist = dist;
+            closestPlot = plot;
+        }
+    });
+
+    return closestPlot;
+}
+
+/**
+ * Update target tile highlight (shows which plot hoe will hit)
+ */
+function updateTargetHighlight() {
+    if (!GameState.targetHighlight || !GameState.player) return;
+
+    GameState.targetHighlight.clear();
+
+    // Only show highlight when hoe is equipped
+    if (GameState.equippedTool !== 'hoe') return;
+
+    const targetPlot = findTargetPlot();
+    if (!targetPlot) return;
+
+    // Different colors based on plot state
+    if (targetPlot.state === 'grass') {
+        // Green highlight - can hoe this
+        GameState.targetHighlight.lineStyle(3, 0x00FF00, 0.8);
+        GameState.targetHighlight.strokeRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
+        // Corner brackets
+        GameState.targetHighlight.fillStyle(0x00FF00, 0.3);
+        GameState.targetHighlight.fillRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
+    } else {
+        // Red highlight - can't hoe this
+        GameState.targetHighlight.lineStyle(2, 0xFF0000, 0.5);
+        GameState.targetHighlight.strokeRect(targetPlot.x - 22, targetPlot.y - 22, 44, 44);
+    }
 }
 
 /**
@@ -456,10 +609,9 @@ function handleInput(scene) {
         return;
     }
 
-    // Interact key (E) - context-aware interaction
+    // Interact key (E) - ONLY for interact actions, NOT tool actions
     if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.inventoryOpen) {
-        // Priority order for E key interactions:
-        // 1. NPC/Shop interactions (canInteract)
+        // NPC/Shop interactions
         if (GameState.canInteract && GameState.currentInteractable) {
             if (GameState.currentInteractable.interactType === 'shop') {
                 showShopMenu();
@@ -469,7 +621,7 @@ function handleInput(scene) {
             return;
         }
 
-        // 2. Lamppost toggle
+        // Lamppost toggle
         const nearestLamppost = findNearestLamppost();
         if (nearestLamppost) {
             const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
@@ -480,46 +632,14 @@ function handleInput(scene) {
             return;
         }
 
-        // 3. Fruit tree harvest
+        // Fruit tree harvest (hands)
         const nearestTree = findNearestFruitTree();
         if (nearestTree && nearestTree.hasFruit) {
             harvestFruit(nearestTree);
             return;
         }
 
-        // 4. Farm plot interactions (water, remove hazard, harvest)
-        const plot = findNearestFarmPlot();
-        if (plot) {
-            // Remove hazard/dead plant first
-            if (plot.hazard || plot.state === 'dead') {
-                removeHazard(plot);
-                return;
-            }
-            // Water unwatered plants
-            if ((plot.state === 'planted' || plot.state === 'growing') && !plot.isWatered) {
-                equipTool('wateringCan');
-                GameState.isWatering = true;
-                waterPlot(plot);
-                setTimeout(() => {
-                    GameState.isWatering = false;
-                    equipTool('none');
-                }, 500);
-                return;
-            }
-            // Harvest ready crops
-            if (plot.state === 'ready') {
-                harvestCrop(plot);
-                return;
-            }
-        }
-
-        // 5. Fishing
-        if (isNearPond()) {
-            startFishing();
-            return;
-        }
-
-        // 6. Cooking
+        // Cooking station
         if (isNearCookingStation()) {
             showCraftingMenu();
             return;
@@ -530,20 +650,6 @@ function handleInput(scene) {
     if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && GameState.isDialogOpen) {
         closeDialog();
         return;
-    }
-
-    // Hoe key (H) - still needed for tilling
-    if (Phaser.Input.Keyboard.JustDown(GameState.hoeKey) && !GameState.isDialogOpen) {
-        const plot = findNearestFarmPlot();
-        if (plot && plot.state === 'grass') hoePlot(plot);
-    }
-
-    // Plant key (P) - still needed for planting
-    if (Phaser.Input.Keyboard.JustDown(GameState.plantKey) && !GameState.isDialogOpen) {
-        const plot = findNearestFarmPlot();
-        if (plot && plot.state === 'tilled') {
-            plantSeed(plot, scene);
-        }
     }
 
     // Tab key - cycle seeds
@@ -708,27 +814,35 @@ function updateProximityPrompts() {
 
     GameState.interactPrompt.setVisible(GameState.canInteract);
 
-    // Farm prompts - show most relevant action
+    // Farm prompts - tool-aware with click actions
     const nearPlot = findNearestFarmPlot();
+    const tool = GameState.equippedTool;
     if (nearPlot) {
         let promptText = '';
-        // Priority: hazard > water > state-based action
-        if (nearPlot.hazard) {
+        // Tool-specific actions (left click)
+        if (tool === 'hoe' && nearPlot.state === 'grass') {
+            promptText = '🔨 Click to hoe';
+        } else if (tool === 'wateringCan' && (nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
+            promptText = '💧 Click to water';
+        }
+        // Hand actions (left click when no tool or empty slot)
+        else if (nearPlot.hazard) {
             const hazardName = nearPlot.hazard === 'weeds' ? '🌿 Weeds' : '🐛 Bugs';
-            promptText = `${hazardName} - E to remove`;
+            promptText = `${hazardName} - Click to remove`;
         } else if (nearPlot.state === 'dead') {
-            promptText = '💀 E to clear';
-        } else if ((nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered) {
-            promptText = '💧 E to water';
-        } else if (nearPlot.state === 'grass') {
-            promptText = '🔨 H to hoe';
+            promptText = '💀 Click to clear';
         } else if (nearPlot.state === 'tilled') {
-            promptText = '🌱 P to plant';
+            promptText = '🌱 Click to plant';
         } else if (nearPlot.state === 'ready') {
-            promptText = '✋ E to harvest';
+            promptText = '✋ Click to harvest';
+        }
+        // Show hint if wrong tool equipped
+        else if (nearPlot.state === 'grass' && tool !== 'hoe') {
+            promptText = '🔨 Equip hoe (1)';
+        } else if ((nearPlot.state === 'planted' || nearPlot.state === 'growing') && !nearPlot.isWatered && tool !== 'wateringCan') {
+            promptText = '💧 Equip watering can (2)';
         }
         GameState.farmPrompt.setText(promptText).setVisible(!!promptText);
-        // Hide separate water/hazard prompts (consolidated into main prompt)
         GameState.waterPrompt.setVisible(false);
         GameState.hazardPrompt.setVisible(false);
     } else {
@@ -751,9 +865,13 @@ function updateProximityPrompts() {
         GameState.fruitTreePrompt.setVisible(false);
     }
 
-    // Fishing prompt
+    // Fishing prompt - tool-aware with click
     if (isNearPond() && !GameState.isFishing) {
-        GameState.fishingPrompt.setText('🎣 E to fish').setVisible(true);
+        if (tool === 'fishingRod') {
+            GameState.fishingPrompt.setText('🎣 Click to cast').setVisible(true);
+        } else {
+            GameState.fishingPrompt.setText('🎣 Equip fishing rod (3)').setVisible(true);
+        }
     } else {
         GameState.fishingPrompt.setVisible(false);
     }
