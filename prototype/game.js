@@ -950,20 +950,43 @@ function handleInput(scene) {
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
 
-        // === PET INTERACTION (HIGHEST priority - check first!) ===
+        // === CALCULATE DISTANCES FOR PET AND LAMPPOST ===
         const pet = GameState.playerPet;
         const player = GameState.player;
-        console.log('[E key] Pet exists:', !!pet, '| Player exists:', !!player);
+        const nearestLamppost = findNearestLamppost();
+
+        let petDist = Infinity;
+        let lamppostDist = Infinity;
 
         if (pet && player) {
-            const petDist = Math.sqrt(Math.pow(player.x - pet.x, 2) + Math.pow(player.y - pet.y, 2));
-            const petState = pet.petState;
-            console.log('[E key] Pet dist:', petDist.toFixed(0), '| State:', petState);
+            petDist = Math.sqrt(Math.pow(player.x - pet.x, 2) + Math.pow(player.y - pet.y, 2));
+        }
 
-            if (petDist < 120 && petState !== 'trick') {
+        if (nearestLamppost && player) {
+            lamppostDist = Math.sqrt(Math.pow(player.x - nearestLamppost.x, 2) + Math.pow(player.y - nearestLamppost.y, 2));
+        }
+
+        console.log('[E key] Pet dist:', petDist.toFixed(0), '| Lamppost dist:', lamppostDist.toFixed(0));
+
+        // === LAMPPOST TOGGLE (prioritize if closer than pet) ===
+        if (nearestLamppost && lamppostDist < petDist) {
+            console.log('[E key] Toggling lamppost (closer than pet)');
+            const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
+            if (!sendToggleLamppost(lamppostIndex)) {
+                nearestLamppost.lightOn = !nearestLamppost.lightOn;
+                nearestLamppost.lightGraphics.setVisible(nearestLamppost.lightOn);
+            }
+            return;
+        }
+
+        // === PET INTERACTION ===
+        if (pet && player && petDist < 120) {
+            const petState = pet.petState;
+            console.log('[E key] Pet state:', petState);
+
+            if (petState !== 'trick') {
                 console.log('[E key] Triggering pet trick!');
                 const trick = petDoTrick();
-                console.log('[E key] Trick result:', trick);
                 if (trick) {
                     const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
                     const trickMessages = {
@@ -977,16 +1000,13 @@ function handleInput(scene) {
             }
         }
 
-        // === LAMPPOST TOGGLE ===
-        const nearestLamppost = findNearestLamppost();
-        console.log('[E key] Nearest lamppost:', nearestLamppost ? 'found at ' + nearestLamppost.x + ',' + nearestLamppost.y : 'none');
+        // === LAMPPOST TOGGLE (fallback if pet not interactable) ===
         if (nearestLamppost) {
-            console.log('[E key] Toggling lamppost - light was:', nearestLamppost.lightOn);
+            console.log('[E key] Toggling lamppost (pet not interactable)');
             const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
             if (!sendToggleLamppost(lamppostIndex)) {
                 nearestLamppost.lightOn = !nearestLamppost.lightOn;
                 nearestLamppost.lightGraphics.setVisible(nearestLamppost.lightOn);
-                console.log('[E key] Lamppost light now:', nearestLamppost.lightOn);
             }
             return;
         }
