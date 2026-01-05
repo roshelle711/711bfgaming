@@ -83,11 +83,15 @@ function create() {
     // Flowers in small random clusters across the map
     const flowerColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xFFB6C1, 0xDDA0DD];
 
-    // Seed randomness with current time for variety each game load
-    const timeSeed = Date.now() % 10000;
+    // Proper seeded random using Linear Congruential Generator (LCG)
+    // This produces different results each game load based on timestamp
+    let seed = Date.now() % 2147483647;
+    if (seed <= 0) seed += 2147483646;
+
     const seededRandom = () => {
-        const x = Math.sin(timeSeed + Math.random() * 1000) * 10000;
-        return x - Math.floor(x);
+        // LCG parameters from Numerical Recipes
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
     };
 
     // Forbidden zones - flowers cannot spawn here (with extra padding)
@@ -208,36 +212,49 @@ function create() {
     // Obstacles group
     GameState.obstacles = this.physics.add.staticGroup();
 
-    // Trees - spread across larger map with shadows
+    // Trees - each on separate graphics with depth based on Y position
+    // Some trees are "foreground" (high depth) and some are "background" (low depth)
     const trees = [
-        { x: 60, y: 100, s: 35 }, { x: 1340, y: 100, s: 40 }, { x: 60, y: 800, s: 42 },
-        { x: 1340, y: 800, s: 38 }, { x: 60, y: 450, s: 36 }, { x: 1340, y: 450, s: 34 },
-        { x: 1050, y: 150, s: 32 }, { x: 100, y: 650, s: 30 }, { x: 1340, y: 600, s: 33 },
-        { x: 60, y: 250, s: 28 }
+        { x: 60, y: 100, s: 35, foreground: false },
+        { x: 1340, y: 100, s: 40, foreground: false },
+        { x: 60, y: 800, s: 42, foreground: true },    // Bottom-left in front
+        { x: 1340, y: 800, s: 38, foreground: true },  // Bottom-right in front
+        { x: 60, y: 450, s: 36, foreground: false },
+        { x: 1340, y: 450, s: 34, foreground: true },  // Middle-right in front
+        { x: 1050, y: 150, s: 32, foreground: false },
+        { x: 100, y: 650, s: 30, foreground: true },   // Lower-left in front
+        { x: 1340, y: 600, s: 33, foreground: false },
+        { x: 60, y: 250, s: 28, foreground: false }
     ];
     trees.forEach(t => {
+        // Each tree gets its own graphics object for depth control
+        const treeGfx = this.add.graphics();
+        // Foreground trees have depth 900+ (above player ~450), background trees use Y position
+        const treeDepth = t.foreground ? 900 + t.y : t.y;
+        treeGfx.setDepth(treeDepth);
+
         // Ground shadow (ellipse beneath tree)
-        graphics.fillStyle(0x1a3a1a, 0.25);
-        graphics.fillEllipse(t.x + 5, t.y + t.s + 15, t.s * 1.2, t.s * 0.5);
+        treeGfx.fillStyle(0x1a3a1a, 0.25);
+        treeGfx.fillEllipse(t.x + 5, t.y + t.s + 15, t.s * 1.2, t.s * 0.5);
 
         // Trunk
-        graphics.fillStyle(0x5D4037, 1);
-        graphics.fillRect(t.x - 7, t.y + t.s - 10, 14, 32);
-        graphics.fillStyle(0x4A3328, 0.6);
-        graphics.fillRect(t.x - 4, t.y + t.s - 5, 3, 25);  // Bark texture
+        treeGfx.fillStyle(0x5D4037, 1);
+        treeGfx.fillRect(t.x - 7, t.y + t.s - 10, 14, 32);
+        treeGfx.fillStyle(0x4A3328, 0.6);
+        treeGfx.fillRect(t.x - 4, t.y + t.s - 5, 3, 25);  // Bark texture
 
         // Foliage layers (back to front for depth)
-        graphics.fillStyle(0x1B5E20, 0.8);  // Deep shadow
-        graphics.fillCircle(t.x + 5, t.y + 5, t.s * 0.75);
-        graphics.fillStyle(0x2ECC71, 1);     // Mid leaves
-        graphics.fillCircle(t.x - 12, t.y - 6, t.s * 0.7);
-        graphics.fillCircle(t.x + 12, t.y - 6, t.s * 0.7);
-        graphics.fillStyle(0x27AE60, 1);     // Main canopy
-        graphics.fillCircle(t.x, t.y - 12, t.s * 0.8);
-        graphics.fillStyle(0x229954, 1);     // Top layer
-        graphics.fillCircle(t.x, t.y, t.s);
-        graphics.fillStyle(0x58D68D, 0.5);   // Highlight (sun)
-        graphics.fillCircle(t.x - 8, t.y - 10, t.s * 0.4);
+        treeGfx.fillStyle(0x1B5E20, 0.8);  // Deep shadow
+        treeGfx.fillCircle(t.x + 5, t.y + 5, t.s * 0.75);
+        treeGfx.fillStyle(0x2ECC71, 1);     // Mid leaves
+        treeGfx.fillCircle(t.x - 12, t.y - 6, t.s * 0.7);
+        treeGfx.fillCircle(t.x + 12, t.y - 6, t.s * 0.7);
+        treeGfx.fillStyle(0x27AE60, 1);     // Main canopy
+        treeGfx.fillCircle(t.x, t.y - 12, t.s * 0.8);
+        treeGfx.fillStyle(0x229954, 1);     // Top layer
+        treeGfx.fillCircle(t.x, t.y, t.s);
+        treeGfx.fillStyle(0x58D68D, 0.5);   // Highlight (sun)
+        treeGfx.fillCircle(t.x - 8, t.y - 10, t.s * 0.4);
 
         GameState.obstacles.add(this.add.rectangle(t.x, t.y + t.s, 18, 18, 0x000000, 0));
     });
@@ -909,40 +926,41 @@ function handleInput(scene) {
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
 
-        // Debug logging for pet interaction
+        // === PET INTERACTION (HIGHEST priority - check first!) ===
         const petExists = !!GameState.playerPet;
-        const nearPet = isNearPet();
-        const petState = GameState.playerPet?.petState;
-        console.log('[E key] Pet exists:', petExists, '| Near pet:', nearPet, '| Pet state:', petState);
+        if (petExists) {
+            const pet = GameState.playerPet;
+            const player = GameState.player;
+            const petDist = Math.sqrt(Math.pow(player.x - pet.x, 2) + Math.pow(player.y - pet.y, 2));
+            const petState = pet.petState;
+            console.log('[E key] Pet dist:', petDist.toFixed(0), '| State:', petState, '| Pos:', pet.x.toFixed(0), pet.y.toFixed(0));
 
-        // === LAMPPOST TOGGLE (check early - was getting blocked) ===
+            if (petDist < 120 && petState !== 'trick') {
+                console.log('[E key] Triggering pet trick!');
+                const trick = petDoTrick();
+                if (trick) {
+                    const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
+                    const trickMessages = {
+                        spin: `${petName} does a happy spin! 🎉`,
+                        jump: `${petName} jumps with joy! 🎉`,
+                        flip: `${petName} does a cute flip! 🎉`
+                    };
+                    showDialog(trickMessages[trick]);
+                    return;
+                }
+            }
+        }
+
+        // === LAMPPOST TOGGLE ===
         const nearestLamppost = findNearestLamppost();
         if (nearestLamppost) {
-            console.log('[E key] Near lamppost, toggling');
+            console.log('[E key] Toggling lamppost');
             const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
             if (!sendToggleLamppost(lamppostIndex)) {
                 nearestLamppost.lightOn = !nearestLamppost.lightOn;
                 nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
             }
             return;
-        }
-
-        // === PET INTERACTION (highest priority after lamppost) ===
-        // Pet interaction - pet the pet to make it do a trick!
-        if (nearPet && petState !== 'trick') {
-            console.log('[E key] Attempting pet trick');
-            const trick = petDoTrick();
-            console.log('[E key] Trick result:', trick);
-            if (trick) {
-                const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
-                const trickMessages = {
-                    spin: `${petName} does a happy spin! 🎉`,
-                    jump: `${petName} jumps with joy! 🎉`,
-                    flip: `${petName} does a cute flip! 🎉`
-                };
-                showDialog(trickMessages[trick]);
-                return;
-            }
         }
 
         // === TOOL ACTIONS (E key as fallback for click) ===

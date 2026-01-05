@@ -27,27 +27,36 @@ export function showDialog(message) {
     // Measure text
     const testText = scene.add.text(0, 0, message, {
         fontSize: '14px',
-        wordWrap: { width: 800 },
+        wordWrap: { width: 400 },
         lineSpacing: 6
     });
     const bounds = testText.getBounds();
     testText.destroy();
 
-    const padding = 30;
-    const boxWidth = Math.min(Math.max(bounds.width + padding * 2, 300), 1000);
-    const boxHeight = Math.min(Math.max(bounds.height + padding * 2 + 40, 80), 450);  // Increased max height for shop
+    const padding = 20;
+    const boxWidth = Math.min(Math.max(bounds.width + padding * 2, 200), 500);
+    const boxHeight = Math.min(Math.max(bounds.height + padding * 2 + 30, 70), 300);
 
-    // Position box so it sits above bottom of screen
-    const boxY = GAME_HEIGHT - boxHeight / 2 - 25;
+    // Position near mouse cursor with offset, clamped to screen bounds
+    const mouseX = GameState.mouseX || GAME_WIDTH / 2;
+    const mouseY = GameState.mouseY || GAME_HEIGHT / 2;
+
+    // Offset from cursor (to the right and below)
+    let boxX = mouseX + 60;
+    let boxY = mouseY + 40;
+
+    // Clamp to screen bounds
+    boxX = Math.max(boxWidth / 2 + 10, Math.min(GAME_WIDTH - boxWidth / 2 - 10, boxX));
+    boxY = Math.max(boxHeight / 2 + 10, Math.min(GAME_HEIGHT - boxHeight / 2 - 10, boxY));
 
     GameState.dialogBox.setSize(boxWidth, boxHeight);
-    GameState.dialogBox.setPosition(GAME_WIDTH / 2, boxY);
+    GameState.dialogBox.setPosition(boxX, boxY);
 
-    // Position text at top of box with padding (change origin to top-center for multi-line)
+    // Position text at top of box with padding
     const textY = boxY - boxHeight / 2 + padding;
-    GameState.dialogText.setOrigin(0.5, 0);  // Top-center origin
-    GameState.dialogText.setPosition(GAME_WIDTH / 2, textY);
-    scene.dialogCloseText.setPosition(GAME_WIDTH / 2, boxY + boxHeight / 2 - 15);
+    GameState.dialogText.setOrigin(0.5, 0);
+    GameState.dialogText.setPosition(boxX, textY);
+    scene.dialogCloseText.setPosition(boxX, boxY + boxHeight / 2 - 12);
 
     GameState.dialogBox.setVisible(true);
     GameState.dialogText.setText(message).setVisible(true);

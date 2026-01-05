@@ -183,6 +183,13 @@ export function startFishing() {
     GameState.isFishing = true;
     GameState.fishingTimer = 0;
     GameState.fishingCatchTime = 2000 + Math.random() * 3000; // Set catch time once
+
+    // Randomize bobber position within pond bounds for each cast
+    GameState.bobberOffset = {
+        x: (Math.random() - 0.5) * 60,  // -30 to +30 from center
+        y: (Math.random() - 0.5) * 40   // -20 to +20 from center
+    };
+
     showFishingStatus('🎣 Casting...');
 }
 

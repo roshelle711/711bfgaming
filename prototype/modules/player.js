@@ -182,8 +182,13 @@ export function createPet(scene, x, y, petType) {
 
     container.add(scene.add.ellipse(0, 12, 16, 5, 0x000000, 0.2));
 
-    // Darken color helper for shading
-    const darken = (color, amount = 0x222222) => Math.max(0, color - amount);
+    // Darken color helper for shading - proper per-channel RGB subtraction
+    const darken = (color, amount = 0x22) => {
+        const r = Math.max(0, ((color >> 16) & 0xFF) - amount);
+        const g = Math.max(0, ((color >> 8) & 0xFF) - amount);
+        const b = Math.max(0, (color & 0xFF) - amount);
+        return (r << 16) | (g << 8) | b;
+    };
 
     if (petType === 'cat') {
         // Body with shading
@@ -281,32 +286,42 @@ export function createPet(scene, x, y, petType) {
         // Tail feathers
         container.add(scene.add.triangle(-8, 4, 0, 8, 4, 0, 8, 8, pet.accent));
     } else if (petType === 'fox') {
-        // Body with shading
-        container.add(scene.add.ellipse(0, 5, 18, 12, darken(pet.color)));
-        container.add(scene.add.ellipse(-1, 4, 16, 10, pet.color));
-        // Belly
-        container.add(scene.add.ellipse(0, 6, 10, 6, pet.accent));
-        // Head with shading
-        container.add(scene.add.ellipse(0, -6, 12, 10, darken(pet.color)));
-        container.add(scene.add.ellipse(-1, -7, 11, 9, pet.color));
-        // Snout
-        container.add(scene.add.ellipse(0, -4, 6, 4, pet.accent));
-        // Ears (smaller, pointier)
-        container.add(scene.add.triangle(-6, -15, 0, 8, 4, 0, 8, 8, pet.color));
-        container.add(scene.add.triangle(6, -15, 0, 8, 4, 0, 8, 8, pet.color));
-        container.add(scene.add.triangle(-6, -13, 0, 5, 2, 0, 5, 5, 0x1A1A1A));
-        container.add(scene.add.triangle(6, -13, 0, 5, 2, 0, 5, 5, 0x1A1A1A));
-        // Eyes
-        container.add(scene.add.ellipse(-3, -8, 3, 4, 0x2ECC71));
-        container.add(scene.add.ellipse(3, -8, 3, 4, 0x2ECC71));
-        container.add(scene.add.ellipse(-3, -8, 1, 2, 0x000000));
-        container.add(scene.add.ellipse(3, -8, 1, 2, 0x000000));
-        // Nose
-        container.add(scene.add.circle(0, -3, 2, 0x000000));
-        // Fluffy tail
-        container.add(scene.add.ellipse(12, 2, 6, 12, darken(pet.color)));
-        container.add(scene.add.ellipse(11, 1, 5, 10, pet.color));
-        container.add(scene.add.ellipse(13, 5, 4, 6, pet.accent));
+        // === CUTE FOX REDESIGN ===
+        // Fluffy tail first (renders behind body)
+        container.add(scene.add.ellipse(14, 4, 10, 16, darken(pet.color)));  // Tail shadow
+        container.add(scene.add.ellipse(13, 3, 9, 14, pet.color));           // Tail main
+        container.add(scene.add.ellipse(15, 10, 5, 8, pet.accent));          // Tail white tip
+
+        // Round body (cuter proportions)
+        container.add(scene.add.ellipse(0, 6, 20, 14, darken(pet.color)));   // Body shadow
+        container.add(scene.add.ellipse(-1, 5, 18, 12, pet.color));          // Body main
+        container.add(scene.add.ellipse(0, 8, 10, 6, pet.accent));           // White belly
+
+        // Cute round head (larger for kawaii look)
+        container.add(scene.add.circle(0, -7, 14, darken(pet.color)));       // Head shadow
+        container.add(scene.add.circle(-1, -8, 13, pet.color));              // Head main
+
+        // White face markings
+        container.add(scene.add.ellipse(0, -3, 10, 8, pet.accent));          // White muzzle area
+        container.add(scene.add.ellipse(-5, -6, 4, 5, pet.accent));          // Left cheek patch
+        container.add(scene.add.ellipse(5, -6, 4, 5, pet.accent));           // Right cheek patch
+
+        // Pointed ears (on top of head)
+        container.add(scene.add.triangle(-8, -20, 0, 10, 5, 0, 10, 10, pet.color));   // Left ear
+        container.add(scene.add.triangle(8, -20, 0, 10, 5, 0, 10, 10, pet.color));    // Right ear
+        container.add(scene.add.triangle(-8, -17, 0, 6, 3, 0, 6, 6, 0x1A1A1A));       // Left inner
+        container.add(scene.add.triangle(8, -17, 0, 6, 3, 0, 6, 6, 0x1A1A1A));        // Right inner
+
+        // Big cute eyes
+        container.add(scene.add.ellipse(-5, -9, 5, 6, 0xFFFFFF));            // Left eye white
+        container.add(scene.add.ellipse(5, -9, 5, 6, 0xFFFFFF));             // Right eye white
+        container.add(scene.add.ellipse(-5, -8, 3, 4, 0x4A3000));            // Left pupil (amber)
+        container.add(scene.add.ellipse(5, -8, 3, 4, 0x4A3000));             // Right pupil (amber)
+        container.add(scene.add.circle(-6, -10, 1.5, 0xFFFFFF));             // Left eye shine
+        container.add(scene.add.circle(4, -10, 1.5, 0xFFFFFF));              // Right eye shine
+
+        // Small black nose
+        container.add(scene.add.ellipse(0, -2, 4, 3, 0x000000));
     }
 
     // No nameTag - pets are visually distinct without labels
@@ -589,12 +604,15 @@ export function updateHeldTool() {
         toolGraphics.fillCircle(rodX + 1, toolY + 5, 5);
         toolGraphics.fillStyle(0x505050, 1);
         toolGraphics.fillCircle(rodX + 1, toolY + 5, 3);
-        // Line (when fishing) - bobber always lands inside pond
+        // Line (when fishing) - bobber lands at random position in pond
         if (GameState.isFishing) {
-            // Calculate bobber position inside the pond (not relative to player)
-            const bobberOffsetX = facingLeft ? 30 : -30;  // Offset from center toward player
-            const bobberX = pondCenterX + bobberOffsetX;
-            const bobberY = pondCenterY - 15 + (Math.sin(GameState.gameTime * 0.15) * 2);  // Gentle bob
+            // Use the random offset set when fishing started
+            const randOffsetX = GameState.bobberOffset?.x || 0;
+            const randOffsetY = GameState.bobberOffset?.y || 0;
+
+            // Bobber position inside pond with random offset
+            const bobberX = pondCenterX + randOffsetX;
+            const bobberY = pondCenterY - 10 + randOffsetY + (Math.sin(GameState.gameTime * 0.15) * 2);
 
             // Draw straight fishing line from rod tip to bobber
             const rodTipX = rodX + 1;

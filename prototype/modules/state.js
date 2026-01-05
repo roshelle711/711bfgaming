@@ -77,6 +77,7 @@ export const GameState = {
     fishingTimer: 0,
     fishingCatchTime: 0,
     fishingNotification: null,
+    bobberOffset: { x: 0, y: 0 },  // Random offset for each cast
 
     // UI state
     isDialogOpen: false,
