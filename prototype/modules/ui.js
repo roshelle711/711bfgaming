@@ -186,7 +186,7 @@ export function createInventoryIcons(scene) {
     });
 
     // Close hint
-    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 210, '[ I or ESC to close ]', {
+    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 210, '[ I, E, or ESC to close ]', {
         fontSize: '12px', fill: '#666'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
@@ -555,6 +555,7 @@ export function setupUI(scene) {
 
 /**
  * Show character creation screen
+ * Layout uses full 1400x900 screen with larger UI elements
  */
 export function showCharacterCreation(scene, onComplete) {
     const creationUI = [];
@@ -563,17 +564,18 @@ export function showCharacterCreation(scene, onComplete) {
     const centerX = GAME_WIDTH / 2;
     const centerY = GAME_HEIGHT / 2;
 
-    const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.9).setDepth(200);
+    const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.92).setDepth(200);
     creationUI.push(overlay);
 
     // Title
-    const title = scene.add.text(centerX, 35, '✨ Create Your Character ✨', {
-        fontSize: '32px', fill: '#FFD700', fontStyle: 'bold'
+    const title = scene.add.text(centerX, 50, '✨ Create Your Character ✨', {
+        fontSize: '42px', fill: '#FFD700', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(201);
     creationUI.push(title);
 
-    // === LEFT COLUMN: Class Selection ===
-    const classLabel = scene.add.text(200, 80, 'Choose Class', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
+    // === LEFT COLUMN: Class Selection (x: 100-350) ===
+    const leftX = 220;
+    const classLabel = scene.add.text(leftX, 120, 'Choose Class', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
     creationUI.push(classLabel);
 
     const classKeys = Object.keys(classes);
@@ -582,39 +584,39 @@ export function showCharacterCreation(scene, onComplete) {
     classKeys.forEach((cls, i) => {
         const row = Math.floor(i / 2);
         const col = i % 2;
-        const x = 130 + col * 140;
-        const y = 130 + row * 80;
+        const x = leftX - 85 + col * 170;
+        const y = 190 + row * 100;
         const data = classes[cls];
 
-        const btn = scene.add.rectangle(x, y, 120, 65, 0x2C3E50, 0.9)
-            .setStrokeStyle(3, GameState.playerClass === cls ? 0xFFD700 : data.color)
+        const btn = scene.add.rectangle(x, y, 150, 85, 0x2C3E50, 0.9)
+            .setStrokeStyle(4, GameState.playerClass === cls ? 0xFFD700 : data.color)
             .setDepth(201).setInteractive();
         creationUI.push(btn);
         classButtons.push({ btn, cls });
 
-        const emoji = scene.add.text(x, y - 15, data.emoji, { fontSize: '22px' }).setOrigin(0.5).setDepth(202);
+        const emoji = scene.add.text(x, y - 18, data.emoji, { fontSize: '32px' }).setOrigin(0.5).setDepth(202);
         creationUI.push(emoji);
 
-        const name = scene.add.text(x, y + 15, cls.toUpperCase(), { fontSize: '11px', fill: '#fff' }).setOrigin(0.5).setDepth(202);
+        const name = scene.add.text(x, y + 22, cls.toUpperCase(), { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(202);
         creationUI.push(name);
 
         btn.on('pointerdown', () => {
             GameState.playerClass = cls;
-            classButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.playerClass === b.cls ? 0xFFD700 : classes[b.cls].color));
+            classButtons.forEach(b => b.btn.setStrokeStyle(4, GameState.playerClass === b.cls ? 0xFFD700 : classes[b.cls].color));
             refreshPreview();
         });
         btn.on('pointerover', () => btn.setAlpha(0.8));
         btn.on('pointerout', () => btn.setAlpha(1));
     });
 
-    // === CENTER: Preview & Name ===
-    const nameLabel = scene.add.text(centerX, 80, 'Your Name', { fontSize: '16px', fill: '#fff' }).setOrigin(0.5).setDepth(201);
+    // === CENTER: Preview & Name (x: 500-900) ===
+    const nameLabel = scene.add.text(centerX, 120, 'Your Name', { fontSize: '22px', fill: '#fff' }).setOrigin(0.5).setDepth(201);
     creationUI.push(nameLabel);
 
-    const nameInput = scene.add.dom(centerX, 115).createFromHTML(`
+    const nameInput = scene.add.dom(centerX, 165).createFromHTML(`
         <input type="text" id="playerNameInput" value="${GameState.playerName}"
-        style="width: 180px; padding: 8px 12px; font-size: 16px; text-align: center;
-        border: 2px solid #9B59B6; border-radius: 8px; background: #2C3E50; color: #fff;
+        style="width: 260px; padding: 12px 16px; font-size: 20px; text-align: center;
+        border: 3px solid #9B59B6; border-radius: 10px; background: #2C3E50; color: #fff;
         outline: none;">
     `).setDepth(205);
     creationUI.push(nameInput);
@@ -624,9 +626,18 @@ export function showCharacterCreation(scene, onComplete) {
         GameState.playerName = e.target.value || 'Adventurer';
     });
 
-    // Character preview
-    let previewChar = createWhimsicalCharacter(scene, centerX, 280, GameState.playerClass, false, null, GameState.customization);
+    // Preview area background
+    const previewBg = scene.add.rectangle(centerX, 350, 280, 280, 0x1a1a2e, 0.6)
+        .setStrokeStyle(2, 0x9B59B6).setDepth(201);
+    creationUI.push(previewBg);
+
+    const previewLabel = scene.add.text(centerX, 225, 'Preview', { fontSize: '16px', fill: '#888' }).setOrigin(0.5).setDepth(201);
+    creationUI.push(previewLabel);
+
+    // Character preview (scaled up)
+    let previewChar = createWhimsicalCharacter(scene, centerX, 360, GameState.playerClass, false, null, GameState.customization);
     previewChar.setDepth(205);
+    previewChar.setScale(1.8);
     creationUI.push(previewChar);
 
     // Pet preview
@@ -634,9 +645,10 @@ export function showCharacterCreation(scene, onComplete) {
     function updatePetPreview() {
         if (previewPet) { previewPet.destroy(); previewPet = null; }
         if (GameState.customization.pet !== 'none') {
-            previewPet = createPet(scene, centerX + 60, 290, GameState.customization.pet);
+            previewPet = createPet(scene, centerX + 90, 400, GameState.customization.pet);
             if (previewPet) {
                 previewPet.setDepth(204);
+                previewPet.setScale(1.5);
                 creationUI.push(previewPet);
             }
         }
@@ -645,141 +657,146 @@ export function showCharacterCreation(scene, onComplete) {
 
     function refreshPreview() {
         previewChar.destroy();
-        previewChar = createWhimsicalCharacter(scene, centerX, 280, GameState.playerClass, false, null, GameState.customization);
+        previewChar = createWhimsicalCharacter(scene, centerX, 360, GameState.playerClass, false, null, GameState.customization);
         previewChar.setDepth(205);
+        previewChar.setScale(1.8);
         creationUI.push(previewChar);
         updatePetPreview();
     }
 
-    // === RIGHT COLUMN: Appearance ===
-    const rightX = GAME_WIDTH - 200;
-    const appearLabel = scene.add.text(rightX, 80, 'Appearance', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
+    // === RIGHT COLUMN: Appearance (x: 1050-1350) ===
+    const rightX = GAME_WIDTH - 220;
+    const appearLabel = scene.add.text(rightX, 120, 'Appearance', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
     creationUI.push(appearLabel);
 
     // Body style
-    const bodyLabel = scene.add.text(rightX, 115, 'Body Style', { fontSize: '12px', fill: '#aaa' }).setOrigin(0.5).setDepth(201);
+    const bodyLabel = scene.add.text(rightX, 170, 'Body Style', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(201);
     creationUI.push(bodyLabel);
 
-    const femBtn = scene.add.rectangle(rightX - 40, 145, 70, 30, 0x9B59B6, 0.8).setDepth(201).setInteractive()
-        .setStrokeStyle(2, GameState.customization.gender === 'female' ? 0xFFD700 : 0x9B59B6);
+    const femBtn = scene.add.rectangle(rightX - 65, 210, 110, 40, 0x9B59B6, 0.8).setDepth(201).setInteractive()
+        .setStrokeStyle(3, GameState.customization.gender === 'female' ? 0xFFD700 : 0x9B59B6);
     creationUI.push(femBtn);
-    const femText = scene.add.text(rightX - 40, 145, 'Feminine', { fontSize: '11px', fill: '#fff' }).setOrigin(0.5).setDepth(202);
+    const femText = scene.add.text(rightX - 65, 210, 'Feminine', { fontSize: '15px', fill: '#fff' }).setOrigin(0.5).setDepth(202);
     creationUI.push(femText);
 
-    const mascBtn = scene.add.rectangle(rightX + 40, 145, 70, 30, 0x3498DB, 0.8).setDepth(201).setInteractive()
-        .setStrokeStyle(2, GameState.customization.gender === 'male' ? 0xFFD700 : 0x3498DB);
+    const mascBtn = scene.add.rectangle(rightX + 65, 210, 110, 40, 0x3498DB, 0.8).setDepth(201).setInteractive()
+        .setStrokeStyle(3, GameState.customization.gender === 'male' ? 0xFFD700 : 0x3498DB);
     creationUI.push(mascBtn);
-    const mascText = scene.add.text(rightX + 40, 145, 'Masculine', { fontSize: '11px', fill: '#fff' }).setOrigin(0.5).setDepth(202);
+    const mascText = scene.add.text(rightX + 65, 210, 'Masculine', { fontSize: '15px', fill: '#fff' }).setOrigin(0.5).setDepth(202);
     creationUI.push(mascText);
 
     femBtn.on('pointerdown', () => {
         GameState.customization.gender = 'female';
-        femBtn.setStrokeStyle(2, 0xFFD700);
-        mascBtn.setStrokeStyle(2, 0x3498DB);
+        femBtn.setStrokeStyle(3, 0xFFD700);
+        mascBtn.setStrokeStyle(3, 0x3498DB);
         refreshPreview();
     });
     mascBtn.on('pointerdown', () => {
         GameState.customization.gender = 'male';
-        mascBtn.setStrokeStyle(2, 0xFFD700);
-        femBtn.setStrokeStyle(2, 0x9B59B6);
+        mascBtn.setStrokeStyle(3, 0xFFD700);
+        femBtn.setStrokeStyle(3, 0x9B59B6);
         refreshPreview();
     });
 
     // Skin tone
-    const skinLabel = scene.add.text(rightX, 180, 'Skin', { fontSize: '12px', fill: '#aaa' }).setOrigin(0.5).setDepth(201);
+    const skinLabel = scene.add.text(rightX, 270, 'Skin Tone', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(201);
     creationUI.push(skinLabel);
 
     const skinButtons = [];
     skinTones.forEach((tone, i) => {
-        const x = rightX - 75 + (i % 6) * 25;
-        const y = 205;
-        const btn = scene.add.circle(x, y, 10, tone).setDepth(201).setInteractive()
-            .setStrokeStyle(2, GameState.customization.skinTone === tone ? 0xFFD700 : 0x333333);
+        const x = rightX - 90 + (i % 6) * 36;
+        const y = 310;
+        const btn = scene.add.circle(x, y, 14, tone).setDepth(201).setInteractive()
+            .setStrokeStyle(3, GameState.customization.skinTone === tone ? 0xFFD700 : 0x333333);
         creationUI.push(btn);
         skinButtons.push({ btn, tone });
         btn.on('pointerdown', () => {
             GameState.customization.skinTone = tone;
-            skinButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.skinTone === b.tone ? 0xFFD700 : 0x333333));
+            skinButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.skinTone === b.tone ? 0xFFD700 : 0x333333));
             refreshPreview();
         });
     });
 
     // Hair color
-    const hairLabel = scene.add.text(rightX, 235, 'Hair', { fontSize: '12px', fill: '#aaa' }).setOrigin(0.5).setDepth(201);
+    const hairLabel = scene.add.text(rightX, 360, 'Hair Color', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(201);
     creationUI.push(hairLabel);
 
     const hairButtons = [];
     hairColors.forEach((color, i) => {
-        const x = rightX - 75 + (i % 5) * 25;
-        const y = 260 + Math.floor(i / 5) * 25;
-        const btn = scene.add.circle(x, y, 10, color).setDepth(201).setInteractive()
-            .setStrokeStyle(2, GameState.customization.hairColor === color ? 0xFFD700 : 0x333333);
+        const x = rightX - 90 + (i % 5) * 45;
+        const y = 400 + Math.floor(i / 5) * 40;
+        const btn = scene.add.circle(x, y, 14, color).setDepth(201).setInteractive()
+            .setStrokeStyle(3, GameState.customization.hairColor === color ? 0xFFD700 : 0x333333);
         creationUI.push(btn);
         hairButtons.push({ btn, color });
         btn.on('pointerdown', () => {
             GameState.customization.hairColor = color;
-            hairButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.hairColor === b.color ? 0xFFD700 : 0x333333));
+            hairButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.hairColor === b.color ? 0xFFD700 : 0x333333));
             refreshPreview();
         });
     });
 
-    // === BOTTOM LEFT: Pets ===
-    const petLabel = scene.add.text(200, 360, 'Pet Companion', { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
+    // === BOTTOM LEFT: Pets (aligned with class column) ===
+    const petLabel = scene.add.text(leftX, 530, 'Pet Companion', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
     creationUI.push(petLabel);
 
     const petKeys = Object.keys(petTypes);
     let petButtons = [];
 
     petKeys.forEach((pet, i) => {
-        const x = 80 + (i % 3) * 80;
-        const y = 410 + Math.floor(i / 3) * 70;
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        const x = leftX - 110 + col * 110;
+        const y = 600 + row * 90;
         const data = petTypes[pet];
 
-        const btn = scene.add.rectangle(x, y, 65, 55, 0x2C3E50, 0.9)
-            .setStrokeStyle(2, GameState.customization.pet === pet ? 0xFFD700 : data.color)
+        const btn = scene.add.rectangle(x, y, 95, 75, 0x2C3E50, 0.9)
+            .setStrokeStyle(3, GameState.customization.pet === pet ? 0xFFD700 : data.color)
             .setDepth(201).setInteractive();
         creationUI.push(btn);
         petButtons.push({ btn, pet });
 
-        const emoji = scene.add.text(x, y - 8, data.emoji, { fontSize: '20px' }).setOrigin(0.5).setDepth(202);
+        const emoji = scene.add.text(x, y - 12, data.emoji, { fontSize: '28px' }).setOrigin(0.5).setDepth(202);
         creationUI.push(emoji);
 
-        const name = scene.add.text(x, y + 18, data.name, { fontSize: '9px', fill: '#aaa' }).setOrigin(0.5).setDepth(202);
+        const name = scene.add.text(x, y + 24, data.name, { fontSize: '12px', fill: '#aaa' }).setOrigin(0.5).setDepth(202);
         creationUI.push(name);
 
         btn.on('pointerdown', () => {
             GameState.customization.pet = pet;
-            petButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.pet === b.pet ? 0xFFD700 : petTypes[b.pet].color));
+            petButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.pet === b.pet ? 0xFFD700 : petTypes[b.pet].color));
             updatePetPreview();
         });
+        btn.on('pointerover', () => btn.setAlpha(0.8));
+        btn.on('pointerout', () => btn.setAlpha(1));
     });
 
     // === BOTTOM CENTER: Character Profiles (6 slots in 2x3 grid) ===
-    const presetLabel = scene.add.text(centerX, 365, 'Character Profiles', { fontSize: '14px', fill: '#fff' }).setOrigin(0.5).setDepth(201);
+    const presetLabel = scene.add.text(centerX, 530, 'Character Profiles', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
     creationUI.push(presetLabel);
 
     for (let i = 0; i < 6; i++) {
         const row = Math.floor(i / 3);
         const col = i % 3;
-        const x = centerX - 90 + col * 90;
-        const y = 410 + row * 55;
+        const x = centerX - 130 + col * 130;
+        const y = 600 + row * 85;
         const preset = GameState.characterPresets[i];
 
-        const slotBtn = scene.add.rectangle(x, y, 75, 45, preset ? 0x2C3E50 : 0x1a1a2e, 0.9)
-            .setStrokeStyle(2, preset ? 0x27AE60 : 0x444444).setDepth(201).setInteractive();
+        const slotBtn = scene.add.rectangle(x, y, 115, 70, preset ? 0x2C3E50 : 0x1a1a2e, 0.9)
+            .setStrokeStyle(3, preset ? 0x27AE60 : 0x444444).setDepth(201).setInteractive();
         creationUI.push(slotBtn);
 
         if (preset) {
-            const emoji = scene.add.text(x - 20, y - 5, classes[preset.class]?.emoji || '?', { fontSize: '16px' }).setOrigin(0.5).setDepth(202);
+            const emoji = scene.add.text(x - 30, y - 5, classes[preset.class]?.emoji || '?', { fontSize: '24px' }).setOrigin(0.5).setDepth(202);
             creationUI.push(emoji);
-            const pname = scene.add.text(x + 5, y - 5, preset.name.substring(0, 6), { fontSize: '10px', fill: '#fff' }).setOrigin(0, 0.5).setDepth(202);
+            const pname = scene.add.text(x + 8, y - 5, preset.name.substring(0, 8), { fontSize: '14px', fill: '#fff' }).setOrigin(0, 0.5).setDepth(202);
             creationUI.push(pname);
 
             // Delete button (X in corner)
-            const delBtn = scene.add.rectangle(x + 30, y - 15, 16, 16, 0xC0392B, 0.9)
-                .setStrokeStyle(1, 0xE74C3C).setDepth(203).setInteractive();
+            const delBtn = scene.add.rectangle(x + 48, y - 26, 22, 22, 0xC0392B, 0.9)
+                .setStrokeStyle(2, 0xE74C3C).setDepth(203).setInteractive();
             creationUI.push(delBtn);
-            const delX = scene.add.text(x + 30, y - 15, '×', { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(204);
+            const delX = scene.add.text(x + 48, y - 26, '×', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(204);
             creationUI.push(delX);
 
             delBtn.on('pointerdown', (pointer) => {
@@ -793,19 +810,19 @@ export function showCharacterCreation(scene, onComplete) {
 
             slotBtn.on('pointerdown', () => {
                 loadPreset(i);
-                classButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.playerClass === b.cls ? 0xFFD700 : classes[b.cls].color));
-                petButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.pet === b.pet ? 0xFFD700 : petTypes[b.pet].color));
-                skinButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.skinTone === b.tone ? 0xFFD700 : 0x333333));
-                hairButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.hairColor === b.color ? 0xFFD700 : 0x333333));
-                femBtn.setStrokeStyle(2, GameState.customization.gender === 'female' ? 0xFFD700 : 0x9B59B6);
-                mascBtn.setStrokeStyle(2, GameState.customization.gender === 'male' ? 0xFFD700 : 0x3498DB);
+                classButtons.forEach(b => b.btn.setStrokeStyle(4, GameState.playerClass === b.cls ? 0xFFD700 : classes[b.cls].color));
+                petButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.pet === b.pet ? 0xFFD700 : petTypes[b.pet].color));
+                skinButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.skinTone === b.tone ? 0xFFD700 : 0x333333));
+                hairButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.hairColor === b.color ? 0xFFD700 : 0x333333));
+                femBtn.setStrokeStyle(3, GameState.customization.gender === 'female' ? 0xFFD700 : 0x9B59B6);
+                mascBtn.setStrokeStyle(3, GameState.customization.gender === 'male' ? 0xFFD700 : 0x3498DB);
                 document.getElementById('playerNameInput').value = GameState.playerName;
                 refreshPreview();
             });
         } else {
-            const plus = scene.add.text(x, y - 3, '💾', { fontSize: '14px' }).setOrigin(0.5).setDepth(202);
+            const plus = scene.add.text(x, y - 8, '💾', { fontSize: '22px' }).setOrigin(0.5).setDepth(202);
             creationUI.push(plus);
-            const saveLabel = scene.add.text(x, y + 12, 'Save', { fontSize: '8px', fill: '#666' }).setOrigin(0.5).setDepth(202);
+            const saveLabel = scene.add.text(x, y + 18, 'Save Slot', { fontSize: '11px', fill: '#666' }).setOrigin(0.5).setDepth(202);
             creationUI.push(saveLabel);
 
             slotBtn.on('pointerdown', () => {
@@ -820,9 +837,9 @@ export function showCharacterCreation(scene, onComplete) {
 
     // === BOTTOM RIGHT: Actions ===
     // Randomize button
-    const randomBtn = scene.add.rectangle(rightX, 400, 120, 35, 0xE67E22, 0.9).setDepth(201).setInteractive().setStrokeStyle(2, 0xF39C12);
+    const randomBtn = scene.add.rectangle(rightX, 560, 180, 50, 0xE67E22, 0.9).setDepth(201).setInteractive().setStrokeStyle(3, 0xF39C12);
     creationUI.push(randomBtn);
-    const randomText = scene.add.text(rightX, 400, '🎲 Randomize', { fontSize: '13px', fill: '#fff' }).setOrigin(0.5).setDepth(202);
+    const randomText = scene.add.text(rightX, 560, '🎲 Randomize', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(202);
     creationUI.push(randomText);
 
     randomBtn.on('pointerdown', () => {
@@ -833,21 +850,21 @@ export function showCharacterCreation(scene, onComplete) {
         const petOptions = petKeys.filter(p => p !== 'none');
         GameState.customization.pet = petOptions[Math.floor(Math.random() * petOptions.length)];
 
-        classButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.playerClass === b.cls ? 0xFFD700 : classes[b.cls].color));
-        petButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.pet === b.pet ? 0xFFD700 : petTypes[b.pet].color));
-        skinButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.skinTone === b.tone ? 0xFFD700 : 0x333333));
-        hairButtons.forEach(b => b.btn.setStrokeStyle(2, GameState.customization.hairColor === b.color ? 0xFFD700 : 0x333333));
-        femBtn.setStrokeStyle(2, GameState.customization.gender === 'female' ? 0xFFD700 : 0x9B59B6);
-        mascBtn.setStrokeStyle(2, GameState.customization.gender === 'male' ? 0xFFD700 : 0x3498DB);
+        classButtons.forEach(b => b.btn.setStrokeStyle(4, GameState.playerClass === b.cls ? 0xFFD700 : classes[b.cls].color));
+        petButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.pet === b.pet ? 0xFFD700 : petTypes[b.pet].color));
+        skinButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.skinTone === b.tone ? 0xFFD700 : 0x333333));
+        hairButtons.forEach(b => b.btn.setStrokeStyle(3, GameState.customization.hairColor === b.color ? 0xFFD700 : 0x333333));
+        femBtn.setStrokeStyle(3, GameState.customization.gender === 'female' ? 0xFFD700 : 0x9B59B6);
+        mascBtn.setStrokeStyle(3, GameState.customization.gender === 'male' ? 0xFFD700 : 0x3498DB);
         refreshPreview();
     });
     randomBtn.on('pointerover', () => randomBtn.setAlpha(0.8));
     randomBtn.on('pointerout', () => randomBtn.setAlpha(1));
 
     // Play button
-    const playBtn = scene.add.rectangle(rightX, 460, 150, 50, 0x27AE60, 1).setDepth(201).setInteractive().setStrokeStyle(3, 0x2ECC71);
+    const playBtn = scene.add.rectangle(rightX, 640, 220, 70, 0x27AE60, 1).setDepth(201).setInteractive().setStrokeStyle(4, 0x2ECC71);
     creationUI.push(playBtn);
-    const playText = scene.add.text(rightX, 460, '▶ START GAME', { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(202);
+    const playText = scene.add.text(rightX, 640, '▶ START GAME', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(202);
     creationUI.push(playText);
 
     playBtn.on('pointerdown', () => {
@@ -857,4 +874,82 @@ export function showCharacterCreation(scene, onComplete) {
     });
     playBtn.on('pointerover', () => playBtn.setFillStyle(0x2ECC71, 1));
     playBtn.on('pointerout', () => playBtn.setFillStyle(0x27AE60, 1));
+
+    // Hint text at bottom
+    const hintText = scene.add.text(rightX, 720, 'Click a saved profile to load it', { fontSize: '12px', fill: '#666' }).setOrigin(0.5).setDepth(201);
+    creationUI.push(hintText);
+}
+
+/**
+ * Show pause menu with options
+ * @param {Function} onChangeCharacter - Callback when user wants to change character
+ */
+export function showPauseMenu(onChangeCharacter) {
+    const scene = GameState.scene;
+    if (!scene || GameState.pauseMenuOpen) return;
+
+    GameState.pauseMenuOpen = true;
+    GameState.pauseMenuUI = [];
+
+    const centerX = GAME_WIDTH / 2;
+    const centerY = GAME_HEIGHT / 2;
+
+    // Overlay
+    const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(300);
+    GameState.pauseMenuUI.push(overlay);
+
+    // Menu panel
+    const panel = scene.add.rectangle(centerX, centerY, 350, 280, 0x1a1a2e, 0.95)
+        .setStrokeStyle(3, 0x9B59B6).setDepth(301);
+    GameState.pauseMenuUI.push(panel);
+
+    // Title
+    const title = scene.add.text(centerX, centerY - 100, '⏸ PAUSED', {
+        fontSize: '28px', fill: '#FFD700', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(302);
+    GameState.pauseMenuUI.push(title);
+
+    // Continue button
+    const continueBtn = scene.add.rectangle(centerX, centerY - 20, 220, 50, 0x27AE60, 0.9)
+        .setStrokeStyle(3, 0x2ECC71).setDepth(301).setInteractive();
+    GameState.pauseMenuUI.push(continueBtn);
+    const continueText = scene.add.text(centerX, centerY - 20, '▶ Continue', {
+        fontSize: '18px', fill: '#fff', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(302);
+    GameState.pauseMenuUI.push(continueText);
+
+    continueBtn.on('pointerdown', () => closePauseMenu());
+    continueBtn.on('pointerover', () => continueBtn.setFillStyle(0x2ECC71, 1));
+    continueBtn.on('pointerout', () => continueBtn.setFillStyle(0x27AE60, 0.9));
+
+    // Change Character button
+    const changeBtn = scene.add.rectangle(centerX, centerY + 50, 220, 50, 0xE67E22, 0.9)
+        .setStrokeStyle(3, 0xF39C12).setDepth(301).setInteractive();
+    GameState.pauseMenuUI.push(changeBtn);
+    const changeText = scene.add.text(centerX, centerY + 50, '👤 Change Character', {
+        fontSize: '16px', fill: '#fff', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(302);
+    GameState.pauseMenuUI.push(changeText);
+
+    changeBtn.on('pointerdown', () => {
+        closePauseMenu();
+        if (onChangeCharacter) onChangeCharacter();
+    });
+    changeBtn.on('pointerover', () => changeBtn.setFillStyle(0xF39C12, 1));
+    changeBtn.on('pointerout', () => changeBtn.setFillStyle(0xE67E22, 0.9));
+
+    // Hint text
+    const hint = scene.add.text(centerX, centerY + 110, '[ ESC to close ]', {
+        fontSize: '12px', fill: '#666'
+    }).setOrigin(0.5).setDepth(302);
+    GameState.pauseMenuUI.push(hint);
+}
+
+/**
+ * Close pause menu
+ */
+export function closePauseMenu() {
+    GameState.pauseMenuUI.forEach(obj => obj.destroy());
+    GameState.pauseMenuUI = [];
+    GameState.pauseMenuOpen = false;
 }

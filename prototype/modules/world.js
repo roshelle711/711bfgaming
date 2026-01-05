@@ -54,7 +54,7 @@ export function createHouse(graphics, x, y, roofColor, label, scene) {
     if (scene && label) {
         scene.add.text(x, y - 118, label, {
             fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(y + 100);  // Ensure labels are above nearby trees
     }
 }
 
@@ -368,7 +368,11 @@ export function drawSeedPickup(pickup) {
     pickup.graphics.clear();
     if (pickup.isCollected) return;
     const { x, y, seedType } = pickup;
-    const colors = { carrot: 0xFFA500, tomato: 0xFF6347, flower: 0xFF69B4 };
+    const colors = {
+        carrot: 0xFFA500, tomato: 0xFF6347, flower: 0xFF69B4,
+        lettuce: 0x90EE90, onion: 0x9370DB, potato: 0xD2B48C,
+        pepper: 0xFF4500, corn: 0xFFD700, pumpkin: 0xFF8C00
+    };
 
     pickup.graphics.fillStyle(0x228B22, 1);
     pickup.graphics.fillRect(x - 2, y - 3, 4, 14);
@@ -571,6 +575,9 @@ export function createFruitTree(scene, x, y, treeType, index = 0) {
         graphics: scene.add.graphics(),
         needsRedraw: false
     };
+    // Set depth based on Y position for proper layering
+    // Lower depth = behind other objects
+    tree.graphics.setDepth(y);
     drawFruitTree(tree);
     return tree;
 }

@@ -82,8 +82,10 @@ export const GameState = {
     isDialogOpen: false,
     craftingOpen: false,
     inventoryOpen: false,
+    pauseMenuOpen: false,
     canInteract: false,
     currentInteractable: null,
+    pauseMenuUI: [],
 
     // Multiplayer
     room: null,

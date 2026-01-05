@@ -81,9 +81,18 @@ export class GameRoom extends Room<GameState> {
 
   // Seed pickup positions
   private readonly SEED_PICKUP_DATA = [
+    // West group (near pond)
     { x: 350, y: 500, seedType: "carrot" },
     { x: 400, y: 520, seedType: "tomato" },
     { x: 320, y: 540, seedType: "flower" },
+    // Middle group (near farm)
+    { x: 550, y: 600, seedType: "lettuce" },
+    { x: 600, y: 620, seedType: "onion" },
+    { x: 580, y: 580, seedType: "flower" },
+    // East group (near store)
+    { x: 800, y: 500, seedType: "carrot" },
+    { x: 850, y: 520, seedType: "tomato" },
+    { x: 820, y: 550, seedType: "flower" },
   ];
 
   // NPC positions
@@ -369,7 +378,7 @@ export class GameRoom extends Room<GameState> {
       pickup.respawnTimer = 0;
       this.state.seedPickups.set(String(i), pickup);
     });
-    this.roomLogger.debug({ event: "seed_pickups_initialized", count: 3 }, "Initialized seed pickups");
+    this.roomLogger.debug({ event: "seed_pickups_initialized", count: this.SEED_PICKUP_DATA.length }, "Initialized seed pickups");
   }
 
   private initializeLampposts(): void {

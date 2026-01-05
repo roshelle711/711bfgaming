@@ -11,7 +11,7 @@ import { GameState } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations } from './modules/player.js';
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree } from './modules/world.js';
-import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay } from './modules/ui.js';
+import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay, showPauseMenu, closePauseMenu } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './modules/multiplayer.js';
 
@@ -209,7 +209,10 @@ function create() {
     homeDoor.message = 'Your cozy home... maybe later you can rest here!';
     GameState.interactables.push(homeDoor);
 
-    createHouse(graphics, 1200, 580, 0x27AE60, '🏪 General Store', this);
+    // General Store needs separate graphics with higher depth to appear in front of nearby fruit trees
+    const storeGraphics = this.add.graphics();
+    storeGraphics.setDepth(580);  // Depth = Y position for proper layering
+    createHouse(storeGraphics, 1200, 580, 0x27AE60, '🏪 General Store', this);
     GameState.obstacles.add(this.add.rectangle(1200, 580, 120, 100, 0x000000, 0));
 
     // Fishing pond - with depth and natural edges
@@ -827,18 +830,30 @@ function updateTargetHighlight() {
  * Handle keyboard input
  */
 function handleInput(scene) {
-    // Escape key - close any open menu/dialog
-    if (Phaser.Input.Keyboard.JustDown(GameState.escapeKey)) {
-        if (GameState.isDialogOpen) {
+    // Escape key OR E key - close any open menu/dialog, or open pause menu
+    if (Phaser.Input.Keyboard.JustDown(GameState.escapeKey) ||
+        (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && (GameState.isDialogOpen || GameState.inventoryOpen || GameState.pauseMenuOpen))) {
+        if (GameState.pauseMenuOpen) {
+            closePauseMenu();
+            return;
+        } else if (GameState.isDialogOpen) {
             closeDialog();
+            return;
         } else if (GameState.inventoryOpen) {
             toggleInventory();
+            return;
+        } else if (Phaser.Input.Keyboard.JustDown(GameState.escapeKey)) {
+            // No menus open - show pause menu
+            showPauseMenu(() => {
+                // Change Character callback - restart character creation
+                GameState.scene.scene.restart();
+            });
+            return;
         }
-        return;
     }
 
     // Interact key (E) - tool actions AND interact actions (fallback for click)
-    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.inventoryOpen) {
+    if (Phaser.Input.Keyboard.JustDown(GameState.interactKey) && !GameState.isDialogOpen && !GameState.inventoryOpen && !GameState.pauseMenuOpen) {
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
 
