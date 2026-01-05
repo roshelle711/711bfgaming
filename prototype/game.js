@@ -146,25 +146,26 @@ function create() {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Farm area - moved down for larger screen
+    // Farm area - expanded for more plots (3 rows x 5 columns = 15 plots)
     const farmStartX = 500, farmStartY = 700;
+    const farmWidth = 280, farmHeight = 170;
     graphics.fillStyle(0x8B7355, 1);
-    graphics.fillRect(farmStartX - 110, farmStartY - 55, 230, 120);
+    graphics.fillRect(farmStartX - farmWidth/2, farmStartY - farmHeight/2, farmWidth, farmHeight);
     graphics.lineStyle(2, 0x654321, 1);
-    graphics.strokeRect(farmStartX - 110, farmStartY - 55, 230, 120);
+    graphics.strokeRect(farmStartX - farmWidth/2, farmStartY - farmHeight/2, farmWidth, farmHeight);
     graphics.fillStyle(0x5D4037, 0.3);
-    for (let i = 0; i < 20; i++) {
-        graphics.fillCircle(farmStartX - 100 + Math.random() * 210, farmStartY - 45 + Math.random() * 100, 3);
+    for (let i = 0; i < 30; i++) {
+        graphics.fillCircle(farmStartX - farmWidth/2 + 10 + Math.random() * (farmWidth - 20), farmStartY - farmHeight/2 + 10 + Math.random() * (farmHeight - 20), 3);
     }
-    this.add.text(farmStartX, farmStartY - 75, '🌱 Farm', {
+    this.add.text(farmStartX, farmStartY - farmHeight/2 - 15, '🌱 Farm', {
         fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
     }).setOrigin(0.5);
 
-    // Create farm plots with index for server sync
+    // Create farm plots with index for server sync (3 rows x 5 columns)
     let plotIndex = 0;
-    for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 4; col++) {
-            const plot = createFarmPlot(this, farmStartX - 80 + col * 50, farmStartY - 25 + row * 55, plotIndex);
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 5; col++) {
+            const plot = createFarmPlot(this, farmStartX - 100 + col * 50, farmStartY - 50 + row * 50, plotIndex);
             GameState.farmPlots.push(plot);
             plotIndex++;
         }
@@ -479,6 +480,7 @@ function update(time, delta) {
 function useActiveItem(scene) {
     const tool = GameState.equippedTool;
     const targetPlot = findTargetPlot();
+    const nearPlot = findNearestFarmPlot();
 
     // HOE: Till grass plots
     if (tool === 'hoe') {
@@ -513,19 +515,18 @@ function useActiveItem(scene) {
         return;
     }
 
-    // SEEDS: Plant in tilled soil
-    const hotbarItem = GameState.hotbar[GameState.activeHotbarSlot];
-    if (hotbarItem.type === 'seed') {
-        if (targetPlot && targetPlot.state === 'tilled') {
-            plantSeed(targetPlot, scene);
-        }
+    // === UNIVERSAL CLICK ACTIONS (work with any tool) ===
+
+    // Fruit tree harvest
+    const nearTree = findNearestFruitTree();
+    if (nearTree && nearTree.hasFruit) {
+        harvestFruit(nearTree);
         return;
     }
 
-    // Harvest and hazard removal work with any tool (or no tool)
-    const nearPlot = findNearestFarmPlot();
+    // Farm plot actions
     if (nearPlot) {
-        // Remove hazard/dead plant (works with any tool - you just pull weeds)
+        // Remove hazard/dead plant
         if (nearPlot.hazard || nearPlot.state === 'dead') {
             removeHazard(nearPlot);
             return;
@@ -533,6 +534,11 @@ function useActiveItem(scene) {
         // Harvest ready crops
         if (nearPlot.state === 'ready') {
             harvestCrop(nearPlot);
+            return;
+        }
+        // Plant seeds in tilled soil (uses current seed selection from Tab)
+        if (nearPlot.state === 'tilled') {
+            plantSeed(nearPlot, scene);
             return;
         }
     }
@@ -632,13 +638,6 @@ function handleInput(scene) {
                 nearestLamppost.lightOn = !nearestLamppost.lightOn;
                 nearestLamppost.lightGraphics.visible = nearestLamppost.lightOn;
             }
-            return;
-        }
-
-        // Fruit tree harvest (hands)
-        const nearestTree = findNearestFruitTree();
-        if (nearestTree && nearestTree.hasFruit) {
-            harvestFruit(nearestTree);
             return;
         }
 
@@ -860,7 +859,7 @@ function updateProximityPrompts() {
         if (nearTree.hasFruit) {
             const fruitEmoji = { apple: '🍎', orange: '🍊', peach: '🍑', cherry: '🍒' };
             const emoji = fruitEmoji[nearTree.treeType] || '🍎';
-            GameState.fruitTreePrompt.setText(`${emoji} E to harvest`).setVisible(true);
+            GameState.fruitTreePrompt.setText(`${emoji} Click to harvest`).setVisible(true);
         } else {
             GameState.fruitTreePrompt.setText('⏳ Growing...').setVisible(true);
         }
