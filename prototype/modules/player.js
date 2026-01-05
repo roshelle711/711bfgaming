@@ -181,60 +181,124 @@ export function createPet(scene, x, y, petType) {
     container.add(scene.add.ellipse(0, 12, 16, 5, 0x000000, 0.2));
 
     if (petType === 'cat') {
-        container.add(scene.add.ellipse(0, 4, 18, 14, pet.color));
-        container.add(scene.add.circle(0, -8, 10, pet.color));
-        container.add(scene.add.triangle(-8, -18, 0, 8, 4, 0, 8, 8, pet.color));
-        container.add(scene.add.triangle(8, -18, 0, 8, 4, 0, 8, 8, pet.color));
-        container.add(scene.add.triangle(-8, -16, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
-        container.add(scene.add.triangle(8, -16, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
-        container.add(scene.add.ellipse(-4, -9, 4, 5, 0x90EE90));
-        container.add(scene.add.ellipse(4, -9, 4, 5, 0x90EE90));
-        container.add(scene.add.ellipse(-4, -9, 2, 4, 0x000000));
-        container.add(scene.add.ellipse(4, -9, 2, 4, 0x000000));
-        container.add(scene.add.triangle(0, -5, -2, 3, 0, 0, 2, 3, 0xFFB6C1));
-        container.add(scene.add.ellipse(12, 0, 4, 12, pet.color));
+        // Body - rounder, cuter
+        container.add(scene.add.ellipse(0, 5, 20, 16, pet.color));
+        // Head - larger, rounder
+        container.add(scene.add.circle(0, -6, 12, pet.color));
+        // Ears - pointy triangles
+        container.add(scene.add.triangle(-7, -16, 0, 8, 4, 0, 8, 8, pet.color));
+        container.add(scene.add.triangle(7, -16, 0, 8, 4, 0, 8, 8, pet.color));
+        // Inner ears
+        container.add(scene.add.triangle(-7, -14, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
+        container.add(scene.add.triangle(7, -14, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
+        // Eyes - big and cute
+        container.add(scene.add.ellipse(-4, -7, 5, 6, 0x90EE90));
+        container.add(scene.add.ellipse(4, -7, 5, 6, 0x90EE90));
+        container.add(scene.add.ellipse(-4, -7, 2, 4, 0x000000));
+        container.add(scene.add.ellipse(4, -7, 2, 4, 0x000000));
+        // Eye shine
+        container.add(scene.add.circle(-5, -8, 1.5, 0xFFFFFF));
+        container.add(scene.add.circle(3, -8, 1.5, 0xFFFFFF));
+        // Nose and mouth
+        container.add(scene.add.triangle(0, -3, -2, 3, 0, 0, 2, 3, 0xFFB6C1));
+        // Whiskers
+        container.add(scene.add.line(0, 0, -12, -4, -6, -3, 0x333333).setLineWidth(0.5));
+        container.add(scene.add.line(0, 0, -12, -1, -6, -1, 0x333333).setLineWidth(0.5));
+        container.add(scene.add.line(0, 0, 6, -3, 12, -4, 0x333333).setLineWidth(0.5));
+        container.add(scene.add.line(0, 0, 6, -1, 12, -1, 0x333333).setLineWidth(0.5));
+        // Tail - curved
+        container.add(scene.add.ellipse(12, 2, 5, 14, pet.color));
     } else if (petType === 'dog') {
-        container.add(scene.add.ellipse(0, 4, 20, 14, pet.color));
-        container.add(scene.add.ellipse(0, -8, 14, 12, pet.color));
-        container.add(scene.add.ellipse(-10, -4, 6, 10, pet.color));
-        container.add(scene.add.ellipse(10, -4, 6, 10, pet.color));
-        container.add(scene.add.ellipse(0, -4, 8, 6, pet.accent));
-        container.add(scene.add.circle(-4, -10, 3, 0x000000));
-        container.add(scene.add.circle(4, -10, 3, 0x000000));
-        container.add(scene.add.circle(0, -4, 3, 0x000000));
-        container.add(scene.add.ellipse(14, -2, 5, 8, pet.color));
+        // Body - friendly and round
+        container.add(scene.add.ellipse(0, 6, 22, 16, pet.color));
+        // Chest/belly patch
+        container.add(scene.add.ellipse(0, 8, 14, 10, pet.accent));
+        // Head - round and happy
+        container.add(scene.add.circle(0, -6, 13, pet.color));
+        // Snout - distinctive dog snout
+        container.add(scene.add.ellipse(0, -2, 10, 7, pet.accent));
+        // Floppy ears
+        container.add(scene.add.ellipse(-10, -3, 6, 12, pet.color));
+        container.add(scene.add.ellipse(10, -3, 6, 12, pet.color));
+        // Eyes - big and friendly
+        container.add(scene.add.circle(-5, -9, 4, 0xFFFFFF));
+        container.add(scene.add.circle(5, -9, 4, 0xFFFFFF));
+        container.add(scene.add.circle(-5, -9, 2.5, 0x4A3728));
+        container.add(scene.add.circle(5, -9, 2.5, 0x4A3728));
+        container.add(scene.add.circle(-6, -10, 1, 0xFFFFFF));
+        container.add(scene.add.circle(4, -10, 1, 0xFFFFFF));
+        // Nose
+        container.add(scene.add.ellipse(0, -1, 5, 4, 0x000000));
+        container.add(scene.add.circle(-1, -2, 1, 0x444444));
+        // Happy tongue
+        container.add(scene.add.ellipse(2, 4, 4, 5, 0xFF6B6B));
+        // Tail - wagging up
+        container.add(scene.add.ellipse(14, 0, 5, 10, pet.color));
     } else if (petType === 'bunny') {
-        container.add(scene.add.ellipse(0, 6, 16, 14, pet.color));
-        container.add(scene.add.circle(0, -6, 11, pet.color));
-        container.add(scene.add.ellipse(-5, -24, 5, 14, pet.color));
-        container.add(scene.add.ellipse(5, -24, 5, 14, pet.color));
-        container.add(scene.add.ellipse(-5, -24, 3, 10, pet.accent));
-        container.add(scene.add.ellipse(5, -24, 3, 10, pet.accent));
-        container.add(scene.add.circle(-4, -7, 3, 0xFF69B4));
-        container.add(scene.add.circle(4, -7, 3, 0xFF69B4));
-        container.add(scene.add.circle(-4, -7, 1.5, 0x000000));
-        container.add(scene.add.circle(4, -7, 1.5, 0x000000));
-        container.add(scene.add.circle(10, 6, 6, pet.color));
+        // Body - fluffy round
+        container.add(scene.add.ellipse(0, 6, 18, 16, pet.color));
+        // Head - round
+        container.add(scene.add.circle(0, -5, 12, pet.color));
+        // Long ears
+        container.add(scene.add.ellipse(-5, -22, 5, 16, pet.color));
+        container.add(scene.add.ellipse(5, -22, 5, 16, pet.color));
+        // Inner ears
+        container.add(scene.add.ellipse(-5, -22, 3, 12, pet.accent));
+        container.add(scene.add.ellipse(5, -22, 3, 12, pet.accent));
+        // Big cute eyes
+        container.add(scene.add.circle(-4, -6, 5, 0xFF69B4));
+        container.add(scene.add.circle(4, -6, 5, 0xFF69B4));
+        container.add(scene.add.circle(-4, -6, 2.5, 0x000000));
+        container.add(scene.add.circle(4, -6, 2.5, 0x000000));
+        container.add(scene.add.circle(-5, -7, 1.5, 0xFFFFFF));
+        container.add(scene.add.circle(3, -7, 1.5, 0xFFFFFF));
+        // Nose - little pink triangle
+        container.add(scene.add.triangle(0, -2, -2, 2, 0, 0, 2, 2, 0xFFB6C1));
+        // Cheeks
+        container.add(scene.add.circle(-8, -3, 3, 0xFFB6C1, 0.5));
+        container.add(scene.add.circle(8, -3, 3, 0xFFB6C1, 0.5));
+        // Fluffy tail
+        container.add(scene.add.circle(10, 8, 6, pet.color));
+        container.add(scene.add.circle(10, 8, 4, pet.accent));
     } else if (petType === 'bird') {
+        // Body
         container.add(scene.add.ellipse(0, 2, 14, 12, pet.color));
+        // Head
         container.add(scene.add.circle(0, -8, 8, pet.color));
-        container.add(scene.add.ellipse(6, 2, 8, 10, pet.accent));
+        // Wing
+        container.add(scene.add.ellipse(5, 2, 8, 10, pet.accent));
+        // Beak
         container.add(scene.add.triangle(8, -8, 0, 4, 8, 2, 0, 0, 0xF39C12));
-        container.add(scene.add.circle(-2, -9, 2, 0x000000));
+        // Eye
+        container.add(scene.add.circle(-2, -9, 3, 0xFFFFFF));
+        container.add(scene.add.circle(-2, -9, 1.5, 0x000000));
+        // Tail feathers
         container.add(scene.add.triangle(-8, 4, 0, 8, 4, 0, 8, 8, pet.accent));
     } else if (petType === 'fox') {
-        container.add(scene.add.ellipse(0, 4, 18, 14, pet.color));
-        container.add(scene.add.ellipse(0, -8, 12, 10, pet.color));
-        container.add(scene.add.triangle(-8, -20, 0, 10, 5, 0, 10, 10, pet.color));
-        container.add(scene.add.triangle(8, -20, 0, 10, 5, 0, 10, 10, pet.color));
-        container.add(scene.add.ellipse(0, -4, 8, 6, pet.accent));
-        container.add(scene.add.ellipse(-4, -10, 3, 4, 0x2ECC71));
-        container.add(scene.add.ellipse(4, -10, 3, 4, 0x2ECC71));
-        container.add(scene.add.ellipse(-4, -10, 1, 3, 0x000000));
-        container.add(scene.add.ellipse(4, -10, 1, 3, 0x000000));
-        container.add(scene.add.circle(0, -5, 2, 0x000000));
-        container.add(scene.add.ellipse(14, 0, 6, 12, pet.color));
-        container.add(scene.add.ellipse(16, 4, 4, 6, pet.accent));
+        // Body - sleek
+        container.add(scene.add.ellipse(0, 5, 20, 14, pet.color));
+        // White belly
+        container.add(scene.add.ellipse(0, 7, 12, 8, pet.accent));
+        // Head - pointed
+        container.add(scene.add.ellipse(0, -6, 14, 12, pet.color));
+        // Pointed snout
+        container.add(scene.add.ellipse(1, -3, 8, 5, pet.accent));
+        // Big pointed ears
+        container.add(scene.add.triangle(-7, -18, 0, 10, 5, 0, 10, 10, pet.color));
+        container.add(scene.add.triangle(7, -18, 0, 10, 5, 0, 10, 10, pet.color));
+        // Inner ears
+        container.add(scene.add.triangle(-7, -16, 0, 6, 3, 0, 6, 6, 0x1A1A1A));
+        container.add(scene.add.triangle(7, -16, 0, 6, 3, 0, 6, 6, 0x1A1A1A));
+        // Eyes - sly green
+        container.add(scene.add.ellipse(-4, -8, 4, 5, 0x2ECC71));
+        container.add(scene.add.ellipse(4, -8, 4, 5, 0x2ECC71));
+        container.add(scene.add.ellipse(-4, -8, 1.5, 3, 0x000000));
+        container.add(scene.add.ellipse(4, -8, 1.5, 3, 0x000000));
+        // Nose
+        container.add(scene.add.circle(0, -3, 2, 0x000000));
+        // Fluffy tail with white tip
+        container.add(scene.add.ellipse(14, 2, 7, 14, pet.color));
+        container.add(scene.add.ellipse(16, 6, 5, 8, pet.accent));
     }
 
     // No nameTag - pets are visually distinct without labels
@@ -421,7 +485,7 @@ export function isNearPet() {
 
     const dx = player.x - pet.x;
     const dy = player.y - pet.y;
-    return Math.sqrt(dx * dx + dy * dy) < 80;  // Allow petting within 80px (pet wanders ~100px)
+    return Math.sqrt(dx * dx + dy * dy) < 120;  // Allow petting within 120px (matches return-to-follow distance)
 }
 
 /**
@@ -500,11 +564,13 @@ export function updateHeldTool() {
         }
     } else if (tool === 'fishingRod') {
         // Fishing rod: long pole + reel + line
-        // Determine if player is right of pond center (pond at x=180)
+        // Pond center and dimensions for bobber positioning
         const pondCenterX = 180;
+        const pondCenterY = 720;
         const facingLeft = px > pondCenterX + 50; // If right of pond, face left toward water
         const dir = facingLeft ? -1 : 1;
         const rodX = facingLeft ? px - 18 : px + 18; // Flip rod position when facing left
+        const rodTipY = toolY - 40;
 
         toolGraphics.fillStyle(0x8B4513, 1); // Brown pole
         toolGraphics.fillRect(rodX, toolY - 35, 3, 45); // Main pole
@@ -515,17 +581,32 @@ export function updateHeldTool() {
         toolGraphics.fillCircle(rodX + 1, toolY + 5, 5);
         toolGraphics.fillStyle(0x505050, 1);
         toolGraphics.fillCircle(rodX + 1, toolY + 5, 3);
-        // Line (when fishing)
+        // Line (when fishing) - bobber always lands inside pond
         if (GameState.isFishing) {
-            const lineEndX = rodX + dir * 35; // Line extends toward pond
-            const lineEndY = toolY + 20;
+            // Calculate bobber position inside the pond (not relative to player)
+            // Pick a spot inside the pond ellipse, closer to the player's side
+            const bobberOffsetX = facingLeft ? 25 : -25;  // Offset from center toward player
+            const bobberX = pondCenterX + bobberOffsetX + (Math.sin(GameState.gameTime * 0.1) * 5);  // Slight bob
+            const bobberY = pondCenterY - 10 + (Math.sin(GameState.gameTime * 0.15) * 3);  // Slight bob
+
+            // Draw drooping fishing line from rod tip to bobber
+            const rodTipX = rodX + 1;
+            const midX = (rodTipX + bobberX) / 2;
+            const midY = Math.max(rodTipY, bobberY) + 30;  // Sag in the middle
+
             toolGraphics.lineStyle(1, 0xAAAAAA, 0.8);
-            toolGraphics.lineBetween(rodX + 1, toolY - 40, lineEndX, lineEndY);
+            // Draw line in segments for droop effect
+            toolGraphics.beginPath();
+            toolGraphics.moveTo(rodTipX, rodTipY);
+            toolGraphics.lineTo(midX, midY);
+            toolGraphics.lineTo(bobberX, bobberY);
+            toolGraphics.strokePath();
+
             // Bobber
             toolGraphics.fillStyle(0xFF6347, 1);
-            toolGraphics.fillCircle(lineEndX, lineEndY + 2, 5);
+            toolGraphics.fillCircle(bobberX, bobberY, 5);
             toolGraphics.fillStyle(0xFFFFFF, 1);
-            toolGraphics.fillCircle(lineEndX, lineEndY + 4, 2);
+            toolGraphics.fillCircle(bobberX, bobberY + 2, 2);
         }
     }
 }

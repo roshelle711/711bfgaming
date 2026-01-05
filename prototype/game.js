@@ -80,32 +80,68 @@ function create() {
         graphics.fillTriangle(gx, gy, gx - 1, gy + 6, gx + 1, gy + 6);
     }
 
-    // Flowers in varied clusters across the map
+    // Flowers in small random clusters across the map
     const flowerColors = [0xFF69B4, 0xFFD700, 0x87CEEB, 0xFFB6C1, 0xDDA0DD];
 
-    // Define cluster spawn areas (avoiding buildings, pond, farm)
-    const clusterZones = [
-        { x: 50, y: 100, w: 150, h: 100 },    // Top-left meadow
-        { x: 250, y: 50, w: 200, h: 80 },     // Top center
-        { x: 550, y: 30, w: 150, h: 100 },    // Top middle
-        { x: 800, y: 50, w: 200, h: 100 },    // Top right area
-        { x: 1100, y: 100, w: 150, h: 120 },  // Far top right
-        { x: 50, y: 600, w: 180, h: 150 },    // Bottom-left near trees
-        { x: 300, y: 750, w: 200, h: 100 },   // Bottom center-left
-        { x: 600, y: 800, w: 250, h: 80 },    // Bottom center
-        { x: 900, y: 700, w: 200, h: 150 },   // Bottom right area
-        { x: 1200, y: 600, w: 150, h: 200 },  // Far right edge
-        { x: 700, y: 150, w: 100, h: 80 },    // Between paths
-        { x: 1050, y: 250, w: 120, h: 80 },   // Near general store approach
+    // Forbidden zones - flowers cannot spawn here
+    const forbiddenZones = [
+        // Pond (ellipse at 180, 720 with radius ~80x60)
+        { type: 'ellipse', x: 180, y: 720, rx: 90, ry: 70 },
+        // Farm area (500, 700 with 280x170)
+        { type: 'rect', x: 360, y: 615, w: 280, h: 170 },
+        // Mira's cottage
+        { type: 'rect', x: 175, y: 100, w: 120, h: 110 },
+        // Your home
+        { type: 'rect', x: 825, y: 100, w: 120, h: 110 },
+        // General store
+        { type: 'rect', x: 1140, y: 530, w: 120, h: 110 },
+        // Main horizontal path
+        { type: 'rect', x: 150, y: 275, w: 1100, h: 40 },
+        // Vertical paths
+        { type: 'rect', x: 675, y: 280, w: 40, h: 420 },
+        { type: 'rect', x: 230, y: 195, w: 40, h: 90 },
+        { type: 'rect', x: 880, y: 195, w: 40, h: 90 },
+        { type: 'rect', x: 1175, y: 495, w: 40, h: 190 },
+        // Well
+        { type: 'rect', x: 600, y: 350, w: 80, h: 100 },
+        // Cooking station
+        { type: 'rect', x: 1015, y: 425, w: 70, h: 50 },
     ];
 
-    // Generate 10-15 clusters
-    const numClusters = 10 + Math.floor(Math.random() * 6);
+    // Check if a point is in a forbidden zone
+    function isInForbiddenZone(x, y) {
+        for (const zone of forbiddenZones) {
+            if (zone.type === 'rect') {
+                if (x >= zone.x && x <= zone.x + zone.w && y >= zone.y && y <= zone.y + zone.h) {
+                    return true;
+                }
+            } else if (zone.type === 'ellipse') {
+                const dx = (x - zone.x) / zone.rx;
+                const dy = (y - zone.y) / zone.ry;
+                if (dx * dx + dy * dy <= 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // Generate 25-35 small random clusters (1-3 flowers each)
+    const numClusters = 25 + Math.floor(Math.random() * 11);
     for (let c = 0; c < numClusters; c++) {
-        const zone = clusterZones[Math.floor(Math.random() * clusterZones.length)];
-        const clusterX = zone.x + Math.random() * zone.w;
-        const clusterY = zone.y + Math.random() * zone.h;
-        const clusterSize = 5 + Math.floor(Math.random() * 8); // 5-12 flowers per cluster
+        // Pick random position across entire map
+        let clusterX, clusterY;
+        let attempts = 0;
+        do {
+            clusterX = 50 + Math.random() * (GAME_WIDTH - 100);
+            clusterY = 50 + Math.random() * (GAME_HEIGHT - 100);
+            attempts++;
+        } while (isInForbiddenZone(clusterX, clusterY) && attempts < 20);
+
+        // Skip if we couldn't find a valid position
+        if (isInForbiddenZone(clusterX, clusterY)) continue;
+
+        const clusterSize = 1 + Math.floor(Math.random() * 3); // 1-3 flowers per cluster
         const clusterColor = flowerColors[Math.floor(Math.random() * flowerColors.length)];
 
         for (let f = 0; f < clusterSize; f++) {
@@ -114,14 +150,17 @@ function create() {
             const color = useClusterColor ? clusterColor : flowerColors[Math.floor(Math.random() * flowerColors.length)];
             graphics.fillStyle(color, 0.6 + Math.random() * 0.3);
 
-            // Flowers spread within 25-40px of cluster center
-            const spread = 25 + Math.random() * 15;
+            // Flowers spread within 10-20px of cluster center
+            const spread = 10 + Math.random() * 10;
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * spread;
             const fx = clusterX + Math.cos(angle) * dist;
             const fy = clusterY + Math.sin(angle) * dist;
 
-            graphics.fillCircle(fx, fy, 2 + Math.random() * 3);
+            // Double check the flower position isn't forbidden
+            if (!isInForbiddenZone(fx, fy)) {
+                graphics.fillCircle(fx, fy, 2 + Math.random() * 3);
+            }
         }
     }
 
@@ -861,6 +900,22 @@ function handleInput(scene) {
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
 
+        // === PET INTERACTION (highest priority) ===
+        // Pet interaction - pet the pet to make it do a trick!
+        if (isNearPet() && GameState.playerPet?.petState !== 'trick') {
+            const trick = petDoTrick();
+            if (trick) {
+                const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
+                const trickMessages = {
+                    spin: `${petName} does a happy spin! 🎉`,
+                    jump: `${petName} jumps with joy! 🎉`,
+                    flip: `${petName} does a cute flip! 🎉`
+                };
+                showDialog(trickMessages[trick]);
+                return;
+            }
+        }
+
         // === TOOL ACTIONS (E key as fallback for click) ===
 
         // HOE: Till grass plots
@@ -883,20 +938,6 @@ function handleInput(scene) {
         }
 
         // === UNIVERSAL ACTIONS ===
-
-        // Pet interaction - pet the pet to make it do a trick!
-        if (isNearPet()) {
-            const trick = petDoTrick();
-            if (trick) {
-                const trickMessages = {
-                    spin: `${GameState.playerPet.petType} does a happy spin! 🎉`,
-                    jump: `${GameState.playerPet.petType} jumps with joy! 🎉`,
-                    flip: `${GameState.playerPet.petType} does a cute flip! 🎉`
-                };
-                showDialog(trickMessages[trick]);
-                return;
-            }
-        }
 
         // Fruit tree harvest
         const nearTree = findNearestFruitTree();

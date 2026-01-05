@@ -780,7 +780,7 @@ export function showCharacterCreation(scene, onComplete) {
         const row = Math.floor(i / 3);
         const col = i % 3;
         const x = centerX - 130 + col * 130;
-        const y = 600 + row * 85;
+        const y = 580 + row * 110;  // More spacing between rows for delete buttons
         const preset = GameState.characterPresets[i];
 
         const slotBtn = scene.add.rectangle(x, y, 115, 70, preset ? 0x2C3E50 : 0x1a1a2e, 0.9)
