@@ -146,12 +146,58 @@ export const WILT_THRESHOLD_DAYS = 3;                    // Days without water b
 export const WILT_THRESHOLD = GAME_DAY_MINUTES * WILT_THRESHOLD_DAYS;  // 4320 game minutes
 export const HAZARD_CHANCE_PER_HOUR = 0.02;              // 2% chance per plot per game hour
 
-// Crafting recipes
+// Cooking station types
+export const cookingStations = {
+    campfire: {
+        name: 'Campfire',
+        emoji: '🔥',
+        color: 0xE25822,
+        description: 'Cook fish and roast items'
+    },
+    stove: {
+        name: 'Stove',
+        emoji: '🍳',
+        color: 0x4A4A4A,
+        description: 'Make stews, soups, and fried dishes'
+    },
+    oven: {
+        name: 'Oven',
+        emoji: '🧱',
+        color: 0x8B4513,
+        description: 'Bake bread, pastries, and casseroles'
+    }
+};
+
+// Cooking station positions (in COMMERCIAL zone)
+export const cookingStationPositions = [
+    { x: 1050, y: 180, type: 'campfire' },
+    { x: 1150, y: 180, type: 'stove' },
+    { x: 1250, y: 180, type: 'oven' }
+];
+
+// Crafting recipes - now with station requirements
+// station: null = can craft anywhere (non-cooking items)
+// station: 'campfire' | 'stove' | 'oven' = requires that station
 export const recipes = {
-    salad: { ingredients: { carrot: 1, tomato: 1 }, sellPrice: 50 },
-    bouquet: { ingredients: { flower: 3 }, sellPrice: 80 },
-    fishStew: { ingredients: { bass: 2, tomato: 1 }, sellPrice: 75 },
-    magicPotion: { ingredients: { flower: 2, goldfish: 1 }, sellPrice: 150 }
+    // No station required (crafting table / anywhere)
+    salad: { ingredients: { carrot: 1, tomato: 1, lettuce: 1 }, sellPrice: 50, station: null, cookTime: 0, emoji: '🥗' },
+    bouquet: { ingredients: { flower: 3 }, sellPrice: 80, station: null, cookTime: 0, emoji: '💐' },
+    magicPotion: { ingredients: { flower: 2, goldfish: 1 }, sellPrice: 150, station: null, cookTime: 0, emoji: '🧪' },
+
+    // Campfire recipes (grilled/roasted)
+    grilledFish: { ingredients: { bass: 1 }, sellPrice: 25, station: 'campfire', cookTime: 1500, emoji: '🐟' },
+    grilledSalmon: { ingredients: { salmon: 1 }, sellPrice: 45, station: 'campfire', cookTime: 2000, emoji: '🍣' },
+    roastedCorn: { ingredients: { corn: 1 }, sellPrice: 50, station: 'campfire', cookTime: 1200, emoji: '🌽' },
+
+    // Stove recipes (stews, soups, fried)
+    fishStew: { ingredients: { bass: 2, tomato: 1, onion: 1 }, sellPrice: 85, station: 'stove', cookTime: 3000, emoji: '🍲' },
+    vegetableSoup: { ingredients: { carrot: 1, potato: 1, onion: 1 }, sellPrice: 60, station: 'stove', cookTime: 2500, emoji: '🥣' },
+    friedPotatoes: { ingredients: { potato: 2 }, sellPrice: 55, station: 'stove', cookTime: 2000, emoji: '🍟' },
+
+    // Oven recipes (baked goods)
+    bakedPotato: { ingredients: { potato: 1 }, sellPrice: 35, station: 'oven', cookTime: 2000, emoji: '🥔' },
+    fruitPie: { ingredients: { apple: 2, cherry: 2 }, sellPrice: 70, station: 'oven', cookTime: 3500, emoji: '🥧' },
+    pumpkinPie: { ingredients: { pumpkin: 1, cherry: 1 }, sellPrice: 90, station: 'oven', cookTime: 4000, emoji: '🎃' }
 };
 
 // Sell prices
@@ -159,7 +205,16 @@ export const sellPrices = {
     crops: { carrot: 15, tomato: 20, flower: 25, lettuce: 12, onion: 18, potato: 22, pepper: 30, corn: 35, pumpkin: 50 },
     fruits: { apple: 12, orange: 15, peach: 20, cherry: 8 },
     fish: { bass: 10, salmon: 25, goldfish: 50 },
-    crafted: { salad: 50, bouquet: 80, fishStew: 75, magicPotion: 150 }
+    crafted: {
+        // No-station recipes
+        salad: 50, bouquet: 80, magicPotion: 150,
+        // Campfire
+        grilledFish: 25, grilledSalmon: 45, roastedCorn: 50,
+        // Stove
+        fishStew: 85, vegetableSoup: 60, friedPotatoes: 55,
+        // Oven
+        bakedPotato: 35, fruitPie: 70, pumpkinPie: 90
+    }
 };
 
 // Buy prices for seeds (at the general store)

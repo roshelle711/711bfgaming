@@ -37,7 +37,16 @@ export const GameState = {
         crops: { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
         fruits: { apple: 0, orange: 0, peach: 0, cherry: 0 },
         fish: { bass: 0, salmon: 0, goldfish: 0 },
-        crafted: { salad: 0, bouquet: 0, fishStew: 0, magicPotion: 0 },
+        crafted: {
+            // No-station recipes
+            salad: 0, bouquet: 0, magicPotion: 0,
+            // Campfire
+            grilledFish: 0, grilledSalmon: 0, roastedCorn: 0,
+            // Stove
+            fishStew: 0, vegetableSoup: 0, friedPotatoes: 0,
+            // Oven
+            bakedPotato: 0, fruitPie: 0, pumpkinPie: 0
+        },
         resources: { wood: 0, stone: 0, ore: 0, gem: 0 }
     },
     coins: 50,
@@ -61,6 +70,14 @@ export const GameState = {
     isHarvesting: false,   // True during harvesting animation
     isRemoving: false,     // True during hazard removal animation
     actionAnimTimer: 0,    // Animation frame timer (0-1)
+
+    // Cooking stations
+    cookingStations: [],           // Array of station objects in the world
+    currentStationType: null,      // 'campfire' | 'stove' | 'oven' | null (when not at a station)
+    isCooking: false,              // True while cooking timer is active
+    cookingTimer: 0,               // Current cooking progress (ms)
+    cookingDuration: 0,            // Total cook time for current recipe (ms)
+    cookingRecipe: null,           // Currently cooking recipe name
 
     // Time & day/night
     gameTime: 480,      // Minutes (8:00 AM start)
@@ -240,7 +257,12 @@ export function resetState() {
         crops: { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
         fruits: { apple: 0, orange: 0, peach: 0, cherry: 0 },
         fish: { bass: 0, salmon: 0, goldfish: 0 },
-        crafted: { salad: 0, bouquet: 0, fishStew: 0, magicPotion: 0 },
+        crafted: {
+            salad: 0, bouquet: 0, magicPotion: 0,
+            grilledFish: 0, grilledSalmon: 0, roastedCorn: 0,
+            fishStew: 0, vegetableSoup: 0, friedPotatoes: 0,
+            bakedPotato: 0, fruitPie: 0, pumpkinPie: 0
+        },
         resources: { wood: 0, stone: 0, ore: 0, gem: 0 }
     };
     GameState.coins = 50;
@@ -249,6 +271,9 @@ export function resetState() {
     GameState.seedPickups = [];
     GameState.fruitTrees = [];
     GameState.resourceNodes = [];
+    GameState.cookingStations = [];
+    GameState.currentStationType = null;
+    GameState.isCooking = false;
     GameState.otherPlayers = {};
     GameState.equippedTool = 'none';
 }
@@ -304,7 +329,14 @@ export function loadGameSession() {
                 crops: sessionData.inventory.crops || { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
                 fruits: sessionData.inventory.fruits || { apple: 0, orange: 0, peach: 0, cherry: 0 },
                 fish: sessionData.inventory.fish || { bass: 0, salmon: 0, goldfish: 0 },
-                crafted: sessionData.inventory.crafted || { salad: 0, bouquet: 0, fishStew: 0, magicPotion: 0 },
+                crafted: {
+                    // Defaults for all recipes (new ones will be 0 if not in saved data)
+                    salad: 0, bouquet: 0, magicPotion: 0,
+                    grilledFish: 0, grilledSalmon: 0, roastedCorn: 0,
+                    fishStew: 0, vegetableSoup: 0, friedPotatoes: 0,
+                    bakedPotato: 0, fruitPie: 0, pumpkinPie: 0,
+                    ...(sessionData.inventory.crafted || {})
+                },
                 resources: sessionData.inventory.resources || { wood: 0, stone: 0, ore: 0, gem: 0 }
             };
         }

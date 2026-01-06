@@ -13,9 +13,12 @@
  * - updateNPCPatrol(): Update NPC patrol behavior
  * - drawLamppost(graphics, x, y): Draw Victorian-style lamppost structure
  * - drawLamppostLight(graphics, x, y): Draw lamppost light/glow (toggleable)
+ * - createCookingStation(scene, x, y, stationType, index): Create a cooking station
+ * - setupCookingStations(scene): Create all cooking stations from config
+ * - findNearestCookingStation(maxDistance): Find nearest station within range
  */
 
-import { npcPatrolPoints, miraHome, npcSpeed } from './config.js';
+import { npcPatrolPoints, miraHome, npcSpeed, cookingStations, cookingStationPositions } from './config.js';
 import { GameState } from './state.js';
 import { getDayPhase } from './utils.js';
 import { createWhimsicalCharacter } from './player.js';
@@ -656,4 +659,176 @@ export function drawFruitTree(tree) {
         tree.graphics.fillCircle(x - 17, y - 32, 2);
         tree.graphics.fillCircle(x + 16, y - 37, 2);
     }
+}
+
+// === COOKING STATIONS ===
+
+/**
+ * Create a cooking station
+ * @param {Phaser.Scene} scene - Phaser scene
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {string} stationType - 'campfire' | 'stove' | 'oven'
+ * @param {number} index - Station index
+ */
+export function createCookingStation(scene, x, y, stationType, index = 0) {
+    const config = cookingStations[stationType];
+    if (!config) {
+        console.error(`Unknown cooking station type: ${stationType}`);
+        return null;
+    }
+
+    const station = {
+        index, x, y, stationType,
+        graphics: scene.add.graphics(),
+        label: null
+    };
+
+    // Set depth based on Y position
+    station.graphics.setDepth(y);
+
+    // Draw the station
+    drawCookingStation(station);
+
+    // Add floating label above station
+    station.label = scene.add.text(x, y - 50, `${config.emoji} ${config.name}`, {
+        fontSize: '12px',
+        fill: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: 2
+    }).setOrigin(0.5).setDepth(y + 1);
+
+    return station;
+}
+
+/**
+ * Draw a cooking station based on its type
+ */
+export function drawCookingStation(station) {
+    station.graphics.clear();
+    const { x, y, stationType } = station;
+
+    if (stationType === 'campfire') {
+        // Stone ring
+        station.graphics.fillStyle(0x5A5A5A, 1);
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const sx = x + Math.cos(angle) * 18;
+            const sy = y + Math.sin(angle) * 10;
+            station.graphics.fillCircle(sx, sy, 6);
+        }
+        // Wood logs
+        station.graphics.fillStyle(0x8B4513, 1);
+        station.graphics.fillRect(x - 12, y - 3, 24, 6);
+        station.graphics.fillRect(x - 8, y - 6, 16, 6);
+        // Fire flames
+        station.graphics.fillStyle(0xFF4500, 0.9);
+        station.graphics.fillTriangle(x - 8, y, x - 4, y - 20, x, y);
+        station.graphics.fillTriangle(x, y, x + 4, y - 18, x + 8, y);
+        station.graphics.fillStyle(0xFFD700, 0.8);
+        station.graphics.fillTriangle(x - 4, y, x, y - 14, x + 4, y);
+        // Fire glow
+        station.graphics.fillStyle(0xFF6600, 0.3);
+        station.graphics.fillCircle(x, y - 5, 15);
+
+    } else if (stationType === 'stove') {
+        // Stove body
+        station.graphics.fillStyle(0x3A3A3A, 1);
+        station.graphics.fillRoundedRect(x - 20, y - 25, 40, 35, 4);
+        // Stove top
+        station.graphics.fillStyle(0x2A2A2A, 1);
+        station.graphics.fillRect(x - 18, y - 25, 36, 8);
+        // Burners (2 circles)
+        station.graphics.fillStyle(0x1A1A1A, 1);
+        station.graphics.fillCircle(x - 8, y - 21, 6);
+        station.graphics.fillCircle(x + 8, y - 21, 6);
+        // Flame indicators
+        station.graphics.fillStyle(0xFF4500, 0.7);
+        station.graphics.fillCircle(x - 8, y - 21, 3);
+        station.graphics.fillCircle(x + 8, y - 21, 3);
+        // Oven door
+        station.graphics.fillStyle(0x4A4A4A, 1);
+        station.graphics.fillRoundedRect(x - 14, y - 12, 28, 18, 2);
+        // Door handle
+        station.graphics.fillStyle(0x8A8A8A, 1);
+        station.graphics.fillRect(x - 10, y - 5, 20, 3);
+        // Legs
+        station.graphics.fillStyle(0x2A2A2A, 1);
+        station.graphics.fillRect(x - 18, y + 8, 6, 6);
+        station.graphics.fillRect(x + 12, y + 8, 6, 6);
+
+    } else if (stationType === 'oven') {
+        // Brick oven base
+        station.graphics.fillStyle(0x8B4513, 1);
+        station.graphics.fillRoundedRect(x - 25, y - 10, 50, 30, 4);
+        // Dome top
+        station.graphics.fillStyle(0xA0522D, 1);
+        station.graphics.fillEllipse(x, y - 20, 44, 30);
+        // Brick texture lines
+        station.graphics.lineStyle(1, 0x654321, 0.5);
+        for (let i = -20; i <= 20; i += 10) {
+            station.graphics.lineBetween(x + i, y - 35, x + i, y - 5);
+        }
+        for (let j = -30; j <= -10; j += 8) {
+            station.graphics.lineBetween(x - 20, y + j, x + 20, y + j);
+        }
+        // Oven opening
+        station.graphics.fillStyle(0x1A1A1A, 1);
+        station.graphics.fillEllipse(x, y - 5, 20, 15);
+        // Fire glow inside
+        station.graphics.fillStyle(0xFF4500, 0.6);
+        station.graphics.fillEllipse(x, y - 5, 14, 10);
+        station.graphics.fillStyle(0xFFD700, 0.4);
+        station.graphics.fillEllipse(x, y - 5, 8, 6);
+        // Chimney
+        station.graphics.fillStyle(0x8B4513, 1);
+        station.graphics.fillRect(x + 10, y - 45, 10, 20);
+        // Smoke
+        station.graphics.fillStyle(0xAAAAAA, 0.4);
+        station.graphics.fillCircle(x + 15, y - 50, 5);
+        station.graphics.fillCircle(x + 18, y - 58, 4);
+        station.graphics.fillCircle(x + 14, y - 64, 3);
+    }
+}
+
+/**
+ * Setup all cooking stations from config
+ * @param {Phaser.Scene} scene - Phaser scene
+ */
+export function setupCookingStations(scene) {
+    GameState.cookingStations = [];
+
+    cookingStationPositions.forEach((pos, index) => {
+        const station = createCookingStation(scene, pos.x, pos.y, pos.type, index);
+        if (station) {
+            GameState.cookingStations.push(station);
+        }
+    });
+
+    console.log(`[World] Created ${GameState.cookingStations.length} cooking stations`);
+}
+
+/**
+ * Find the nearest cooking station to player within range
+ * @param {number} maxDistance - Maximum distance to check
+ * @returns {object|null} Nearest station or null
+ */
+export function findNearestCookingStation(maxDistance = 60) {
+    const player = GameState.player;
+    if (!player) return null;
+
+    let nearest = null;
+    let nearestDist = maxDistance;
+
+    for (const station of GameState.cookingStations) {
+        const dx = player.x - station.x;
+        const dy = player.y - station.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < nearestDist) {
+            nearest = station;
+            nearestDist = dist;
+        }
+    }
+
+    return nearest;
 }

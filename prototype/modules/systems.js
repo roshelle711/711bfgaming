@@ -14,14 +14,16 @@
  * - startFishing(): Start fishing at pond
  * - updateFishing(delta): Update fishing timer
  * - showShopMenu(): Display shop menu
- * - showCraftingMenu(): Display crafting menu
- * - craftItem(item): Craft a recipe
+ * - showCraftingMenu(): Display cooking menu (filtered by current station)
+ * - startCooking(itemName): Start cooking with timer
+ * - updateCooking(delta): Update cooking timer
+ * - craftItem(item): Craft a recipe instantly
  * - sellItem(category, item): Sell an item
  * - checkSeedPickups(): Check for seed pickup collection
  * - respawnSeedPickups(delta): Respawn collected seeds
  */
 
-import { seedTypes, fishTypes, recipes, sellPrices, seedBuyPrices, cropData, fruitData, fruitTreePositions } from './config.js';
+import { seedTypes, fishTypes, recipes, sellPrices, seedBuyPrices, cropData, fruitData, fruitTreePositions, cookingStations } from './config.js';
 import { GameState, saveGameSession } from './state.js';
 import { showDialog, closeDialog, updateInventoryDisplay, updateCoinDisplay, updateSeedIndicator } from './ui.js';
 import { drawPlot, drawPlant, drawSeedPickup, drawFruitTree } from './world.js';
@@ -345,59 +347,255 @@ export function buySeed(seedType) {
 
 /**
  * Show the cooking/crafting menu
+ * Filters recipes based on current station type (or shows all if no station)
  */
 export function showCraftingMenu() {
     const inv = GameState.inventory;
+    const stationType = GameState.currentStationType;
     GameState.craftingOpen = true;
 
-    let text = "═══ 🍳 COOKING ═══\n\n";
-    text += "RECIPES:\n";
-    text += `1: 🥗 Salad = 🥕1 + 🍅1 (have: ${inv.crops.carrot}/${inv.crops.tomato})\n`;
-    text += `2: 💐 Bouquet = 🌸3 (have: ${inv.crops.flower})\n`;
-    text += `3: 🍲 Fish Stew = 🐟2 + 🍅1 (have: ${inv.fish.bass}/${inv.crops.tomato})\n`;
-    text += `4: ✨ Magic Potion = 🌸2 + ✨🐟1 (have: ${inv.crops.flower}/${inv.fish.goldfish})\n\n`;
-    text += "[1-4 to cook, E/ESC to close]";
+    // Get station info for header
+    const stationConfig = stationType ? cookingStations[stationType] : null;
+    const headerEmoji = stationConfig?.emoji || '🍳';
+    const headerName = stationConfig?.name || 'CRAFTING';
+
+    let text = `═══ ${headerEmoji} ${headerName} ═══\n\n`;
+
+    // Filter recipes by station type
+    const availableRecipes = Object.entries(recipes).filter(([name, recipe]) => {
+        if (stationType === null) {
+            // At no station: only show non-station recipes
+            return recipe.station === null;
+        } else {
+            // At a station: show recipes for this station
+            return recipe.station === stationType;
+        }
+    });
+
+    if (availableRecipes.length === 0) {
+        if (stationType === null) {
+            text += "Go to a cooking station to cook!\n\n";
+            text += "🔥 Campfire - grilled items\n";
+            text += "🍳 Stove - stews & fried food\n";
+            text += "🧱 Oven - baked goods\n\n";
+        } else {
+            text += "No recipes available here.\n\n";
+        }
+    } else {
+        text += "RECIPES:\n";
+        availableRecipes.forEach(([name, recipe], idx) => {
+            const num = idx + 1;
+            const emoji = recipe.emoji || '?';
+            const ingredientText = Object.entries(recipe.ingredients)
+                .map(([ing, amt]) => {
+                    const ingEmoji = getIngredientEmoji(ing);
+                    const have = getIngredientCount(inv, ing);
+                    return `${ingEmoji}${amt}(${have})`;
+                })
+                .join(' + ');
+            const canMake = canCraftRecipe(name) ? '✓' : '✗';
+            const cookTime = recipe.cookTime > 0 ? ` [${(recipe.cookTime / 1000).toFixed(1)}s]` : '';
+            text += `${num}: ${emoji} ${formatRecipeName(name)} = ${ingredientText} ${canMake}${cookTime}\n`;
+        });
+        text += "\n";
+    }
+
+    // Show current station hint
+    if (stationType) {
+        text += `[1-${availableRecipes.length} to cook, E/ESC to close]`;
+    } else {
+        text += "[E/ESC to close]";
+    }
 
     showDialog(text);
 
+    // Set up key handlers for available recipes
     const scene = GameState.scene;
-    if (scene) {
-        scene.input.keyboard.once('keydown-ONE', () => craftItem('salad'));
-        scene.input.keyboard.once('keydown-TWO', () => craftItem('bouquet'));
-        scene.input.keyboard.once('keydown-THREE', () => craftItem('fishStew'));
-        scene.input.keyboard.once('keydown-FOUR', () => craftItem('magicPotion'));
+    if (scene && availableRecipes.length > 0) {
+        const keyNames = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+        availableRecipes.forEach(([name, recipe], idx) => {
+            if (idx < keyNames.length) {
+                scene.input.keyboard.once(`keydown-${keyNames[idx]}`, () => startCooking(name));
+            }
+        });
     }
 }
 
 /**
- * Craft an item from recipe
+ * Get emoji for an ingredient
  */
-export function craftItem(item) {
-    const recipe = recipes[item];
+function getIngredientEmoji(ingredient) {
+    const emojiMap = {
+        // Crops
+        carrot: '🥕', tomato: '🍅', flower: '🌸', lettuce: '🥬',
+        onion: '🧅', potato: '🥔', pepper: '🌶️', corn: '🌽', pumpkin: '🎃',
+        // Fish
+        bass: '🐟', salmon: '🐠', goldfish: '✨',
+        // Fruits
+        apple: '🍎', orange: '🍊', peach: '🍑', cherry: '🍒'
+    };
+    return emojiMap[ingredient] || '?';
+}
+
+/**
+ * Get count of an ingredient from inventory
+ */
+function getIngredientCount(inv, ingredient) {
+    return inv.crops[ingredient] ?? inv.fish[ingredient] ?? inv.fruits[ingredient] ?? 0;
+}
+
+/**
+ * Format recipe name for display (camelCase to Title Case)
+ */
+function formatRecipeName(name) {
+    return name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+}
+
+/**
+ * Check if player can craft a recipe (has all ingredients)
+ */
+function canCraftRecipe(itemName) {
+    const recipe = recipes[itemName];
     if (!recipe) return false;
 
     const inv = GameState.inventory;
-    let canCraft = true;
-
-    // Check if we have all ingredients
     for (const [ing, amount] of Object.entries(recipe.ingredients)) {
-        const have = inv.crops[ing] ?? inv.fish[ing] ?? 0;
-        if (have < amount) canCraft = false;
+        const have = getIngredientCount(inv, ing);
+        if (have < amount) return false;
+    }
+    return true;
+}
+
+/**
+ * Start cooking a recipe (with timer if recipe has cookTime)
+ */
+export function startCooking(itemName) {
+    const recipe = recipes[itemName];
+    if (!recipe) return false;
+
+    // Check station requirement
+    if (recipe.station !== null && recipe.station !== GameState.currentStationType) {
+        const stationConfig = cookingStations[recipe.station];
+        showDialog(`Need ${stationConfig?.emoji || ''} ${stationConfig?.name || recipe.station}!`);
+        return false;
     }
 
-    if (canCraft) {
-        // Consume ingredients
-        for (const [ing, amount] of Object.entries(recipe.ingredients)) {
-            if (inv.crops[ing] !== undefined) inv.crops[ing] -= amount;
-            else if (inv.fish[ing] !== undefined) inv.fish[ing] -= amount;
-        }
-        inv.crafted[item]++;
+    // Check ingredients
+    if (!canCraftRecipe(itemName)) {
+        showDialog("Missing ingredients!");
+        return false;
+    }
+
+    // If no cook time, craft instantly
+    if (!recipe.cookTime || recipe.cookTime <= 0) {
+        return craftItem(itemName);
+    }
+
+    // Start cooking timer
+    const inv = GameState.inventory;
+
+    // Consume ingredients upfront
+    for (const [ing, amount] of Object.entries(recipe.ingredients)) {
+        if (inv.crops[ing] !== undefined) inv.crops[ing] -= amount;
+        else if (inv.fish[ing] !== undefined) inv.fish[ing] -= amount;
+        else if (inv.fruits[ing] !== undefined) inv.fruits[ing] -= amount;
+    }
+
+    GameState.isCooking = true;
+    GameState.cookingTimer = 0;
+    GameState.cookingDuration = recipe.cookTime;
+    GameState.cookingRecipe = itemName;
+
+    updateInventoryDisplay();
+    showDialog(`${recipe.emoji} Cooking ${formatRecipeName(itemName)}...`);
+
+    return true;
+}
+
+/**
+ * Update cooking timer (call in game update loop)
+ */
+export function updateCooking(delta) {
+    if (!GameState.isCooking) return;
+
+    GameState.cookingTimer += delta;
+
+    // Update progress display
+    const progress = Math.min(GameState.cookingTimer / GameState.cookingDuration, 1);
+    const recipe = recipes[GameState.cookingRecipe];
+    const barLength = 20;
+    const filled = Math.floor(progress * barLength);
+    const progressBar = '█'.repeat(filled) + '░'.repeat(barLength - filled);
+
+    if (GameState.isDialogOpen) {
+        const percent = Math.floor(progress * 100);
+        showDialog(`${recipe?.emoji || '🍳'} Cooking ${formatRecipeName(GameState.cookingRecipe)}...\n\n[${progressBar}] ${percent}%`);
+    }
+
+    // Check if done
+    if (GameState.cookingTimer >= GameState.cookingDuration) {
+        finishCooking();
+    }
+}
+
+/**
+ * Finish cooking and add result to inventory
+ */
+function finishCooking() {
+    const itemName = GameState.cookingRecipe;
+    const recipe = recipes[itemName];
+
+    GameState.isCooking = false;
+    GameState.cookingTimer = 0;
+    GameState.cookingDuration = 0;
+    GameState.cookingRecipe = null;
+
+    if (recipe) {
+        GameState.inventory.crafted[itemName]++;
         updateInventoryDisplay();
         saveGameSession();
-        showCraftingMenu(); // Refresh menu
-        return true;
+        showDialog(`${recipe.emoji} ${formatRecipeName(itemName)} ready!`);
+
+        // Auto-close after a moment and reopen menu
+        setTimeout(() => {
+            if (GameState.currentStationType) {
+                showCraftingMenu();
+            } else {
+                closeDialog();
+            }
+        }, 1000);
     }
-    return false;
+}
+
+/**
+ * Craft an item instantly (no timer) - for non-station recipes
+ */
+export function craftItem(itemName) {
+    const recipe = recipes[itemName];
+    if (!recipe) return false;
+
+    // Check station requirement
+    if (recipe.station !== null && recipe.station !== GameState.currentStationType) {
+        return false;
+    }
+
+    const inv = GameState.inventory;
+
+    // Check if we have all ingredients
+    if (!canCraftRecipe(itemName)) return false;
+
+    // Consume ingredients
+    for (const [ing, amount] of Object.entries(recipe.ingredients)) {
+        if (inv.crops[ing] !== undefined) inv.crops[ing] -= amount;
+        else if (inv.fish[ing] !== undefined) inv.fish[ing] -= amount;
+        else if (inv.fruits[ing] !== undefined) inv.fruits[ing] -= amount;
+    }
+
+    inv.crafted[itemName]++;
+    updateInventoryDisplay();
+    saveGameSession();
+    showCraftingMenu(); // Refresh menu
+    return true;
 }
 
 /**

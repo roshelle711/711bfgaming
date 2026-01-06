@@ -10,9 +10,9 @@ import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositio
 import { GameState, loadGameSession, saveGameSession } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations, petDoTrick, isNearPet } from './modules/player.js';
-import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree } from './modules/world.js';
+import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree, setupCookingStations, findNearestCookingStation } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay, showPauseMenu, closePauseMenu } from './modules/ui.js';
-import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth } from './modules/systems.js';
+import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth, updateCooking } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './modules/multiplayer.js';
 import { setupResourceNodes, handleResourceClick } from './modules/resources.js';
 
@@ -382,23 +382,7 @@ function create() {
         }
     }
 
-    // Cooking station - in COMMERCIAL zone, below general store
-    const cookX = 1150, cookY = 320;
-    graphics.fillStyle(0x795548, 1);
-    graphics.fillRect(cookX - 35, cookY - 25, 70, 50);
-    graphics.fillStyle(0x5D4037, 1);
-    graphics.fillRect(cookX - 30, cookY - 20, 60, 40);
-    graphics.fillStyle(0xFF6B35, 0.8);
-    graphics.fillCircle(cookX - 10, cookY, 8);
-    graphics.fillCircle(cookX + 10, cookY + 5, 6);
-    graphics.fillStyle(0xFFD93D, 0.6);
-    graphics.fillCircle(cookX - 8, cookY - 5, 4);
-    graphics.fillCircle(cookX + 12, cookY, 3);
-    graphics.fillStyle(0x808080, 1);
-    graphics.fillEllipse(cookX, cookY - 10, 25, 12);
-    this.add.text(cookX, cookY - 45, '🍳 Cooking', {
-        fontSize: '12px', fill: '#fff', backgroundColor: '#00000080', padding: { x: 4, y: 2 }
-    }).setOrigin(0.5);
+    // Cooking stations are now created via setupCookingStations() after startGame()
 
     // Seed pickups - scattered around zones (not in farm area itself)
     const seedLocations = [
@@ -501,6 +485,9 @@ function create() {
     // Resource nodes (trees, rocks) - harvestable for wood, stone, ore, gems
     setupResourceNodes(this);
 
+    // Cooking stations (campfire, stove, oven)
+    setupCookingStations(this);
+
     // Click handler for resource nodes
     this.input.on('gameobjectdown', (pointer, gameObject) => {
         // Check if clicking a resource node
@@ -569,6 +556,11 @@ function create() {
     // Fruit tree prompt (added after UI setup)
     GameState.fruitTreePrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 220, '', {
         fontSize: '14px', fill: '#90EE90', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(100).setVisible(false);
+
+    // Cooking station prompt
+    GameState.cookingPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 180, '', {
+        fontSize: '14px', fill: '#FFA500', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(100).setVisible(false);
 
     // === SHOW CHARACTER CREATION ===
@@ -718,6 +710,7 @@ function update(time, delta) {
     // === SYSTEMS UPDATES ===
     updatePlantGrowth(this, delta);
     updateFishing(delta);
+    updateCooking(delta);
     checkSeedPickups();
     respawnSeedPickups(this, delta);
     updateNPCPatrol();
@@ -1083,7 +1076,7 @@ function handleInput(scene) {
         }
 
         // Cooking station
-        if (isNearCookingStation()) {
+        if (findNearestCookingStation()) {
             showCraftingMenu();
             return;
         }
@@ -1384,10 +1377,15 @@ function updateProximityPrompts() {
         GameState.fishingPrompt.setVisible(false);
     }
 
-    // Cooking prompt
-    if (isNearCookingStation()) {
-        GameState.cookingPrompt.setText('🍳 E to cook').setVisible(true);
+    // Cooking station prompt and state
+    const nearStation = findNearestCookingStation();
+    if (nearStation) {
+        const stationConfig = { campfire: '🔥', stove: '🍳', oven: '🧱' };
+        const emoji = stationConfig[nearStation.stationType] || '🍳';
+        GameState.currentStationType = nearStation.stationType;
+        GameState.cookingPrompt.setText(`${emoji} E to cook`).setVisible(true);
     } else {
+        GameState.currentStationType = null;
         GameState.cookingPrompt.setVisible(false);
     }
 
