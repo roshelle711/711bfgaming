@@ -55,11 +55,12 @@ export function removeResource(resourceType, qty) {
  * @param {number} x
  * @param {number} y
  * @param {string} text
+ * @param {string} color - Text color (default gold)
  */
-export function showFloatingText(scene, x, y, text) {
+export function showFloatingText(scene, x, y, text, color = '#FFD700') {
     const floatText = scene.add.text(x, y - 20, text, {
         fontSize: '14px',
-        fill: '#FFD700',
+        fill: color,
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 3
@@ -74,6 +75,32 @@ export function showFloatingText(scene, x, y, text) {
         ease: 'Power2',
         onComplete: () => floatText.destroy()
     });
+}
+
+/**
+ * Check if player has the required tool for a node type
+ * @param {string} nodeType - 'tree' or 'rock'
+ * @returns {boolean}
+ */
+export function hasRequiredTool(nodeType) {
+    const tools = GameState.inventory.tools;
+    if (nodeType === 'tree') {
+        return (tools.axe || 0) >= 1;
+    } else if (nodeType === 'rock') {
+        return (tools.pickaxe || 0) >= 1;
+    }
+    return true; // Unknown node types don't require tools
+}
+
+/**
+ * Get the required tool name for a node type
+ * @param {string} nodeType - 'tree' or 'rock'
+ * @returns {string}
+ */
+function getRequiredToolName(nodeType) {
+    if (nodeType === 'tree') return 'Axe 🪓';
+    if (nodeType === 'rock') return 'Pickaxe ⛏️';
+    return 'Tool';
 }
 
 /**
@@ -156,6 +183,21 @@ export function hitResourceNode(node, scene) {
 
     const config = resourceNodeTypes[node.nodeType];
     if (!config) return;
+
+    // Check for required tool
+    if (!hasRequiredTool(node.nodeType)) {
+        const toolName = getRequiredToolName(node.nodeType);
+        showFloatingText(scene, node.x, node.y, `Need ${toolName}!`, '#FF6B6B');
+        // Small shake for "nope" feedback
+        scene.tweens.add({
+            targets: node,
+            x: node.x + 2,
+            duration: 30,
+            yoyo: true,
+            repeat: 3
+        });
+        return;
+    }
 
     // Decrement HP
     node.hp--;
