@@ -128,7 +128,12 @@ const inventoryItems = {
     salad: { emoji: '🥗', name: 'Salad', category: 'crafted', key: 'salad' },
     bouquet: { emoji: '💐', name: 'Bouquet', category: 'crafted', key: 'bouquet' },
     fishStew: { emoji: '🍲', name: 'Fish Stew', category: 'crafted', key: 'fishStew' },
-    magicPotion: { emoji: '🧪', name: 'Magic Potion', category: 'crafted', key: 'magicPotion' }
+    magicPotion: { emoji: '🧪', name: 'Magic Potion', category: 'crafted', key: 'magicPotion' },
+    // Resources
+    wood: { emoji: '🪵', name: 'Wood', category: 'resources', key: 'wood' },
+    stone: { emoji: '🪨', name: 'Stone', category: 'resources', key: 'stone' },
+    ore: { emoji: '�ite', name: 'Ore', category: 'resources', key: 'ore' },
+    gem: { emoji: '💎', name: 'Gem', category: 'resources', key: 'gem' }
 };
 
 /**
@@ -140,22 +145,23 @@ export function createInventoryIcons(scene) {
 
     GameState.inventoryIcons = [];
 
-    // Panel background - larger to fit more items
-    GameState.inventoryPanel = scene.add.rectangle(centerX, centerY, 700, 480, 0x1a1a2e, 0.95)
+    // Panel background - larger to fit more items including resources
+    GameState.inventoryPanel = scene.add.rectangle(centerX, centerY, 700, 540, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(150).setVisible(false);
 
     // Title
-    GameState.inventoryTitle = scene.add.text(centerX, centerY - 215, '📦 INVENTORY', {
+    GameState.inventoryTitle = scene.add.text(centerX, centerY - 250, '📦 INVENTORY', {
         fontSize: '20px', fill: '#FFD700', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
     // Category labels and icons - expanded for all items
     const categories = [
-        { name: '🌱 Seeds', items: ['carrotSeed', 'tomatoSeed', 'flowerSeed', 'lettuceSeed', 'onionSeed', 'potatoSeed', 'pepperSeed', 'cornSeed', 'pumpkinSeed'], y: -160 },
-        { name: '🌾 Crops', items: ['carrot', 'tomato', 'flower', 'lettuce', 'onion', 'potato', 'pepper', 'corn', 'pumpkin'], y: -90 },
-        { name: '🍎 Fruits', items: ['apple', 'orange', 'peach', 'cherry'], y: -20 },
-        { name: '🐟 Fish', items: ['bass', 'salmon', 'goldfish'], y: 50 },
-        { name: '🍳 Cooked', items: ['salad', 'bouquet', 'fishStew', 'magicPotion'], y: 120 }
+        { name: '🌱 Seeds', items: ['carrotSeed', 'tomatoSeed', 'flowerSeed', 'lettuceSeed', 'onionSeed', 'potatoSeed', 'pepperSeed', 'cornSeed', 'pumpkinSeed'], y: -180 },
+        { name: '🌾 Crops', items: ['carrot', 'tomato', 'flower', 'lettuce', 'onion', 'potato', 'pepper', 'corn', 'pumpkin'], y: -115 },
+        { name: '🍎 Fruits', items: ['apple', 'orange', 'peach', 'cherry'], y: -50 },
+        { name: '🐟 Fish', items: ['bass', 'salmon', 'goldfish'], y: 15 },
+        { name: '🍳 Cooked', items: ['salad', 'bouquet', 'fishStew', 'magicPotion'], y: 80 },
+        { name: '🪵 Materials', items: ['wood', 'stone', 'ore', 'gem'], y: 145 }
     ];
 
     categories.forEach(cat => {
@@ -209,7 +215,7 @@ export function createInventoryIcons(scene) {
     });
 
     // Close hint
-    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 210, '[ I, E, or ESC to close ]', {
+    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 245, '[ I, E, or ESC to close ]', {
         fontSize: '12px', fill: '#666'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
@@ -259,6 +265,8 @@ export function updateInventoryDisplay() {
             amount = inv.fish[item.key] || 0;
         } else if (item.category === 'crafted') {
             amount = inv.crafted[item.key] || 0;
+        } else if (item.category === 'resources') {
+            amount = inv.resources[item.key] || 0;
         }
 
         item.count.setText(amount.toString());

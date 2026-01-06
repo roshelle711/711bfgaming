@@ -22,8 +22,65 @@ export const GAME_HEIGHT = 900;
 export const toolTypes = {
     hoe: { emoji: '🔨', name: 'Hoe' },
     wateringCan: { emoji: '💧', name: 'Watering Can' },
-    fishingRod: { emoji: '🎣', name: 'Fishing Rod' }
+    fishingRod: { emoji: '🎣', name: 'Fishing Rod' },
+    axe: { emoji: '🪓', name: 'Axe' },
+    pickaxe: { emoji: '⛏️', name: 'Pickaxe' }
 };
+
+// Resource node types and drop tables
+export const resourceNodeTypes = {
+    tree: {
+        hp: 3,
+        color: 0x228B22,      // Forest green
+        trunkColor: 0x8B4513, // Saddle brown
+        width: 40,
+        height: 60,
+        emoji: '🌲',
+        drops: {
+            wood: { min: 1, max: 3, chance: 1.0 }
+        },
+        respawnTime: 15000    // 15 seconds
+    },
+    rock: {
+        hp: 4,
+        color: 0x808080,      // Gray
+        highlightColor: 0xA0A0A0,
+        width: 35,
+        height: 30,
+        emoji: '🪨',
+        drops: {
+            stone: { min: 1, max: 2, chance: 1.0 },
+            ore: { min: 1, max: 1, chance: 0.35 },
+            gem: { min: 1, max: 1, chance: 0.05 }
+        },
+        respawnTime: 15000    // 15 seconds
+    }
+};
+
+// Resource data - emojis and sell prices
+export const resourceData = {
+    wood: { emoji: '🪵', sellPrice: 5 },
+    stone: { emoji: '🪨', sellPrice: 3 },
+    ore: { emoji: 'ORE', sellPrice: 15 },
+    gem: { emoji: '💎', sellPrice: 50 }
+};
+
+// Resource node spawn positions (in NATURE and ORCHARD zones)
+export const resourceNodePositions = [
+    // Trees in nature zone (left side, away from pond)
+    { x: 120, y: 450, type: 'tree' },
+    { x: 80, y: 520, type: 'tree' },
+    { x: 150, y: 580, type: 'tree' },
+    // Trees near residential
+    { x: 480, y: 180, type: 'tree' },
+    // Rocks scattered around
+    { x: 400, y: 380, type: 'rock' },
+    { x: 900, y: 420, type: 'rock' },
+    { x: 1000, y: 700, type: 'rock' },
+    // More trees in orchard area edges
+    { x: 1300, y: 480, type: 'tree' },
+    { x: 1320, y: 620, type: 'tree' },
+];
 
 // Character classes
 export const classes = {

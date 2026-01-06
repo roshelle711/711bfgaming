@@ -14,6 +14,7 @@ import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, up
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay, showPauseMenu, closePauseMenu } from './modules/ui.js';
 import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, isNearCookingStation, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './modules/multiplayer.js';
+import { setupResourceNodes, handleResourceClick } from './modules/resources.js';
 
 // === PHASER CONFIGURATION ===
 const config = {
@@ -492,6 +493,17 @@ function create() {
     fruitTreePositions.forEach((pos, index) => {
         const tree = createFruitTree(this, pos.x, pos.y, pos.type, index);
         GameState.fruitTrees.push(tree);
+    });
+
+    // Resource nodes (trees, rocks) - harvestable for wood, stone, ore, gems
+    setupResourceNodes(this);
+
+    // Click handler for resource nodes
+    this.input.on('gameobjectdown', (pointer, gameObject) => {
+        // Check if clicking a resource node
+        if (handleResourceClick(gameObject, this)) {
+            return; // Handled by resource system
+        }
     });
 
     // Ambient wildlife - birds and butterflies
