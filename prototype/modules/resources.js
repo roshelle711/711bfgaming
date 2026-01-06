@@ -9,7 +9,7 @@
  * - showFloatingText(scene, x, y, text): Show floating drop text
  */
 
-import { GameState } from './state.js';
+import { GameState, saveGameSession } from './state.js';
 import { resourceNodeTypes, resourceData, resourceNodePositions } from './config.js';
 import { showDialog } from './ui.js';
 
@@ -22,6 +22,7 @@ export function addToInventory(resourceType, qty) {
     if (GameState.inventory.resources[resourceType] !== undefined) {
         GameState.inventory.resources[resourceType] += qty;
         console.log(`[Resources] Added ${qty} ${resourceType}. Total: ${GameState.inventory.resources[resourceType]}`);
+        saveGameSession(); // Auto-save on inventory change
     }
 }
 

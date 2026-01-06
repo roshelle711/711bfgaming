@@ -22,7 +22,7 @@
  */
 
 import { seedTypes, fishTypes, recipes, sellPrices, seedBuyPrices, cropData, fruitData, fruitTreePositions } from './config.js';
-import { GameState } from './state.js';
+import { GameState, saveGameSession } from './state.js';
 import { showDialog, closeDialog, updateInventoryDisplay, updateCoinDisplay, updateSeedIndicator } from './ui.js';
 import { drawPlot, drawPlant, drawSeedPickup, drawFruitTree } from './world.js';
 import { sendFarmAction, sendCollectSeed, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './multiplayer.js';
@@ -62,6 +62,7 @@ export function plantSeed(plot, scene) {
         sendFarmAction(plot.index, 'plant', seedType);
         updateInventoryDisplay();
         updateSeedIndicator();
+        saveGameSession();
         return true;
     } else {
         // Single-player fallback
@@ -73,6 +74,7 @@ export function plantSeed(plot, scene) {
         drawPlant(scene, plot);
         updateInventoryDisplay();
         updateSeedIndicator();
+        saveGameSession();
         return true;
     }
 }
@@ -115,6 +117,7 @@ export function harvestCrop(plot) {
         }
         drawPlot(plot);
         updateInventoryDisplay();
+        saveGameSession();
         return true;
     }
 }
@@ -247,6 +250,7 @@ export function updateFishing(delta) {
     const fish = fishTypes[fishIndex];
     GameState.inventory.fish[fish]++;
     updateInventoryDisplay();
+    saveGameSession();
 
     const emoji = { bass: '🐟', salmon: '🐠', goldfish: '✨' };
     showFishingStatus(`${emoji[fish]} Caught ${fish}!`);
@@ -332,6 +336,7 @@ export function buySeed(seedType) {
         updateInventoryDisplay();
         updateCoinDisplay();
         updateSeedIndicator();
+        saveGameSession();
         showShopMenu(); // Refresh menu
         return true;
     }
@@ -388,6 +393,7 @@ export function craftItem(item) {
         }
         inv.crafted[item]++;
         updateInventoryDisplay();
+        saveGameSession();
         showCraftingMenu(); // Refresh menu
         return true;
     }
@@ -404,6 +410,7 @@ export function sellItem(category, item) {
         GameState.coins += sellPrices[category]?.[item] ?? 50;
         updateInventoryDisplay();
         updateCoinDisplay();
+        saveGameSession();
         showShopMenu(); // Refresh menu
         return true;
     }
@@ -441,6 +448,7 @@ export function checkSeedPickups() {
                 pickup.graphics.clear();
                 updateInventoryDisplay();
                 updateSeedIndicator();
+                saveGameSession();
             }
         }
     });
@@ -587,6 +595,7 @@ export function harvestFruit(tree) {
         tree.fruitTimer = fruitData[tree.treeType]?.regrowTime || 60000;
         drawFruitTree(tree);
         updateInventoryDisplay();
+        saveGameSession();
         return true;
     }
 }

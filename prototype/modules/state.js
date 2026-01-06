@@ -252,3 +252,83 @@ export function resetState() {
     GameState.otherPlayers = {};
     GameState.equippedTool = 'none';
 }
+
+// === GAME SESSION PERSISTENCE ===
+
+/**
+ * Save current game session to localStorage
+ * Called automatically when inventory changes
+ */
+export function saveGameSession() {
+    try {
+        const sessionData = {
+            inventory: {
+                seeds: { ...GameState.inventory.seeds },
+                crops: { ...GameState.inventory.crops },
+                fruits: { ...GameState.inventory.fruits },
+                fish: { ...GameState.inventory.fish },
+                crafted: { ...GameState.inventory.crafted },
+                resources: { ...GameState.inventory.resources }
+            },
+            coins: GameState.coins,
+            gameTime: GameState.gameTime,
+            playerName: GameState.playerName,
+            playerClass: GameState.playerClass,
+            customization: { ...GameState.customization },
+            savedAt: Date.now()
+        };
+        localStorage.setItem('711bf_session', JSON.stringify(sessionData));
+        console.log('[State] Game session saved');
+    } catch (e) {
+        console.warn('[State] Could not save game session:', e);
+    }
+}
+
+/**
+ * Load saved game session from localStorage
+ * Called on game startup
+ * @returns {boolean} True if session was loaded
+ */
+export function loadGameSession() {
+    try {
+        const saved = localStorage.getItem('711bf_session');
+        if (!saved) return false;
+
+        const sessionData = JSON.parse(saved);
+
+        // Restore inventory (with defaults for missing fields)
+        if (sessionData.inventory) {
+            GameState.inventory = {
+                tools: { hoe: 1, wateringCan: 1, fishingRod: 1, axe: 1, pickaxe: 1 },
+                seeds: sessionData.inventory.seeds || { carrot: 3, tomato: 3, flower: 3, lettuce: 2, onion: 2, potato: 2, pepper: 1, corn: 1, pumpkin: 1 },
+                crops: sessionData.inventory.crops || { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
+                fruits: sessionData.inventory.fruits || { apple: 0, orange: 0, peach: 0, cherry: 0 },
+                fish: sessionData.inventory.fish || { bass: 0, salmon: 0, goldfish: 0 },
+                crafted: sessionData.inventory.crafted || { salad: 0, bouquet: 0, fishStew: 0, magicPotion: 0 },
+                resources: sessionData.inventory.resources || { wood: 0, stone: 0, ore: 0, gem: 0 }
+            };
+        }
+
+        if (sessionData.coins !== undefined) {
+            GameState.coins = sessionData.coins;
+        }
+        if (sessionData.gameTime !== undefined) {
+            GameState.gameTime = sessionData.gameTime;
+        }
+        if (sessionData.playerName) {
+            GameState.playerName = sessionData.playerName;
+        }
+        if (sessionData.playerClass) {
+            GameState.playerClass = sessionData.playerClass;
+        }
+        if (sessionData.customization) {
+            GameState.customization = { ...sessionData.customization };
+        }
+
+        console.log('[State] Game session loaded from', new Date(sessionData.savedAt).toLocaleTimeString());
+        return true;
+    } catch (e) {
+        console.warn('[State] Could not load game session:', e);
+        return false;
+    }
+}

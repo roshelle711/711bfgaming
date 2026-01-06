@@ -7,7 +7,7 @@
 
 // === MODULE IMPORTS ===
 import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions } from './modules/config.js';
-import { GameState } from './modules/state.js';
+import { GameState, loadGameSession, saveGameSession } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations, petDoTrick, isNearPet } from './modules/player.js';
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree } from './modules/world.js';
@@ -53,6 +53,9 @@ function preload() {
 }
 
 function create() {
+    // Load saved game session (inventory, coins, etc.)
+    loadGameSession();
+
     const graphics = this.add.graphics();
 
     // === WORLD SETUP ===

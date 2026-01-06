@@ -18,7 +18,7 @@
  */
 
 import { classes, SERVER_URL } from './config.js';
-import { GameState } from './state.js';
+import { GameState, saveGameSession } from './state.js';
 import { lerp } from './utils.js';
 import { drawPlot, drawPlant, drawSeedPickup, drawLamppostLight, drawFruitTree } from './world.js';
 import { updateInventoryDisplay, updateSeedIndicator } from './ui.js';
@@ -150,6 +150,7 @@ export async function connectToServer() {
             if (message.harvestedBy === GameState.room.sessionId) {
                 GameState.inventory.crops[message.crop]++;
                 updateInventoryDisplay();
+                saveGameSession();
             }
         });
 
@@ -160,6 +161,7 @@ export async function connectToServer() {
                 GameState.inventory.seeds[message.seedType] += message.amount;
                 updateInventoryDisplay();
                 updateSeedIndicator();
+                saveGameSession();
             }
         });
 
@@ -169,6 +171,7 @@ export async function connectToServer() {
             if (message.harvestedBy === GameState.room.sessionId) {
                 GameState.inventory.fruits[message.fruitType]++;
                 updateInventoryDisplay();
+                saveGameSession();
             }
         });
 
