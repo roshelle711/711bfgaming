@@ -48,13 +48,13 @@ export const GameState = {
         { type: 'tool', item: 'hoe', count: 1 },
         { type: 'tool', item: 'wateringCan', count: 1 },
         { type: 'tool', item: 'fishingRod', count: 1 },
-        { type: 'empty', item: null, count: 0 },
-        { type: 'empty', item: null, count: 0 }
+        { type: 'tool', item: 'axe', count: 1 },
+        { type: 'tool', item: 'pickaxe', count: 1 }
     ],
     activeHotbarSlot: 0,  // Currently selected slot (0-4)
 
     // Equipped tool (derived from active hotbar slot)
-    equippedTool: 'hoe',   // 'none' | 'hoe' | 'wateringCan' | 'fishingRod'
+    equippedTool: 'hoe',   // 'none' | 'hoe' | 'wateringCan' | 'fishingRod' | 'axe' | 'pickaxe'
     isWatering: false,     // True during watering animation
     isHoeing: false,       // True during hoeing animation
     isPlanting: false,     // True during planting animation

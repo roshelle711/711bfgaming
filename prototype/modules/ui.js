@@ -413,7 +413,7 @@ export function updateHotbarDisplay() {
 
     const emojis = {
         // Tools
-        hoe: '🔨', wateringCan: '💧', fishingRod: '🎣',
+        hoe: '🔨', wateringCan: '💧', fishingRod: '🎣', axe: '🪓', pickaxe: '⛏️',
         // Seeds
         carrot: '🥕', tomato: '🍅', flower: '🌸',
         lettuce: '🥬', onion: '🧅', potato: '🥔',

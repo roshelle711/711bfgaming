@@ -83,11 +83,12 @@ export function showFloatingText(scene, x, y, text, color = '#FFD700') {
  * @returns {boolean}
  */
 export function hasRequiredTool(nodeType) {
-    const tools = GameState.inventory.tools;
+    // Check if the correct tool is EQUIPPED (selected in hotbar)
+    const equipped = GameState.equippedTool;
     if (nodeType === 'tree') {
-        return (tools.axe || 0) >= 1;
+        return equipped === 'axe';
     } else if (nodeType === 'rock') {
-        return (tools.pickaxe || 0) >= 1;
+        return equipped === 'pickaxe';
     }
     return true; // Unknown node types don't require tools
 }
@@ -98,8 +99,8 @@ export function hasRequiredTool(nodeType) {
  * @returns {string}
  */
 function getRequiredToolName(nodeType) {
-    if (nodeType === 'tree') return 'Axe 🪓';
-    if (nodeType === 'rock') return 'Pickaxe ⛏️';
+    if (nodeType === 'tree') return 'Equip Axe 🪓';
+    if (nodeType === 'rock') return 'Equip Pickaxe ⛏️';
     return 'Tool';
 }
 
