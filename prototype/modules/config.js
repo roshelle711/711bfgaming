@@ -168,11 +168,11 @@ export const cookingStations = {
     }
 };
 
-// Cooking station positions (in COMMERCIAL zone)
+// Cooking station positions (in COMMERCIAL zone, below General Store)
 export const cookingStationPositions = [
-    { x: 1050, y: 180, type: 'campfire' },
-    { x: 1150, y: 180, type: 'stove' },
-    { x: 1250, y: 180, type: 'oven' }
+    { x: 1050, y: 320, type: 'campfire' },
+    { x: 1150, y: 320, type: 'stove' },
+    { x: 1250, y: 320, type: 'oven' }
 ];
 
 // Crafting recipes - now with station requirements
