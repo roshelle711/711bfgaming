@@ -1097,8 +1097,8 @@ function handleInput(scene) {
         } else if (GameState.inventoryOpen) {
             toggleInventory();
             return;
-        } else if (Phaser.Input.Keyboard.JustDown(GameState.escapeKey)) {
-            // No menus open - show pause menu
+        } else if (escapeJustDown) {
+            // No menus open - show pause menu (use cached escapeJustDown, not JustDown again)
             showPauseMenu(() => {
                 // Change Character callback - restart character creation
                 GameState.scene.scene.restart();

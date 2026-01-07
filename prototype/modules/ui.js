@@ -1061,8 +1061,8 @@ export function showPauseMenu(onChangeCharacter) {
     GameState.pauseMenuUI.push(overlay);
 
     // Menu panel (expanded for settings + weather)
-    const panelHeight = isCustom ? 580 : 500;
-    const panel = scene.add.rectangle(centerX, centerY, 400, panelHeight, 0x1a1a2e, 0.95)
+    const panelHeight = isCustom ? 620 : 520;
+    const panel = scene.add.rectangle(centerX, centerY, 450, panelHeight, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.MODAL + 1);
     GameState.pauseMenuUI.push(panel);
 
@@ -1273,8 +1273,8 @@ export function showPauseMenu(onChangeCharacter) {
         btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
-    // Hotkey hint
-    const hotkeyHint = scene.add.text(centerX, weatherY + 80, 'Ctrl+Alt+S (snow) | Ctrl+Alt+R (rain) | Ctrl+Alt+M (monsoon) | Ctrl+Alt+N (none)', {
+    // Hotkey hint (two lines for readability)
+    const hotkeyHint = scene.add.text(centerX, weatherY + 80, 'Hotkeys: Ctrl+Alt + S/R/M/N (snow/rain/monsoon/none)', {
         fontSize: '9px', fill: '#666'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(hotkeyHint);
