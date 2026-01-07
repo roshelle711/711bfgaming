@@ -37,6 +37,8 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).parent.parent
 SERVER_PATH = PROJECT_ROOT / "server"
 CLIENT_PATH = PROJECT_ROOT / "prototype"
+TRAEFIK_PATH = PROJECT_ROOT / "infrastructure" / "traefik"
+TRAEFIK_EXE = TRAEFIK_PATH / "traefik.exe"
 UV_PATH = Path.home() / ".local" / "bin" / "uv.exe"
 
 class ServerManager:
@@ -45,6 +47,7 @@ class ServerManager:
         self.http_process = None
         self.traefik_process = None
         self.running = False
+        self.traefik_enabled = True  # Start with Traefik by default
         self.icon = None
 
     def notify(self, title, message, success=True):
@@ -106,7 +109,7 @@ class ServerManager:
         else:
             return "stopped", "red"
 
-    def kill_existing_processes(self):
+    def kill_existing_processes(self, include_traefik=True):
         """Kill any existing server processes."""
         try:
             # Kill node processes (Colyseus)
@@ -119,6 +122,12 @@ class ServerManager:
                 ["powershell", "-Command", "Get-Process python -ErrorAction SilentlyContinue | Where-Object {$_.CommandLine -like '*http.server*'} | Stop-Process -Force"],
                 capture_output=True
             )
+            # Kill Traefik
+            if include_traefik:
+                subprocess.run(
+                    ["powershell", "-Command", "Get-Process traefik -ErrorAction SilentlyContinue | Stop-Process -Force"],
+                    capture_output=True
+                )
             time.sleep(1)
         except Exception as e:
             print(f"Error killing processes: {e}")
@@ -160,9 +169,23 @@ class ServerManager:
                 )
 
             time.sleep(1)
+
+            # Start Traefik if enabled and available
+            if self.traefik_enabled and TRAEFIK_EXE.exists():
+                self.traefik_process = subprocess.Popen(
+                    [str(TRAEFIK_EXE), "--configFile=traefik.yml"],
+                    cwd=str(TRAEFIK_PATH),
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                time.sleep(1)
+
             self.running = True
             self.update_icon("green")
-            self.notify("Servers Started", "Game client: http://localhost:3000\nColyseus: ws://localhost:2567")
+
+            if self.traefik_enabled and TRAEFIK_EXE.exists():
+                self.notify("Servers Started", "HTTPS: https://game.711bf.org\nLocal: http://localhost:3000")
+            else:
+                self.notify("Servers Started", "Game client: http://localhost:3000\nColyseus: ws://localhost:2567")
 
         except Exception as e:
             self.update_icon("red")
@@ -185,6 +208,10 @@ class ServerManager:
             if self.http_process:
                 self.http_process.terminate()
                 self.http_process = None
+
+            if self.traefik_process:
+                self.traefik_process.terminate()
+                self.traefik_process = None
 
             # Also kill any orphaned processes
             self.kill_existing_processes()
@@ -213,15 +240,34 @@ class ServerManager:
         import webbrowser
         webbrowser.open("http://localhost:2568/colyseus")
 
+    def open_traefik_dashboard(self, _=None):
+        """Open Traefik dashboard in browser."""
+        import webbrowser
+        webbrowser.open("http://localhost:8080/dashboard/")
+
+    def toggle_traefik(self, _=None):
+        """Toggle Traefik on/off."""
+        self.traefik_enabled = not self.traefik_enabled
+        status = "enabled" if self.traefik_enabled else "disabled"
+        self.notify("Traefik Toggle", f"Traefik is now {status}. Restart servers to apply.")
+
     def show_status(self, _=None):
         """Show current status notification."""
         status, _ = self.get_status()
-        status_messages = {
-            "running": "All servers running\n- Game: http://localhost:3000\n- WS: ws://localhost:2567",
-            "partial": "Some servers running - consider restarting",
-            "stopped": "All servers stopped"
-        }
-        self.notify("Server Status", status_messages.get(status, "Unknown"))
+        traefik_running = self.is_process_running(self.traefik_process)
+        traefik_status = "running" if traefik_running else "stopped"
+
+        if status == "running":
+            if traefik_running:
+                msg = "All servers running\n- HTTPS: https://game.711bf.org\n- WSS: wss://ws.game.711bf.org"
+            else:
+                msg = "Servers running (no Traefik)\n- Game: http://localhost:3000\n- WS: ws://localhost:2567"
+        elif status == "partial":
+            msg = f"Some servers running - consider restarting\nTraefik: {traefik_status}"
+        else:
+            msg = "All servers stopped"
+
+        self.notify("Server Status", msg)
 
     def quit_app(self, _=None):
         """Quit the tray app."""
@@ -237,12 +283,21 @@ class ServerManager:
             item('Stop Servers', self.stop_servers),
             item('Restart Servers', self.restart_servers),
             pystray.Menu.SEPARATOR,
-            item('Open Game', self.open_game),
-            item('Open Monitor', self.open_monitor),
+            item('Open Game (HTTPS)', lambda _: self.open_https_game()),
+            item('Open Game (Local)', self.open_game),
+            item('Open Colyseus Monitor', self.open_monitor),
+            item('Open Traefik Dashboard', self.open_traefik_dashboard),
+            pystray.Menu.SEPARATOR,
+            item('Traefik Enabled', self.toggle_traefik, checked=lambda _: self.traefik_enabled),
             item('Show Status', self.show_status),
             pystray.Menu.SEPARATOR,
             item('Quit', self.quit_app)
         )
+
+    def open_https_game(self):
+        """Open the game via HTTPS in browser."""
+        import webbrowser
+        webbrowser.open("https://game.711bf.org")
 
     def run(self):
         """Run the tray application."""
