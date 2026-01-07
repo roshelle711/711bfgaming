@@ -818,6 +818,15 @@ function update(time, delta) {
  * Uses mouse position to select plot within player reach
  */
 function useActiveItem(scene) {
+    // Immediately stop player movement on any interaction
+    if (GameState.player && GameState.player.body) {
+        GameState.player.body.velocity.x = 0;
+        GameState.player.body.velocity.y = 0;
+        GameState.targetVelocity.x = 0;
+        GameState.targetVelocity.y = 0;
+        GameState.currentSpeed = 0;
+    }
+
     const tool = GameState.equippedTool;
     // Use mouse-based selection for plots
     const targetPlot = findPlotUnderMouse(100);
