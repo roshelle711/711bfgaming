@@ -521,12 +521,12 @@ export function createNPCs(scene) {
     GameState.interactables.push(GameState.npc);
 
     // Finn - shopkeeper with apron (left of General Store door at 1150, 150)
-    GameState.shopkeeper = createWhimsicalCharacter(scene, 1100, 230, 'priest', true, {
+    GameState.shopkeeper = createWhimsicalCharacter(scene, 1090, 195, 'priest', true, {
         body: 0x27AE60, accent: 0x2ECC71, skin: 0xC68642, hair: 0x1E8449, accessory: 'apron'
     });
     GameState.shopkeeper.body.setImmovable(true);
     // Set depth based on foot Y position (y + 25 for ~50px character)
-    GameState.shopkeeper.setDepth(getWorldDepth(230 + 25));
+    GameState.shopkeeper.setDepth(getWorldDepth(195 + 25));
 
     // Add nameplate to Finn's container
     const finnName = scene.add.text(0, -60, 'Finn 🛒', {

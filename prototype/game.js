@@ -820,6 +820,12 @@ function update(time, delta) {
     // === INPUT HANDLING ===
     handleInput(this);
 
+    // === DEBUG GRID ===
+    if (GameState.mouseCoordTracker) {
+        const worldPoint = this.input.activePointer.positionToCamera(this.cameras.main);
+        GameState.mouseCoordTracker.setText(`Mouse: ${Math.round(worldPoint.x)}, ${Math.round(worldPoint.y)}`);
+    }
+
     // === PROXIMITY PROMPTS ===
     updateProximityPrompts();
 }
@@ -1080,6 +1086,12 @@ function handleInput(scene) {
         }
     }
 
+    // Coordinate grid toggle (Ctrl+G)
+    if (ctrlKey.isDown && Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('G'))) {
+        toggleCoordinateGrid(scene);
+        return;
+    }
+
     // Debug: Log EVERY E key press to verify input is working
     if (interactJustDown) {
         console.log('[INPUT] E pressed! Dialog:', GameState.isDialogOpen, '| Inventory:', GameState.inventoryOpen, '| Pause:', GameState.pauseMenuOpen);
@@ -1300,6 +1312,64 @@ function toggleTreeDebugOverlays(scene) {
         GameState.debugOverlays = [];
         console.log('[Debug] Tree overlays hidden.');
     }
+}
+
+/**
+ * Toggle coordinate grid overlay for positioning help
+ */
+function toggleCoordinateGrid(scene) {
+    if (!GameState.coordGridElements) {
+        GameState.coordGridElements = [];
+    }
+
+    if (GameState.coordGridElements.length > 0) {
+        // Hide grid
+        GameState.coordGridElements.forEach(el => el.destroy());
+        GameState.coordGridElements = [];
+        showDialog('📐 Grid OFF');
+        return;
+    }
+
+    // Show grid - world coordinates with grid lines
+    const gridSize = 100; // Grid spacing
+    const worldWidth = 1600;
+    const worldHeight = 1200;
+    const gridGraphics = scene.add.graphics().setDepth(DEPTH_LAYERS.UI_HUD + 50);
+
+    // Draw vertical and horizontal lines
+    gridGraphics.lineStyle(1, 0xFFFFFF, 0.3);
+    for (let x = 0; x <= worldWidth; x += gridSize) {
+        gridGraphics.lineBetween(x, 0, x, worldHeight);
+    }
+    for (let y = 0; y <= worldHeight; y += gridSize) {
+        gridGraphics.lineBetween(0, y, worldWidth, y);
+    }
+    GameState.coordGridElements.push(gridGraphics);
+
+    // Add coordinate labels at intersections
+    for (let x = 0; x <= worldWidth; x += gridSize) {
+        for (let y = 0; y <= worldHeight; y += gridSize) {
+            const label = scene.add.text(x + 2, y + 2, `${x},${y}`, {
+                fontSize: '10px',
+                fill: '#FFFF00',
+                backgroundColor: '#000000AA',
+                padding: { x: 2, y: 1 }
+            }).setDepth(DEPTH_LAYERS.UI_HUD + 51);
+            GameState.coordGridElements.push(label);
+        }
+    }
+
+    // Add mouse position tracker (UI element that follows mouse)
+    const mouseTracker = scene.add.text(10, 70, 'Mouse: 0, 0', {
+        fontSize: '12px',
+        fill: '#00FFFF',
+        backgroundColor: '#000000CC',
+        padding: { x: 4, y: 2 }
+    }).setScrollFactor(0).setDepth(DEPTH_LAYERS.UI_HUD + 52);
+    GameState.coordGridElements.push(mouseTracker);
+    GameState.mouseCoordTracker = mouseTracker;
+
+    showDialog('📐 Grid ON (Ctrl+G to hide)');
 }
 
 /**
