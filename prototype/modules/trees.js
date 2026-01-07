@@ -107,8 +107,8 @@ export function createTree(scene, type, x, y, initialStage = 'mature') {
         lastFruitHarvest: 0
     };
 
-    // Set depth based on foot Y position (trunk base at y + 20)
-    tree.graphics.setDepth(getWorldDepth(y + 20));
+    // Set depth based on foot Y position (trunk bottom is at y in drawMatureTree)
+    tree.graphics.setDepth(getWorldDepth(y));
 
     drawTree(tree);
     return tree;

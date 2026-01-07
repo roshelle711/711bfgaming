@@ -237,8 +237,9 @@ function create() {
     trees.forEach(t => {
         // Each tree gets its own graphics object for depth control
         const treeGfx = this.add.graphics();
-        // Foreground trees have depth 900+ (above player), background trees use world depth formula
-        const treeDepth = t.foreground ? DEPTH_LAYERS.FOREGROUND_TREES + t.y : getWorldDepth(t.y + t.s);
+        // Foreground trees have depth 900+ (above player), background trees use foot position
+        // Trunk is drawn from (t.y + t.s - 10) to (t.y + t.s + 22), so trunk bottom is at t.y + t.s + 22
+        const treeDepth = t.foreground ? DEPTH_LAYERS.FOREGROUND_TREES + t.y : getWorldDepth(t.y + t.s + 22);
         treeGfx.setDepth(treeDepth);
 
         // Ground shadow (ellipse beneath tree)

@@ -528,13 +528,13 @@ export const craftingStations = {
         description: 'Bake bread, pastries, and casseroles'
     },
     alchemy_table: {
-        name: 'Alchemy Table',
+        name: 'Alchemy',
         emoji: '⚗️',
         color: 0x6B4E9E,
         description: 'Brew potions and elixirs'
     },
     tailor_bench: {
-        name: 'Tailor Bench',
+        name: 'Tailor',
         emoji: '🧵',
         color: 0xDEB887,
         description: 'Craft outfits and dye clothing'
