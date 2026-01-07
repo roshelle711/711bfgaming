@@ -455,11 +455,14 @@ function getValidWanderTarget(playerX, playerY) {
  * @returns {Object|null} - { type: 'weed'|'grass'|'herb', target: object } or null
  */
 function findCollectible() {
-    // Check for weeds in farm plots
+    // Check for weeds and bugs in farm plots
     if (GameState.farmPlots) {
         for (const plot of GameState.farmPlots) {
             if (plot.hazard === 'weeds') {
                 return { type: 'weed', target: plot };
+            }
+            if (plot.hazard === 'bugs') {
+                return { type: 'bugs', target: plot };
             }
         }
     }
@@ -595,6 +598,8 @@ export function updatePetFollow(delta = 16) {
             if (pet.collectTarget) {
                 if (pet.collectType === 'weed' && pet.collectTarget.hazard === 'weeds') {
                     removeHazard(pet.collectTarget);
+                } else if (pet.collectType === 'bugs' && pet.collectTarget.hazard === 'bugs') {
+                    removeHazard(pet.collectTarget);
                 } else if (pet.collectType === 'grass' || pet.collectType === 'herb') {
                     petCollectPickup(pet.collectTarget, pet.collectType);
                 }
@@ -659,9 +664,9 @@ export function updatePetFollow(delta = 16) {
         if (pet.wanderTimer <= 0 && !pet.collectTarget) {
             pet.wanderTimer = 3000 + Math.random() * 4000;
 
-            // 25% chance to look for something to collect (if not on cooldown)
+            // 50% chance to look for something to collect (if not on cooldown)
             if (!pet.collectCooldown || pet.collectCooldown <= 0) {
-                if (Math.random() < 0.25) {
+                if (Math.random() < 0.5) {
                     const collectible = findCollectible();
                     if (collectible) {
                         pet.collectTarget = collectible.target;
