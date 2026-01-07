@@ -1060,49 +1060,68 @@ export function showPauseMenu(onChangeCharacter) {
     const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(DEPTH_LAYERS.MODAL);
     GameState.pauseMenuUI.push(overlay);
 
-    // Menu panel (expanded for settings + weather)
-    const panelHeight = isCustom ? 620 : 520;
-    const panel = scene.add.rectangle(centerX, centerY, 450, panelHeight, 0x1a1a2e, 0.95)
+    // Menu panel - larger to fit content
+    const panelWidth = 520;
+    const panelHeight = isCustom ? 700 : 580;
+    const panel = scene.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.MODAL + 1);
     GameState.pauseMenuUI.push(panel);
 
+    const panelTop = centerY - panelHeight/2;
+    let currentY = panelTop + 35;
+
     // Title
-    const title = scene.add.text(centerX, centerY - panelHeight/2 + 30, '⏸ PAUSED', {
+    const title = scene.add.text(centerX, currentY, '⏸ PAUSED', {
         fontSize: '28px', fill: '#FFD700', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(title);
+    currentY += 50;
 
     // === GAME PACE PRESETS ===
-    const presetLabel = scene.add.text(centerX, centerY - panelHeight/2 + 70, '⏱️ Game Pace', {
+    const presetLabel = scene.add.text(centerX, currentY, '⏱️ Game Pace', {
         fontSize: '14px', fill: '#90EE90', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(presetLabel);
+    currentY += 30;
 
-    // Preset buttons in 2x2 grid
+    // Preset descriptions for multi-line display
+    const presetDescs = {
+        quickTest: ['Fast days', '1-day seasons'],
+        balanced: ['Normal pace', '7-day seasons'],
+        immersive: ['Slow days', '14-day seasons'],
+        custom: ['Your settings', 'below']
+    };
+
+    // Preset buttons in 2x2 grid with larger buttons
     const presetKeys = ['quickTest', 'balanced', 'immersive', 'custom'];
-    const presetY = centerY - panelHeight/2 + 105;
+    const btnWidth = 220;
+    const btnHeight = 55;
+    const gridGapX = 20;
+    const gridGapY = 15;
 
     presetKeys.forEach((key, i) => {
         const preset = GAME_PRESETS[key];
         const col = i % 2;
         const row = Math.floor(i / 2);
-        const btnX = centerX - 90 + col * 180;
-        const btnY = presetY + row * 50;
+        const btnX = centerX - (btnWidth + gridGapX) / 2 + col * (btnWidth + gridGapX);
+        const btnY = currentY + row * (btnHeight + gridGapY) + btnHeight / 2;
         const isSelected = currentPreset === key;
 
-        const btn = scene.add.rectangle(btnX, btnY, 165, 40,
+        const btn = scene.add.rectangle(btnX, btnY, btnWidth, btnHeight,
             isSelected ? 0x27AE60 : 0x34495E, 0.9)
             .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
             .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
         GameState.pauseMenuUI.push(btn);
 
-        const btnText = scene.add.text(btnX, btnY - 5, preset.label, {
-            fontSize: '13px', fill: isSelected ? '#fff' : '#ccc', fontStyle: 'bold'
+        const btnText = scene.add.text(btnX, btnY - 12, preset.label, {
+            fontSize: '14px', fill: isSelected ? '#fff' : '#ccc', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(btnText);
 
-        const descText = scene.add.text(btnX, btnY + 10, preset.desc, {
-            fontSize: '9px', fill: isSelected ? '#90EE90' : '#888'
+        // Two-line description
+        const desc = presetDescs[key];
+        const descText = scene.add.text(btnX, btnY + 8, desc.join('\n'), {
+            fontSize: '10px', fill: isSelected ? '#90EE90' : '#888', align: 'center'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(descText);
 
@@ -1115,36 +1134,38 @@ export function showPauseMenu(onChangeCharacter) {
         btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
-    // === CUSTOM SETTINGS (only shown when Custom is selected) ===
-    let customY = presetY + 115;
+    currentY += (btnHeight + gridGapY) * 2 + 20;
 
+    // === CUSTOM SETTINGS (only shown when Custom is selected) ===
     if (isCustom) {
         // Day Length setting
-        const dayLabel = scene.add.text(centerX, customY, '☀️ Day Length', {
-            fontSize: '12px', fill: '#FFD700', fontStyle: 'bold'
+        const dayLabel = scene.add.text(centerX, currentY, '☀️ Day Length', {
+            fontSize: '13px', fill: '#FFD700', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(dayLabel);
+        currentY += 28;
 
         const timeSpeedKeys = ['relaxed', 'normal', 'fast', 'hyper'];
+        const timeDescriptions = ['10 min', '5 min', '2 min', '30 sec'];
         const currentTimeSpeed = GameState.settings?.timeSpeedKey || 'normal';
 
         timeSpeedKeys.forEach((key, i) => {
             const opt = TIME_SPEED_OPTIONS[key];
-            const btnX = centerX - 135 + i * 90;
+            const btnX = centerX - 180 + i * 95;
             const isSelected = currentTimeSpeed === key;
 
-            const btn = scene.add.rectangle(btnX, customY + 30, 80, 35,
+            const btn = scene.add.rectangle(btnX, currentY + 18, 85, 40,
                 isSelected ? 0x3498DB : 0x34495E, 0.9)
                 .setStrokeStyle(2, isSelected ? 0x5DADE2 : 0x4A5568)
                 .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
             GameState.pauseMenuUI.push(btn);
 
-            const btnText = scene.add.text(btnX, customY + 25, opt.label, {
+            const btnText = scene.add.text(btnX, currentY + 12, opt.label, {
                 fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
             }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
             GameState.pauseMenuUI.push(btnText);
 
-            const descText = scene.add.text(btnX, customY + 38, opt.desc, {
+            const descText = scene.add.text(btnX, currentY + 26, timeDescriptions[i], {
                 fontSize: '9px', fill: isSelected ? '#87CEEB' : '#666'
             }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
             GameState.pauseMenuUI.push(descText);
@@ -1160,28 +1181,29 @@ export function showPauseMenu(onChangeCharacter) {
             btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
         });
 
-        customY += 75;
+        currentY += 55;
 
         // Season Length setting
-        const seasonLabel = scene.add.text(centerX, customY, '🌸 Season Length', {
-            fontSize: '12px', fill: '#90EE90', fontStyle: 'bold'
+        const seasonLabel = scene.add.text(centerX, currentY, '🌸 Season Length', {
+            fontSize: '13px', fill: '#90EE90', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(seasonLabel);
+        currentY += 28;
 
         const seasonLabels = ['1 day', '7 days', '14 days', '30 days'];
         const currentSeason = GameState.settings?.seasonLength || 7;
 
         SEASON_OPTIONS.forEach((days, i) => {
-            const btnX = centerX - 135 + i * 90;
+            const btnX = centerX - 180 + i * 95;
             const isSelected = currentSeason === days;
 
-            const btn = scene.add.rectangle(btnX, customY + 28, 80, 30,
+            const btn = scene.add.rectangle(btnX, currentY + 15, 85, 32,
                 isSelected ? 0x27AE60 : 0x34495E, 0.9)
                 .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
                 .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
             GameState.pauseMenuUI.push(btn);
 
-            const btnText = scene.add.text(btnX, customY + 28, seasonLabels[i], {
+            const btnText = scene.add.text(btnX, currentY + 15, seasonLabels[i], {
                 fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
             }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
             GameState.pauseMenuUI.push(btnText);
@@ -1196,16 +1218,15 @@ export function showPauseMenu(onChangeCharacter) {
             btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
         });
 
-        customY += 55;
+        currentY += 50;
     }
 
-    // === WEATHER SETTINGS (always shown) ===
-    let weatherY = isCustom ? customY : presetY + 115;
-
-    const weatherLabel = scene.add.text(centerX, weatherY, '🌦️ Weather', {
-        fontSize: '12px', fill: '#87CEEB', fontStyle: 'bold'
+    // === WEATHER SETTINGS ===
+    const weatherLabel = scene.add.text(centerX, currentY, '🌦️ Weather', {
+        fontSize: '13px', fill: '#87CEEB', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(weatherLabel);
+    currentY += 28;
 
     // Weather preset row
     const weatherPresetKeys = ['auto', 'frequent', 'rare', 'off'];
@@ -1213,23 +1234,23 @@ export function showPauseMenu(onChangeCharacter) {
 
     weatherPresetKeys.forEach((key, i) => {
         const opt = WEATHER_PRESETS[key];
-        const btnX = centerX - 135 + i * 90;
+        const btnX = centerX - 180 + i * 95;
         const isSelected = currentWeatherPreset === key;
 
-        const btn = scene.add.rectangle(btnX, weatherY + 25, 80, 28,
+        const btn = scene.add.rectangle(btnX, currentY + 15, 85, 32,
             isSelected ? 0x3498DB : 0x34495E, 0.9)
             .setStrokeStyle(2, isSelected ? 0x5DADE2 : 0x4A5568)
             .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
         GameState.pauseMenuUI.push(btn);
 
-        const btnText = scene.add.text(btnX, weatherY + 25, opt.label, {
-            fontSize: '10px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
+        const btnText = scene.add.text(btnX, currentY + 15, opt.label, {
+            fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(btnText);
 
         btn.on('pointerdown', () => {
             GameState.settings.weatherPreset = key;
-            GameState.settings.manualWeather = null; // Reset manual override
+            GameState.settings.manualWeather = null;
             saveGameSession();
             closePauseMenu();
             showPauseMenu(onChangeCharacter);
@@ -1238,9 +1259,11 @@ export function showPauseMenu(onChangeCharacter) {
         btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
+    currentY += 45;
+
     // Weather intensity row
-    const intensityLabel = scene.add.text(centerX - 140, weatherY + 55, 'Intensity:', {
-        fontSize: '10px', fill: '#888'
+    const intensityLabel = scene.add.text(centerX - 190, currentY, 'Intensity:', {
+        fontSize: '11px', fill: '#888'
     }).setOrigin(0, 0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(intensityLabel);
 
@@ -1249,17 +1272,17 @@ export function showPauseMenu(onChangeCharacter) {
 
     intensityKeys.forEach((key, i) => {
         const opt = WEATHER_INTENSITY_OPTIONS[key];
-        const btnX = centerX - 40 + i * 70;
+        const btnX = centerX - 70 + i * 80;
         const isSelected = currentIntensity === key;
 
-        const btn = scene.add.rectangle(btnX, weatherY + 55, 60, 22,
+        const btn = scene.add.rectangle(btnX, currentY, 70, 26,
             isSelected ? 0x27AE60 : 0x34495E, 0.9)
             .setStrokeStyle(1, isSelected ? 0x2ECC71 : 0x4A5568)
             .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
         GameState.pauseMenuUI.push(btn);
 
-        const btnText = scene.add.text(btnX, weatherY + 55, opt.label, {
-            fontSize: '9px', fill: isSelected ? '#fff' : '#aaa'
+        const btnText = scene.add.text(btnX, currentY, opt.label, {
+            fontSize: '10px', fill: isSelected ? '#fff' : '#aaa'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(btnText);
 
@@ -1273,23 +1296,32 @@ export function showPauseMenu(onChangeCharacter) {
         btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
-    // Hotkey hint (two lines for readability)
-    const hotkeyHint = scene.add.text(centerX, weatherY + 80, 'Hotkeys: Ctrl+Alt + S/R/M/N (snow/rain/monsoon/none)', {
-        fontSize: '9px', fill: '#666'
-    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
-    GameState.pauseMenuUI.push(hotkeyHint);
+    currentY += 35;
 
-    weatherY += 100;
+    // === HOTKEYS SECTION ===
+    const hotkeyBox = scene.add.rectangle(centerX, currentY + 25, panelWidth - 40, 55, 0x2a2a4e, 0.8)
+        .setStrokeStyle(1, 0x4A5568).setDepth(DEPTH_LAYERS.MODAL + 1);
+    GameState.pauseMenuUI.push(hotkeyBox);
+
+    const hotkeyTitle = scene.add.text(centerX, currentY + 12, '⌨️ Weather Hotkeys', {
+        fontSize: '10px', fill: '#87CEEB', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+    GameState.pauseMenuUI.push(hotkeyTitle);
+
+    const hotkeyText = scene.add.text(centerX, currentY + 32, 'Ctrl+Alt+S = Snow   |   Ctrl+Alt+R = Rain\nCtrl+Alt+M = Monsoon   |   Ctrl+Alt+N = Clear', {
+        fontSize: '9px', fill: '#888', align: 'center'
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+    GameState.pauseMenuUI.push(hotkeyText);
+
+    currentY += 70;
 
     // === ACTION BUTTONS ===
-    const btnY = weatherY;
-
     // Continue button
-    const continueBtn = scene.add.rectangle(centerX, btnY, 220, 45, 0x27AE60, 0.9)
+    const continueBtn = scene.add.rectangle(centerX, currentY, 260, 48, 0x27AE60, 0.9)
         .setStrokeStyle(3, 0x2ECC71).setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
     GameState.pauseMenuUI.push(continueBtn);
-    const continueText = scene.add.text(centerX, btnY, '▶ Continue', {
-        fontSize: '16px', fill: '#fff', fontStyle: 'bold'
+    const continueText = scene.add.text(centerX, currentY, '▶ Continue', {
+        fontSize: '18px', fill: '#fff', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(continueText);
 
@@ -1297,12 +1329,14 @@ export function showPauseMenu(onChangeCharacter) {
     continueBtn.on('pointerover', () => continueBtn.setFillStyle(0x2ECC71, 1));
     continueBtn.on('pointerout', () => continueBtn.setFillStyle(0x27AE60, 0.9));
 
+    currentY += 58;
+
     // Change Character button
-    const changeBtn = scene.add.rectangle(centerX, btnY + 55, 220, 45, 0xE67E22, 0.9)
+    const changeBtn = scene.add.rectangle(centerX, currentY, 260, 48, 0xE67E22, 0.9)
         .setStrokeStyle(3, 0xF39C12).setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
     GameState.pauseMenuUI.push(changeBtn);
-    const changeText = scene.add.text(centerX, btnY + 55, '👤 Change Character', {
-        fontSize: '14px', fill: '#fff', fontStyle: 'bold'
+    const changeText = scene.add.text(centerX, currentY, '👤 Change Character', {
+        fontSize: '15px', fill: '#fff', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(changeText);
 
@@ -1313,9 +1347,11 @@ export function showPauseMenu(onChangeCharacter) {
     changeBtn.on('pointerover', () => changeBtn.setFillStyle(0xF39C12, 1));
     changeBtn.on('pointerout', () => changeBtn.setFillStyle(0xE67E22, 0.9));
 
+    currentY += 40;
+
     // Hint text
-    const hint = scene.add.text(centerX, btnY + 100, '[ ESC to close ]', {
-        fontSize: '12px', fill: '#666'
+    const hint = scene.add.text(centerX, currentY, '[ ESC to close ]', {
+        fontSize: '11px', fill: '#666'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(hint);
 }
