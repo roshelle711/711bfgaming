@@ -562,7 +562,7 @@ function create() {
     // === WEATHER SYSTEM ===
     GameState.weather = {
         particles: [],
-        graphics: this.add.graphics().setDepth(DEPTH_LAYERS.WEATHER),
+        graphics: this.add.graphics().setDepth(DEPTH_LAYERS.WEATHER).setScrollFactor(0),
         type: 'none',        // 'none' | 'snow' | 'rain'
         intensity: 0,        // 0-1, controls particle count
         showerTimer: 0,      // For intermittent spring showers
