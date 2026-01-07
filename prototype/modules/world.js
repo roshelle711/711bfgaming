@@ -686,9 +686,11 @@ export function createFruitTree(scene, x, y, treeType, index = 0) {
         graphics: scene.add.graphics(),
         needsRedraw: false
     };
-    // Set depth based on foot Y position (trunk base at y + 30)
-    tree.graphics.setDepth(getWorldDepth(y + 30));
     drawFruitTree(tree);
+    // Set depth AFTER drawing - based on foot Y position (trunk base at y + 30)
+    const depth = getWorldDepth(y + 30);
+    tree.graphics.setDepth(depth);
+    console.log(`[FruitTree] ${treeType} at Y=${y}, depth=${depth}`);
     return tree;
 }
 
@@ -795,12 +797,12 @@ export function createCookingStation(scene, x, y, stationType, index = 0) {
     // Draw the station
     drawCookingStation(station);
 
-    // Add floating label above station
+    // Add floating label above station (with background like other labels)
     station.label = scene.add.text(x, y - 50, `${config.emoji} ${config.name}`, {
         fontSize: '12px',
         fill: '#FFFFFF',
-        stroke: '#000000',
-        strokeThickness: 2
+        backgroundColor: '#00000080',
+        padding: { x: 4, y: 2 }
     }).setOrigin(0.5).setDepth(getWorldDepth(y + 15, 1));
 
     return station;

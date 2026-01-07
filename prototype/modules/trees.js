@@ -19,7 +19,7 @@ import {
     TREE_STAGE_THRESHOLDS, FALLEN_WOOD_MULTIPLIER,
     YOUNG_YIELD_MULTIPLIER, OLD_FRUIT_MULTIPLIER,
     DEFAULT_SEASON_LENGTH, SEASONS, GAME_DAY_MINUTES,
-    getWorldDepth
+    DEPTH_LAYERS, getWorldDepth
 } from './config.js';
 
 // === SEASON SYSTEM ===
@@ -103,14 +103,21 @@ export function createTree(scene, type, x, y, initialStage = 'mature') {
         hasHive: false,
         hiveHoney: 0,
         graphics: scene.add.graphics(),
-        fruitReady: initialStage === 'mature' || initialStage === 'old',
-        lastFruitHarvest: 0
+        fruitReady: initialStage === 'young' || initialStage === 'mature' || initialStage === 'old',
+        lastFruitHarvest: 0,
+        blossoming: false,        // Quick blossom phase before fruit
+        blossomStartDay: 0,       // Game day when blossoms started
+        blossomStartTime: 0       // Game time (minutes) when blossoms started
     };
 
-    // Set depth based on foot Y position (trunk bottom is at y in drawMatureTree)
-    tree.graphics.setDepth(getWorldDepth(y));
-
     drawTree(tree);
+
+    // Set depth AFTER drawing - higher Y = higher depth = renders in front
+    // Use trunk base (y + 30 for mature trees) as foot position for depth sorting
+    const depth = getWorldDepth(y + 30);
+    tree.graphics.setDepth(depth);
+    console.log(`[Tree] ${type} at Y=${y}, depth=${depth}`);
+
     return tree;
 }
 
@@ -126,6 +133,9 @@ export function initializeTrees(scene) {
             GameState.trees.push(tree);
         }
     });
+
+    // Force display list to sort by depth
+    scene.children.sort('depth');
 
     console.log(`[Trees] Initialized ${GameState.trees.length} trees`);
 }
@@ -153,18 +163,6 @@ export function updateTreeLifecycle() {
             drawTree(tree);
         }
 
-        // Fruit regrowth for mature/old trees
-        if ((tree.stage === 'mature' || tree.stage === 'old') && !tree.fruitReady) {
-            const data = treeData[tree.type];
-            if (data.fruit) {
-                // Fruit regrows after 1 day
-                if (GameState.day > tree.lastFruitHarvest) {
-                    tree.fruitReady = true;
-                    drawTree(tree);
-                }
-            }
-        }
-
         // Hive honey production
         if (tree.hasHive && tree.hiveHoney < 3) {
             tree.hiveHoney = Math.min(3, tree.hiveHoney + 1);
@@ -176,6 +174,39 @@ export function updateTreeLifecycle() {
         const tree = GameState.trees[index];
         if (tree.graphics) tree.graphics.destroy();
         GameState.trees.splice(index, 1);
+    });
+}
+
+/**
+ * Update tree blossoms - call every frame for game-time blossom→fruit transitions
+ */
+export function updateTreeBlossoms() {
+    const BLOSSOM_DURATION = 60; // 1 game hour (60 game minutes)
+
+    GameState.trees.forEach((tree) => {
+        // Blossom → Fruit cycle for young/mature/old trees (quick, year-round)
+        if ((tree.stage === 'young' || tree.stage === 'mature' || tree.stage === 'old') && !tree.fruitReady) {
+            const data = treeData[tree.type];
+            if (data.fruit) {
+                if (tree.blossoming) {
+                    // Calculate elapsed game time (handles day rollover)
+                    const daysPassed = GameState.day - tree.blossomStartDay;
+                    const minutesElapsed = (daysPassed * 1440) + (GameState.gameTime - tree.blossomStartTime);
+
+                    if (minutesElapsed >= BLOSSOM_DURATION) {
+                        tree.blossoming = false;
+                        tree.fruitReady = true;
+                        drawTree(tree);
+                    }
+                } else if (!tree.fruitReady && !tree.blossoming) {
+                    // If no fruit and not blossoming, start blossoming
+                    tree.blossoming = true;
+                    tree.blossomStartDay = GameState.day;
+                    tree.blossomStartTime = GameState.gameTime;
+                    drawTree(tree);
+                }
+            }
+        }
     });
 }
 
@@ -322,13 +353,13 @@ export function drawTree(tree) {
             drawSapling(g, tree.x, tree.y, canopyColor);
             break;
         case 'young':
-            drawYoungTree(g, tree.x, tree.y, canopyColor, trunkColor, data, season);
+            drawYoungTree(g, tree.x, tree.y, canopyColor, trunkColor, data, season, tree.fruitReady, tree.blossoming);
             break;
         case 'mature':
-            drawMatureTree(g, tree.x, tree.y, canopyColor, trunkColor, data, season, tree.fruitReady);
+            drawMatureTree(g, tree.x, tree.y, canopyColor, trunkColor, data, season, tree.fruitReady, tree.blossoming);
             break;
         case 'old':
-            drawOldTree(g, tree.x, tree.y, canopyColor, trunkColor, data, season, tree.fruitReady);
+            drawOldTree(g, tree.x, tree.y, canopyColor, trunkColor, data, season, tree.fruitReady, tree.blossoming);
             break;
         case 'fallen':
             drawFallenTree(g, tree.x, tree.y, trunkColor, data);
@@ -353,7 +384,7 @@ function drawSapling(g, x, y, canopyColor) {
     g.fillCircle(x + 5, y - 16, 5);
 }
 
-function drawYoungTree(g, x, y, canopyColor, trunkColor, data, season) {
+function drawYoungTree(g, x, y, canopyColor, trunkColor, data, season, hasFruit = false, isBlossoming = false) {
     // Half-height trunk
     g.fillStyle(trunkColor);
     g.fillRect(x - 4, y - 30, 8, 30);
@@ -369,13 +400,18 @@ function drawYoungTree(g, x, y, canopyColor, trunkColor, data, season) {
         g.fillCircle(x + 10, y - 35, 12);
     }
 
-    // Spring blossoms
-    if (season === 'spring' && data.blossomColor) {
-        drawBlossoms(g, x, y - 40, 12, data.blossomColor);
+    // Blossoms - show during blossom phase (year-round)
+    if (isBlossoming && data.blossomColor && data.fruit) {
+        drawBlossoms(g, x, y - 38, 12, data.blossomColor, data, true); // sparse blossoms for young tree
+    }
+
+    // Draw fruit if ready (sparse/half amount for young trees)
+    if (hasFruit && data.fruit) {
+        drawFruit(g, x, y - 38, data, true); // canopy center for young tree
     }
 }
 
-function drawMatureTree(g, x, y, canopyColor, trunkColor, data, season, hasFruit) {
+function drawMatureTree(g, x, y, canopyColor, trunkColor, data, season, hasFruit, isBlossoming = false) {
     // Full trunk
     g.fillStyle(trunkColor);
     g.fillRect(x - 6, y - 50, 12, 50);
@@ -406,18 +442,18 @@ function drawMatureTree(g, x, y, canopyColor, trunkColor, data, season, hasFruit
         }
     }
 
-    // Spring blossoms
-    if (season === 'spring' && data.blossomColor) {
-        drawBlossoms(g, x, y - 65, 20, data.blossomColor);
+    // Blossoms - show during blossom phase (year-round)
+    if (isBlossoming && data.blossomColor && data.fruit) {
+        drawBlossoms(g, x, y - 55, 20, data.blossomColor, data);
     }
 
-    // Summer/fall fruit
-    if (hasFruit && data.fruit && (season === 'summer' || season === 'fall')) {
+    // Draw fruit if ready
+    if (hasFruit && data.fruit) {
         drawFruit(g, x, y - 55, data);
     }
 }
 
-function drawOldTree(g, x, y, canopyColor, trunkColor, data, season, hasFruit) {
+function drawOldTree(g, x, y, canopyColor, trunkColor, data, season, hasFruit, isBlossoming = false) {
     // Gnarled trunk
     g.fillStyle(trunkColor);
     g.fillRect(x - 8, y - 55, 16, 55);
@@ -435,9 +471,14 @@ function drawOldTree(g, x, y, canopyColor, trunkColor, data, season, hasFruit) {
         g.fillCircle(x + 18, y - 58, 16);
     }
 
+    // Blossoms - show during blossom phase (year-round)
+    if (isBlossoming && data.blossomColor && data.fruit) {
+        drawBlossoms(g, x, y - 62, 18, data.blossomColor, data, true); // sparse for old trees
+    }
+
     // Reduced fruit for old trees
-    if (hasFruit && data.fruit && (season === 'summer' || season === 'fall')) {
-        drawFruit(g, x, y - 58, data, true); // sparse = true
+    if (hasFruit && data.fruit) {
+        drawFruit(g, x, y - 62, data, true); // canopy center for old tree
     }
 }
 
@@ -478,32 +519,138 @@ function drawSnow(g, x, y, size) {
     g.fillCircle(x, y - 5, 6);
 }
 
-function drawBlossoms(g, x, y, size, color) {
-    g.fillStyle(color, 0.8);
-    for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2;
-        const bx = x + Math.cos(angle) * size * 0.8;
-        const by = y + Math.sin(angle) * size * 0.6;
-        g.fillCircle(bx, by, 4);
+function drawBlossoms(g, x, y, size, color, data = null, sparse = false) {
+    // Draw flower blossoms at the same positions where fruit will appear
+    // Positions match drawFruit - small offsets from canopy center
+    let positions = sparse
+        ? [[-6, -5], [8, 0]]  // 2 positions for sparse (young/old)
+        : [[-12, -8], [14, -5], [-5, 5], [8, 2], [0, -12]];  // 5 positions for full
+
+    // Cherry gets slightly different positions for pairs
+    if (data?.fruit === 'cherry') {
+        positions = sparse
+            ? [[0, 0]]  // 1 pair center
+            : [[-10, -5], [10, -2], [0, 8]];  // 3 pair positions
     }
+
+    positions.forEach(([ox, oy]) => {
+        const bx = x + ox;
+        const by = y + oy;
+
+        // Draw a simple 5-petal flower
+        g.fillStyle(color, 0.9);
+        // Petals around center
+        for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2;
+            const px = bx + Math.cos(angle) * 4;
+            const py = by + Math.sin(angle) * 4;
+            g.fillCircle(px, py, 3);
+        }
+        // Yellow center
+        g.fillStyle(0xFFFF00, 1);
+        g.fillCircle(bx, by, 2);
+    });
 }
 
 function drawFruit(g, x, y, data, sparse = false) {
-    const fruitColors = {
-        apple: 0xE74C3C,
-        orange: 0xF39C12,
-        cherry: 0xC0392B,
-        peach: 0xFFCBA4
-    };
-    const color = fruitColors[data.fruit] || 0xFF6B6B;
-    g.fillStyle(color);
+    // Fruit positions inside the canopy (y is canopy center)
+    // Full positions for mature trees, sparse for young/old
+    const positions = sparse
+        ? [[- 6, -5], [8, 0]]  // 2 fruit for sparse
+        : [[-12, -8], [14, -5], [-5, 5], [8, 2], [0, -12]];  // 5 fruit for full
 
-    const count = sparse ? 2 : 4;
-    for (let i = 0; i < count; i++) {
-        const fx = x - 15 + (i * 10);
-        const fy = y + (i % 2) * 8;
-        g.fillCircle(fx, fy, 4);
+    if (data.fruit === 'cherry') {
+        drawCherries(g, x, y, sparse);
+    } else if (data.fruit === 'apple') {
+        positions.forEach(([ox, oy]) => drawApple(g, x + ox, y + oy, sparse ? 5 : 6));
+    } else if (data.fruit === 'orange') {
+        positions.forEach(([ox, oy]) => drawOrange(g, x + ox, y + oy, sparse ? 5 : 6));
+    } else if (data.fruit === 'peach') {
+        positions.forEach(([ox, oy]) => drawPeach(g, x + ox, y + oy, sparse ? 5 : 6));
     }
+}
+
+function drawApple(g, x, y, size) {
+    // Red apple with indent at top and stem
+    g.fillStyle(0xFF0000);
+    g.fillCircle(x, y, size);
+    // Indent at top (darker red arc)
+    g.fillStyle(0xCC0000);
+    g.fillCircle(x, y - size + 2, size * 0.4);
+    // Stem
+    g.fillStyle(0x8B4513);
+    g.fillRect(x - 1, y - size - 2, 2, 4);
+    // Small leaf
+    g.fillStyle(0x228B22);
+    g.fillEllipse(x + 3, y - size - 1, 3, 2);
+    // Shine
+    g.fillStyle(0xFFFFFF, 0.5);
+    g.fillCircle(x - size * 0.3, y - size * 0.3, size * 0.25);
+}
+
+function drawOrange(g, x, y, size) {
+    // Orange with textured surface
+    g.fillStyle(0xFFA500);
+    g.fillCircle(x, y, size);
+    // Texture dots (dimpled skin)
+    g.fillStyle(0xE59400);
+    for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2 + 0.3;
+        const dist = size * 0.5;
+        g.fillCircle(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist, 1);
+    }
+    // Small navel at bottom
+    g.fillStyle(0xE59400);
+    g.fillCircle(x, y + size - 2, 2);
+    // Shine
+    g.fillStyle(0xFFFFFF, 0.4);
+    g.fillCircle(x - size * 0.3, y - size * 0.3, size * 0.3);
+}
+
+function drawPeach(g, x, y, size) {
+    // Peach with heart-like shape and crease
+    g.fillStyle(0xFFCBA4);  // Peach color
+    g.fillCircle(x - size * 0.15, y, size * 0.9);
+    g.fillCircle(x + size * 0.15, y, size * 0.9);
+    // Blush on side
+    g.fillStyle(0xFFAA88, 0.6);
+    g.fillCircle(x + size * 0.4, y, size * 0.5);
+    // Crease line
+    g.lineStyle(1, 0xDD9970, 0.8);
+    g.lineBetween(x, y - size + 1, x, y + size - 1);
+    // Stem indent
+    g.fillStyle(0xDD9970);
+    g.fillCircle(x, y - size + 2, 2);
+    // Shine
+    g.fillStyle(0xFFFFFF, 0.4);
+    g.fillCircle(x - size * 0.35, y - size * 0.35, size * 0.25);
+}
+
+function drawCherries(g, x, y, sparse) {
+    // Cherry pairs with stems
+    const pairs = sparse
+        ? [[0, 0]]  // 1 pair for sparse
+        : [[-10, -5], [10, -2], [0, 8]];  // 3 pairs for full
+
+    pairs.forEach(([ox, oy]) => {
+        const cx = x + ox;
+        const cy = y + oy;
+
+        // Stems (V-shape)
+        g.lineStyle(1.5, 0x228B22, 1);
+        g.lineBetween(cx, cy - 8, cx - 4, cy);
+        g.lineBetween(cx, cy - 8, cx + 4, cy);
+
+        // Two cherries
+        g.fillStyle(0xDC143C);
+        g.fillCircle(cx - 4, cy + 2, 5);
+        g.fillCircle(cx + 4, cy + 2, 5);
+
+        // Shine on each cherry
+        g.fillStyle(0xFFFFFF, 0.5);
+        g.fillCircle(cx - 5, cy, 1.5);
+        g.fillCircle(cx + 3, cy, 1.5);
+    });
 }
 
 function drawHive(g, x, y, honeyLevel) {
@@ -635,8 +782,11 @@ export function harvestFruit(treeIndex) {
     // Add to inventory
     GameState.inventory.fruits[data.fruit] = (GameState.inventory.fruits[data.fruit] || 0) + amount;
 
-    // Mark as harvested
+    // Mark as harvested - start blossom phase
     tree.fruitReady = false;
+    tree.blossoming = true;
+    tree.blossomStartDay = GameState.day;
+    tree.blossomStartTime = GameState.gameTime;
     tree.lastFruitHarvest = GameState.day;
     drawTree(tree);
 

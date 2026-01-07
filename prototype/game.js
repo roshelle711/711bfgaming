@@ -6,10 +6,10 @@
  */
 
 // === MODULE IMPORTS ===
-import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions, herbSpawnPositions, grassSpawnPositions, GAME_DAY_MINUTES, DEPTH_LAYERS, getWorldDepth } from './modules/config.js';
+import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions, herbSpawnPositions, grassSpawnPositions, GAME_DAY_MINUTES, DEPTH_LAYERS, getWorldDepth, treeData } from './modules/config.js';
 import { GameState, loadGameSession, saveGameSession } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
-import { initializeTrees, updateTreeLifecycle, getCurrentSeason, getDayInSeason, getNearbyTree, chopTree as chopUnifiedTree, harvestFruit as harvestUnifiedTreeFruit, harvestHoney, plantSeed as plantTreeSeed } from './modules/trees.js';
+import { initializeTrees, updateTreeLifecycle, updateTreeBlossoms, getCurrentSeason, getDayInSeason, getNearbyTree, chopTree as chopUnifiedTree, harvestFruit as harvestUnifiedTreeFruit, harvestHoney, plantSeed as plantTreeSeed } from './modules/trees.js';
 import { initializeBees, updateBees, updateHiveHoney } from './modules/bees.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations, petDoTrick, isNearPet } from './modules/player.js';
 import { createHouse, createFarmPlot, drawTree, createSeedPickup, createHerbPickup, createGrassPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree, setupCookingStations, findNearestCookingStation } from './modules/world.js';
@@ -59,6 +59,9 @@ function create() {
     loadGameSession();
 
     const graphics = this.add.graphics();
+    // Explicitly set background to ground level depth
+    graphics.setDepth(DEPTH_LAYERS.GROUND);
+    console.log('[Game] Background graphics depth:', DEPTH_LAYERS.GROUND);
 
     // === WORLD SETUP ===
     // Background grass with subtle gradient effect
@@ -237,10 +240,6 @@ function create() {
     trees.forEach(t => {
         // Each tree gets its own graphics object for depth control
         const treeGfx = this.add.graphics();
-        // Foreground trees have depth 900+ (above player), background trees use foot position
-        // Trunk is drawn from (t.y + t.s - 10) to (t.y + t.s + 22), so trunk bottom is at t.y + t.s + 22
-        const treeDepth = t.foreground ? DEPTH_LAYERS.FOREGROUND_TREES + t.y : getWorldDepth(t.y + t.s + 22);
-        treeGfx.setDepth(treeDepth);
 
         // Ground shadow (ellipse beneath tree)
         treeGfx.fillStyle(0x1a3a1a, 0.25);
@@ -264,6 +263,12 @@ function create() {
         treeGfx.fillCircle(t.x, t.y, t.s);
         treeGfx.fillStyle(0x58D68D, 0.5);   // Highlight (sun)
         treeGfx.fillCircle(t.x - 8, t.y - 10, t.s * 0.4);
+
+        // Set depth AFTER drawing - higher Y = higher depth = renders in front
+        const footY = t.y + t.s + 22;  // trunk bottom
+        const treeDepth = t.foreground ? DEPTH_LAYERS.FOREGROUND_TREES : getWorldDepth(footY);
+        treeGfx.setDepth(treeDepth);
+        console.log(`[DecorTree] at Y=${t.y}, footY=${footY}, depth=${treeDepth}, foreground=${t.foreground}`);
 
         GameState.obstacles.add(this.add.rectangle(t.x, t.y + t.s, 18, 18, 0x000000, 0));
     });
@@ -632,6 +637,11 @@ function startGame(scene) {
         scene.input.keyboard.addKey('FIVE')
     ];
 
+    // Debug key F9 - toggle tree depth overlays
+    GameState.debugKey = scene.input.keyboard.addKey('F9');
+    GameState.debugOverlaysVisible = false;
+    GameState.debugOverlays = [];
+
     // Left click for tool use (with hold-to-repeat for hoe)
     GameState.isHoldingClick = false;
     GameState.holdRepeatTimer = null;
@@ -718,6 +728,10 @@ function startGame(scene) {
 
     scene.gameStarted = true;
 
+    // Force display list to sort by depth after all objects created
+    scene.children.sort('depth');
+    console.log('[Game] Display list sorted by depth');
+
     // Connect to multiplayer
     connectToServer();
 }
@@ -739,6 +753,9 @@ function update(time, delta) {
         updateHiveHoney();
         console.log(`[Time] Day ${GameState.day} - Season: ${getCurrentSeason()}`);
     }
+
+    // Update tree blossoms every frame (real-time blossom→fruit transitions)
+    updateTreeBlossoms();
 
     const phase = getDayPhase(GameState.gameTime);
     GameState.isNight = (phase === 'night');
@@ -807,11 +824,16 @@ function useActiveItem(scene) {
 
     // === UNIVERSAL ACTIONS FIRST (work with any tool) ===
 
-    // Fruit tree harvest
-    const nearTree = findNearestFruitTree();
-    if (nearTree && nearTree.hasFruit) {
+    // Unified tree fruit harvest (click-based)
+    const nearUnifiedTree = getNearbyTree(GameState.player.x, GameState.player.y, 80);
+    if (nearUnifiedTree && nearUnifiedTree.tree.fruitReady) {
         GameState.isHarvesting = true;
-        harvestFruit(nearTree);
+        const fruit = harvestUnifiedTreeFruit(nearUnifiedTree.index);
+        if (fruit > 0) {
+            showDialog(`Picked ${fruit} fruit! 🍎`);
+            updateInventoryDisplay();
+            saveGameSession();
+        }
         setTimeout(() => { GameState.isHarvesting = false; }, 400);
         return;
     }
@@ -1077,8 +1099,8 @@ function handleInput(scene) {
                 }
                 return;
             }
-            // Harvest fruit from tree
-            if (tree.fruitReady && (getCurrentSeason() === 'summer' || getCurrentSeason() === 'fall')) {
+            // Harvest fruit from tree (year-round, matching old behavior)
+            if (tree.fruitReady) {
                 const fruit = harvestUnifiedTreeFruit(index);
                 if (fruit > 0) {
                     showDialog(`Picked ${fruit} fruit! 🍎`);
@@ -1130,10 +1152,15 @@ function handleInput(scene) {
 
         // === UNIVERSAL ACTIONS ===
 
-        // Fruit tree harvest
-        const nearTree = findNearestFruitTree();
-        if (nearTree && nearTree.hasFruit) {
-            harvestFruit(nearTree);
+        // Unified tree fruit harvest
+        const nearUnifiedTreeE = getNearbyTree(GameState.player.x, GameState.player.y, 80);
+        if (nearUnifiedTreeE && nearUnifiedTreeE.tree.fruitReady) {
+            const fruit = harvestUnifiedTreeFruit(nearUnifiedTreeE.index);
+            if (fruit > 0) {
+                showDialog(`Picked ${fruit} fruit! 🍎`);
+                updateInventoryDisplay();
+                saveGameSession();
+            }
             return;
         }
 
@@ -1188,6 +1215,62 @@ function handleInput(scene) {
                 break;
             }
         }
+    }
+
+    // F9 - Toggle debug tree overlays
+    if (Phaser.Input.Keyboard.JustDown(GameState.debugKey)) {
+        toggleTreeDebugOverlays(scene);
+    }
+}
+
+/**
+ * Toggle debug overlays showing tree IDs, Y positions, and depths
+ */
+function toggleTreeDebugOverlays(scene) {
+    GameState.debugOverlaysVisible = !GameState.debugOverlaysVisible;
+
+    if (GameState.debugOverlaysVisible) {
+        // Create overlays for all trees
+        let treeId = 0;
+
+        // Unified trees from trees.js
+        GameState.trees?.forEach((tree, index) => {
+            const depth = tree.graphics.depth;
+            const label = scene.add.text(tree.x, tree.y - 60,
+                `#${treeId}\nY:${tree.y}\nD:${Math.round(depth)}`, {
+                fontSize: '10px',
+                fill: '#FFFFFF',
+                backgroundColor: '#FF0000CC',
+                padding: { x: 3, y: 2 },
+                align: 'center'
+            }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_HUD + 100);
+            GameState.debugOverlays.push(label);
+            treeId++;
+        });
+
+        // Fruit trees from world.js
+        GameState.fruitTrees?.forEach((tree, index) => {
+            const depth = tree.graphics.depth;
+            const label = scene.add.text(tree.x, tree.y - 60,
+                `F#${treeId}\nY:${tree.y}\nD:${Math.round(depth)}`, {
+                fontSize: '10px',
+                fill: '#FFFFFF',
+                backgroundColor: '#00AA00CC',
+                padding: { x: 3, y: 2 },
+                align: 'center'
+            }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_HUD + 100);
+            GameState.debugOverlays.push(label);
+            treeId++;
+        });
+
+        console.log(`[Debug] Showing ${treeId} tree overlays. Press F9 to hide.`);
+        console.log('[Debug] Red = unified trees, Green = fruit trees');
+        console.log('[Debug] Format: #ID, Y:position, D:depth');
+    } else {
+        // Destroy all overlays
+        GameState.debugOverlays.forEach(overlay => overlay.destroy());
+        GameState.debugOverlays = [];
+        console.log('[Debug] Tree overlays hidden.');
     }
 }
 
@@ -1537,13 +1620,16 @@ function updateProximityPrompts() {
         GameState.hazardPrompt.setVisible(false);
     }
 
-    // Fruit tree prompt
-    const nearTree = findNearestFruitTree();
-    if (nearTree) {
-        if (nearTree.hasFruit) {
+    // Fruit tree prompt (unified system)
+    const nearFruitTree = getNearbyTree(GameState.player.x, GameState.player.y, 80);
+    if (nearFruitTree && treeData[nearFruitTree.tree.type]?.fruit) {
+        if (nearFruitTree.tree.fruitReady) {
             const fruitEmoji = { apple: '🍎', orange: '🍊', peach: '🍑', cherry: '🍒' };
-            const emoji = fruitEmoji[nearTree.treeType] || '🍎';
+            const fruitType = treeData[nearFruitTree.tree.type].fruit;
+            const emoji = fruitEmoji[fruitType] || '🍎';
             GameState.fruitTreePrompt.setText(`${emoji} Click to harvest`).setVisible(true);
+        } else if (nearFruitTree.tree.blossoming) {
+            GameState.fruitTreePrompt.setText('🌸 Blossoming...').setVisible(true);
         } else {
             GameState.fruitTreePrompt.setText('⏳ Growing...').setVisible(true);
         }

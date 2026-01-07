@@ -114,20 +114,12 @@ export const resourceData = {
 };
 
 // Resource node spawn positions (in NATURE and ORCHARD zones)
+// Resource nodes - trees now handled by unified tree system, only rocks here
 export const resourceNodePositions = [
-    // Trees in nature zone (left side, away from pond)
-    { x: 120, y: 450, type: 'tree' },
-    { x: 80, y: 520, type: 'tree' },
-    { x: 150, y: 580, type: 'tree' },
-    // Trees near residential
-    { x: 480, y: 180, type: 'tree' },
     // Rocks scattered around
     { x: 400, y: 380, type: 'rock' },
     { x: 900, y: 420, type: 'rock' },
     { x: 1000, y: 700, type: 'rock' },
-    // More trees in orchard area edges
-    { x: 1300, y: 480, type: 'tree' },
-    { x: 1320, y: 620, type: 'tree' },
 ];
 
 // Character classes
@@ -334,12 +326,9 @@ export const fruitData = {
 };
 
 // Fruit tree positions on map - ORCHARD zone (right side, bottom)
-export const fruitTreePositions = [
-    { x: 1050, y: 550, type: 'apple' },
-    { x: 1220, y: 550, type: 'orange' },
-    { x: 1050, y: 720, type: 'peach' },
-    { x: 1220, y: 720, type: 'cherry' }
-];
+// Old fruit tree system - now handled by unified tree system in treeSpawnPositions
+// Keeping empty array for backward compatibility with any code that references it
+export const fruitTreePositions = [];
 
 // === UNIFIED TREE SYSTEM ===
 
@@ -401,11 +390,12 @@ export const MAX_HIVE_HONEY = 3;
 // Unified tree data - fruit trees AND wood trees
 export const treeData = {
     // Fruit trees - yield fruit + wood
+    // Canopy colors adjusted to be darker/richer to contrast with grass (0x90EE90)
     apple_tree: {
         name: 'Apple Tree', emoji: '🍎', category: 'fruit',
         fruit: 'apple', seed: 'apple_seed',
         baseWood: 3, baseFruit: 2,
-        canopyColor: { spring: 0x90EE90, summer: 0x228B22, fall: 0xDAA520, winter: 0x8B7355 },
+        canopyColor: { spring: 0x32CD32, summer: 0x228B22, fall: 0xDAA520, winter: 0x8B7355 },
         blossomColor: 0xFFB6C1,  // Light pink blossoms in spring
         deciduous: true
     },
@@ -413,7 +403,7 @@ export const treeData = {
         name: 'Orange Tree', emoji: '🍊', category: 'fruit',
         fruit: 'orange', seed: 'orange_seed',
         baseWood: 3, baseFruit: 2,
-        canopyColor: { spring: 0x90EE90, summer: 0x228B22, fall: 0xCD853F, winter: 0x8B7355 },
+        canopyColor: { spring: 0x3CB371, summer: 0x2E8B57, fall: 0xCD853F, winter: 0x8B7355 },
         blossomColor: 0xFFFFFF,  // White blossoms
         deciduous: true
     },
@@ -421,7 +411,7 @@ export const treeData = {
         name: 'Cherry Tree', emoji: '🍒', category: 'fruit',
         fruit: 'cherry', seed: 'cherry_seed',
         baseWood: 2, baseFruit: 3,
-        canopyColor: { spring: 0x98FB98, summer: 0x228B22, fall: 0xDC143C, winter: 0x8B7355 },
+        canopyColor: { spring: 0x66CDAA, summer: 0x2E8B57, fall: 0xDC143C, winter: 0x8B7355 },
         blossomColor: 0xFFB7C5,  // Cherry blossom pink
         deciduous: true
     },
@@ -429,7 +419,7 @@ export const treeData = {
         name: 'Peach Tree', emoji: '🍑', category: 'fruit',
         fruit: 'peach', seed: 'peach_seed',
         baseWood: 3, baseFruit: 2,
-        canopyColor: { spring: 0x90EE90, summer: 0x228B22, fall: 0xFFD700, winter: 0x8B7355 },
+        canopyColor: { spring: 0x00FA9A, summer: 0x3CB371, fall: 0xFFD700, winter: 0x8B7355 },
         blossomColor: 0xFFDAB9,  // Peach blossoms
         deciduous: true
     },
@@ -438,7 +428,7 @@ export const treeData = {
         name: 'Oak Tree', emoji: '🌳', category: 'wood',
         fruit: null, seed: 'acorn',
         baseWood: 4, baseFruit: 0,
-        canopyColor: { spring: 0x98FB98, summer: 0x2E8B57, fall: 0xCD853F, winter: 0x8B8378 },
+        canopyColor: { spring: 0x32CD32, summer: 0x2E8B57, fall: 0xCD853F, winter: 0x8B8378 },
         blossomColor: null,
         deciduous: true
     },
@@ -454,7 +444,7 @@ export const treeData = {
         name: 'Birch Tree', emoji: '🌳', category: 'wood',
         fruit: null, seed: 'birch_seed',
         baseWood: 3, baseFruit: 0,
-        canopyColor: { spring: 0xADFF2F, summer: 0x9ACD32, fall: 0xFFD700, winter: 0xD3D3D3 },
+        canopyColor: { spring: 0x7CFC00, summer: 0x6B8E23, fall: 0xFFD700, winter: 0xD3D3D3 },
         blossomColor: null,
         deciduous: true,
         trunkColor: 0xFFFAF0  // White birch bark

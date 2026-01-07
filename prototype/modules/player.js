@@ -34,10 +34,21 @@ export function createWhimsicalCharacter(scene, x, y, classType, isNPC = false, 
 
     container.floatOffset = Math.random() * Math.PI * 2;
 
-    // Shadow
-    const shadow = scene.add.ellipse(0, 28, 30, 10, 0x000000, 0.25);
-    container.add(shadow);
-    container.shadow = shadow;
+    // Shadow - separate from container so it can have independent depth
+    // For player, shadow is stored externally and updated in movement
+    // For NPCs, shadow stays in container (simpler, less critical)
+    if (isNPC) {
+        const shadow = scene.add.ellipse(0, 28, 30, 10, 0x000000, 0.25);
+        container.add(shadow);
+        container.shadow = shadow;
+    } else {
+        // Player shadow: external object with Y-based depth (slightly behind player)
+        const shadow = scene.add.ellipse(x, y + 28, 30, 10, 0x000000, 0.25);
+        // Shadow at foot position depth but with -1 sublayer to render behind player
+        shadow.setDepth(getWorldDepth(y + 28, -1));
+        container.externalShadow = shadow;
+        console.log(`[Shadow] Created at Y=${y + 28}, depth=${getWorldDepth(y + 28, -1)}`);
+    }
 
     // Sparkles for player
     if (!isNPC) {
@@ -391,6 +402,14 @@ export function updatePlayerMovement() {
 
     // Update player depth based on foot Y position (y + 25 for ~50px character)
     player.setDepth(getWorldDepth(player.y + 25));
+
+    // Update external shadow position and depth (shadow follows player)
+    if (player.externalShadow) {
+        player.externalShadow.x = player.x;
+        player.externalShadow.y = player.y + 28;
+        // Shadow at same Y-depth as player feet but -1 sublayer to render behind
+        player.externalShadow.setDepth(getWorldDepth(player.y + 28, -1));
+    }
 }
 
 /**
