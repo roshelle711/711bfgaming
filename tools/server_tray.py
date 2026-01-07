@@ -108,7 +108,9 @@ class ServerManager:
         print(f"[{'OK' if success else 'ERROR'}] {title}: {message}")
 
     def create_icon_image(self, color="green"):
-        """Create a simple colored icon."""
+        """Create a koala emoji icon with status indicator."""
+        from PIL import ImageFont
+
         colors = {
             "green": "#22c55e",
             "red": "#ef4444",
@@ -117,14 +119,23 @@ class ServerManager:
         }
         img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
-        # Draw a game controller-like shape
-        fill_color = colors.get(color, colors["gray"])
-        # Main body
-        draw.ellipse([8, 16, 56, 48], fill=fill_color)
-        # Left button
-        draw.ellipse([12, 24, 24, 36], fill="white")
-        # Right button
-        draw.ellipse([40, 24, 52, 36], fill="white")
+
+        # Try to load emoji font
+        try:
+            # Windows emoji font
+            font = ImageFont.truetype("seguiemj.ttf", 48)
+            draw.text((8, 0), "🐨", font=font, embedded_color=True)
+        except:
+            # Fallback: draw a simple koala face
+            draw.ellipse([8, 8, 56, 56], fill="#808080")  # Face
+            draw.ellipse([2, 12, 22, 32], fill="#606060")  # Left ear
+            draw.ellipse([42, 12, 62, 32], fill="#606060")  # Right ear
+            draw.ellipse([22, 32, 42, 48], fill="#404040")  # Nose
+
+        # Status indicator dot in corner
+        indicator_color = colors.get(color, colors["gray"])
+        draw.ellipse([44, 44, 62, 62], fill=indicator_color, outline="white", width=2)
+
         return img
 
     def update_icon(self, color):
