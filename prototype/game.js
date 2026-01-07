@@ -637,8 +637,7 @@ function startGame(scene) {
         scene.input.keyboard.addKey('FIVE')
     ];
 
-    // Debug key F9 - toggle tree depth overlays
-    GameState.debugKey = scene.input.keyboard.addKey('F9');
+    // Debug overlays state (toggled with Ctrl+Alt+T)
     GameState.debugOverlaysVisible = false;
     GameState.debugOverlays = [];
 
@@ -1257,9 +1256,10 @@ function handleInput(scene) {
         }
     }
 
-    // F9 - Toggle debug tree overlays
-    if (Phaser.Input.Keyboard.JustDown(GameState.debugKey)) {
+    // Ctrl+Alt+T - Toggle debug tree overlays
+    if (ctrlKey.isDown && altKey.isDown && Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('T'))) {
         toggleTreeDebugOverlays(scene);
+        return;
     }
 }
 
@@ -1303,7 +1303,7 @@ function toggleTreeDebugOverlays(scene) {
             treeId++;
         });
 
-        console.log(`[Debug] Showing ${treeId} tree overlays. Press F9 to hide.`);
+        console.log(`[Debug] Showing ${treeId} tree overlays. Ctrl+Alt+T to hide.`);
         console.log('[Debug] Red = unified trees, Green = fruit trees');
         console.log('[Debug] Format: #ID, Y:position, D:depth');
     } else {
@@ -1326,6 +1326,7 @@ function toggleCoordinateGrid(scene) {
         // Hide grid
         GameState.coordGridElements.forEach(el => el.destroy());
         GameState.coordGridElements = [];
+        GameState.mouseCoordTracker = null;  // Clear reference to destroyed element
         showDialog('📐 Grid OFF');
         return;
     }

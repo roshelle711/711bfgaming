@@ -1299,21 +1299,21 @@ export function showPauseMenu(onChangeCharacter) {
     currentY += 35;
 
     // === HOTKEYS SECTION ===
-    const hotkeyBox = scene.add.rectangle(centerX, currentY + 25, panelWidth - 40, 55, 0x2a2a4e, 0.8)
+    const hotkeyBox = scene.add.rectangle(centerX, currentY + 35, panelWidth - 40, 75, 0x2a2a4e, 0.8)
         .setStrokeStyle(1, 0x4A5568).setDepth(DEPTH_LAYERS.MODAL + 1);
     GameState.pauseMenuUI.push(hotkeyBox);
 
-    const hotkeyTitle = scene.add.text(centerX, currentY + 12, '⌨️ Weather Hotkeys', {
+    const hotkeyTitle = scene.add.text(centerX, currentY + 12, '⌨️ Hotkeys', {
         fontSize: '10px', fill: '#87CEEB', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(hotkeyTitle);
 
-    const hotkeyText = scene.add.text(centerX, currentY + 32, 'Ctrl+Alt+S = Snow   |   Ctrl+Alt+R = Rain\nCtrl+Alt+M = Monsoon   |   Ctrl+Alt+N = Clear', {
+    const hotkeyText = scene.add.text(centerX, currentY + 38, 'Ctrl+Alt+S = Snow | Ctrl+Alt+R = Rain | Ctrl+Alt+N = Clear\nCtrl+Alt+M = Monsoon | Ctrl+Alt+G = Grid | Ctrl+Alt+T = Trees', {
         fontSize: '9px', fill: '#888', align: 'center'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(hotkeyText);
 
-    currentY += 70;
+    currentY += 85;
 
     // === ACTION BUTTONS ===
     // Continue button
