@@ -108,21 +108,37 @@ class ServerManager:
         print(f"[{'OK' if success else 'ERROR'}] {title}: {message}")
 
     def create_icon_image(self, color="green"):
-        """Create a koala emoji icon."""
+        """Create a koala emoji icon with colored status underline."""
         from PIL import ImageFont
 
+        colors = {
+            "green": "#22c55e",
+            "red": "#ef4444",
+            "yellow": "#eab308",
+            "gray": "#6b7280"
+        }
         img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
 
         try:
-            font = ImageFont.truetype("seguiemj.ttf", 48)
-            draw.text((8, 0), "🐨", font=font, embedded_color=True)
+            font = ImageFont.truetype("seguiemj.ttf", 52)
+            # Center the emoji using textbbox, leaving room for underline
+            bbox = draw.textbbox((0, 0), "🐨", font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            x = (64 - text_width) // 2 - bbox[0]
+            y = (56 - text_height) // 2 - bbox[1]  # Shift up slightly for underline
+            draw.text((x, y), "🐨", font=font, embedded_color=True)
         except:
             # Fallback: draw a simple koala face
-            draw.ellipse([8, 8, 56, 56], fill="#808080")  # Face
-            draw.ellipse([2, 12, 22, 32], fill="#606060")  # Left ear
-            draw.ellipse([42, 12, 62, 32], fill="#606060")  # Right ear
-            draw.ellipse([22, 32, 42, 48], fill="#404040")  # Nose
+            draw.ellipse([4, 2, 60, 54], fill="#808080")  # Face
+            draw.ellipse([0, 6, 18, 26], fill="#606060")  # Left ear
+            draw.ellipse([46, 6, 64, 26], fill="#606060")  # Right ear
+            draw.ellipse([20, 28, 44, 46], fill="#404040")  # Nose
+
+        # Colored underline at bottom
+        underline_color = colors.get(color, colors["gray"])
+        draw.rectangle([0, 58, 64, 64], fill=underline_color)
 
         return img
 
