@@ -644,19 +644,19 @@ export function setupUI(scene) {
         fontSize: '14px', fill: '#fff', backgroundColor: '#00000099', padding: { x: 6, y: 4 }
     }).setOrigin(1, 0).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
 
-    // Coin display
-    GameState.coinDisplay = scene.add.text(10, 10, '', {
-        fontSize: '18px', fill: '#FFD700', fontStyle: 'bold',
-        backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
-
-    // Pause menu button (next to coins)
-    const pauseBtn = scene.add.text(120, 10, '⚙️', {
-        fontSize: '20px', backgroundColor: '#00000099', padding: { x: 6, y: 2 }
+    // Pause menu button (left of coins)
+    const pauseBtn = scene.add.text(10, 10, '⚙️', {
+        fontSize: '16px', backgroundColor: '#00000099', padding: { x: 6, y: 5 }
     }).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0).setInteractive({ useHandCursor: true });
     pauseBtn.on('pointerover', () => pauseBtn.setStyle({ backgroundColor: '#33333399' }));
     pauseBtn.on('pointerout', () => pauseBtn.setStyle({ backgroundColor: '#00000099' }));
     pauseBtn.on('pointerdown', () => showPauseMenu(scene));
+
+    // Coin display (after pause button)
+    GameState.coinDisplay = scene.add.text(48, 10, '', {
+        fontSize: '16px', fill: '#FFD700', fontStyle: 'bold',
+        backgroundColor: '#00000099', padding: { x: 6, y: 5 }
+    }).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
 
     // Time display
     GameState.timeDisplay = scene.add.text(10, 50, '', {
