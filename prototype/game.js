@@ -1086,8 +1086,8 @@ function handleInput(scene) {
         }
     }
 
-    // Coordinate grid toggle (Ctrl+G)
-    if (ctrlKey.isDown && Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('G'))) {
+    // Coordinate grid toggle (Ctrl+Alt+G)
+    if (ctrlKey.isDown && altKey.isDown && Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('G'))) {
         toggleCoordinateGrid(scene);
         return;
     }

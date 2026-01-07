@@ -96,7 +96,7 @@ export class GameRoom extends Room<GameState> {
   ];
 
   // NPC positions
-  private readonly FINN_POSITION = { x: 1200, y: 680 };
+  private readonly FINN_POSITION = { x: 1090, y: 195 };  // Left of General Store door
   private readonly MIRA_START = { x: 450, y: 550 };
 
   // Fruit tree positions
