@@ -13,7 +13,7 @@
  * - setupUI(scene): Initialize all UI elements
  */
 
-import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT, outfitData, armorData, dyeData, SEASON_OPTIONS, TIME_SPEED_OPTIONS, GAME_PRESETS, DEPTH_LAYERS } from './config.js';
+import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT, outfitData, armorData, dyeData, SEASON_OPTIONS, TIME_SPEED_OPTIONS, GAME_PRESETS, DEPTH_LAYERS, WEATHER_PRESETS, WEATHER_INTENSITY_OPTIONS } from './config.js';
 import { GameState, loadPreset, saveCurrentAsPreset, deletePreset, saveGameSession } from './state.js';
 import { createWhimsicalCharacter, createPet } from './player.js';
 import { usePotion, equipOutfit, equipArmor } from './systems.js';
@@ -1048,8 +1048,8 @@ export function showPauseMenu(onChangeCharacter) {
     const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(DEPTH_LAYERS.MODAL);
     GameState.pauseMenuUI.push(overlay);
 
-    // Menu panel (expanded for settings)
-    const panelHeight = isCustom ? 480 : 400;
+    // Menu panel (expanded for settings + weather)
+    const panelHeight = isCustom ? 580 : 500;
     const panel = scene.add.rectangle(centerX, centerY, 400, panelHeight, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.MODAL + 1);
     GameState.pauseMenuUI.push(panel);
@@ -1187,8 +1187,90 @@ export function showPauseMenu(onChangeCharacter) {
         customY += 55;
     }
 
+    // === WEATHER SETTINGS (always shown) ===
+    let weatherY = isCustom ? customY : presetY + 115;
+
+    const weatherLabel = scene.add.text(centerX, weatherY, '🌦️ Weather', {
+        fontSize: '12px', fill: '#87CEEB', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+    GameState.pauseMenuUI.push(weatherLabel);
+
+    // Weather preset row
+    const weatherPresetKeys = ['auto', 'frequent', 'rare', 'off'];
+    const currentWeatherPreset = GameState.settings?.weatherPreset || 'auto';
+
+    weatherPresetKeys.forEach((key, i) => {
+        const opt = WEATHER_PRESETS[key];
+        const btnX = centerX - 135 + i * 90;
+        const isSelected = currentWeatherPreset === key;
+
+        const btn = scene.add.rectangle(btnX, weatherY + 25, 80, 28,
+            isSelected ? 0x3498DB : 0x34495E, 0.9)
+            .setStrokeStyle(2, isSelected ? 0x5DADE2 : 0x4A5568)
+            .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
+        GameState.pauseMenuUI.push(btn);
+
+        const btnText = scene.add.text(btnX, weatherY + 25, opt.label, {
+            fontSize: '10px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+        GameState.pauseMenuUI.push(btnText);
+
+        btn.on('pointerdown', () => {
+            GameState.settings.weatherPreset = key;
+            GameState.settings.manualWeather = null; // Reset manual override
+            saveGameSession();
+            closePauseMenu();
+            showPauseMenu(onChangeCharacter);
+        });
+        btn.on('pointerover', () => { if (!isSelected) btn.setFillStyle(0x4A5568, 1); });
+        btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
+    });
+
+    // Weather intensity row
+    const intensityLabel = scene.add.text(centerX - 140, weatherY + 55, 'Intensity:', {
+        fontSize: '10px', fill: '#888'
+    }).setOrigin(0, 0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+    GameState.pauseMenuUI.push(intensityLabel);
+
+    const intensityKeys = ['light', 'normal', 'heavy'];
+    const currentIntensity = GameState.settings?.weatherIntensity || 'normal';
+
+    intensityKeys.forEach((key, i) => {
+        const opt = WEATHER_INTENSITY_OPTIONS[key];
+        const btnX = centerX - 40 + i * 70;
+        const isSelected = currentIntensity === key;
+
+        const btn = scene.add.rectangle(btnX, weatherY + 55, 60, 22,
+            isSelected ? 0x27AE60 : 0x34495E, 0.9)
+            .setStrokeStyle(1, isSelected ? 0x2ECC71 : 0x4A5568)
+            .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
+        GameState.pauseMenuUI.push(btn);
+
+        const btnText = scene.add.text(btnX, weatherY + 55, opt.label, {
+            fontSize: '9px', fill: isSelected ? '#fff' : '#aaa'
+        }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+        GameState.pauseMenuUI.push(btnText);
+
+        btn.on('pointerdown', () => {
+            GameState.settings.weatherIntensity = key;
+            saveGameSession();
+            closePauseMenu();
+            showPauseMenu(onChangeCharacter);
+        });
+        btn.on('pointerover', () => { if (!isSelected) btn.setFillStyle(0x4A5568, 1); });
+        btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
+    });
+
+    // Hotkey hint
+    const hotkeyHint = scene.add.text(centerX, weatherY + 80, 'Hotkeys: Ctrl+S (snow) | Ctrl+R (rain) | Ctrl+N (none)', {
+        fontSize: '9px', fill: '#666'
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+    GameState.pauseMenuUI.push(hotkeyHint);
+
+    weatherY += 100;
+
     // === ACTION BUTTONS ===
-    const btnY = isCustom ? customY + 10 : presetY + 130;
+    const btnY = weatherY;
 
     // Continue button
     const continueBtn = scene.add.rectangle(centerX, btnY, 220, 45, 0x27AE60, 0.9)

@@ -125,11 +125,14 @@ export const GameState = {
     day: 1,             // Current game day (starts at 1)
     lastDayUpdate: 0,   // Tracks when day last incremented
 
-    // Settings - time and seasons
+    // Settings - time, seasons, and weather
     settings: {
         preset: 'balanced',     // 'quickTest' | 'balanced' | 'immersive' | 'custom'
         timeSpeedKey: 'normal', // 'relaxed' | 'normal' | 'fast' | 'hyper'
-        seasonLength: 7         // Days per season (1, 7, 14, or 30)
+        seasonLength: 7,        // Days per season (1, 7, 14, or 30)
+        weatherPreset: 'auto',  // 'auto' | 'frequent' | 'rare' | 'off'
+        weatherIntensity: 'normal', // 'light' | 'normal' | 'heavy'
+        manualWeather: null     // null = auto, 'snow' | 'rain' | 'none' for manual override
     },
 
     // Farming

@@ -1030,6 +1030,29 @@ function handleInput(scene) {
     const interactJustDown = Phaser.Input.Keyboard.JustDown(GameState.interactKey);
     const petJustDown = Phaser.Input.Keyboard.JustDown(GameState.petKey);
 
+    // Weather toggle keys (Ctrl + S/R/N)
+    const ctrlKey = scene.input.keyboard.addKey('CTRL');
+    if (ctrlKey.isDown) {
+        if (Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('S'))) {
+            GameState.settings.manualWeather = GameState.settings.manualWeather === 'snow' ? null : 'snow';
+            const status = GameState.settings.manualWeather === 'snow' ? 'Snow ON' : 'Auto weather';
+            showDialog(`🌨️ ${status}`);
+            return;
+        }
+        if (Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('R'))) {
+            GameState.settings.manualWeather = GameState.settings.manualWeather === 'rain' ? null : 'rain';
+            const status = GameState.settings.manualWeather === 'rain' ? 'Rain ON' : 'Auto weather';
+            showDialog(`🌧️ ${status}`);
+            return;
+        }
+        if (Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('N'))) {
+            GameState.settings.manualWeather = GameState.settings.manualWeather === 'none' ? null : 'none';
+            const status = GameState.settings.manualWeather === 'none' ? 'Weather OFF' : 'Auto weather';
+            showDialog(`☀️ ${status}`);
+            return;
+        }
+    }
+
     // Debug: Log EVERY E key press to verify input is working
     if (interactJustDown) {
         console.log('[INPUT] E pressed! Dialog:', GameState.isDialogOpen, '| Inventory:', GameState.inventoryOpen, '| Pause:', GameState.pauseMenuOpen);
@@ -1453,9 +1476,10 @@ function updateWildlife(delta) {
 }
 
 /**
- * Update weather effects based on season
+ * Update weather effects based on season and settings
  * - Winter: gentle snowfall
  * - Spring: intermittent rain showers
+ * - Manual override via Ctrl+S (snow), Ctrl+R (rain), Ctrl+N (none)
  */
 function updateWeather(delta) {
     const weather = GameState.weather;
@@ -1464,27 +1488,62 @@ function updateWeather(delta) {
     const dt = delta / 1000;
     const season = getCurrentSeason();
     const g = weather.graphics;
+    const settings = GameState.settings;
 
-    // Determine weather type based on season
+    // Get weather preset settings
+    const weatherPreset = settings?.weatherPreset || 'auto';
+    const intensitySetting = settings?.weatherIntensity || 'normal';
+    const manualWeather = settings?.manualWeather;
+
+    // Intensity multipliers
+    const intensityMultipliers = { light: 0.5, normal: 1.0, heavy: 1.5 };
+    const intensityMult = intensityMultipliers[intensitySetting] || 1.0;
+
+    // Frequency multipliers for presets
+    const frequencyMult = weatherPreset === 'frequent' ? 1.5 : weatherPreset === 'rare' ? 0.3 : 1.0;
+
+    // Check if weather is disabled
+    if (weatherPreset === 'off' && !manualWeather) {
+        weather.intensity = Math.max(0, weather.intensity - 2 * dt);
+        if (weather.intensity < 0.05) weather.type = 'none';
+        g.clear();
+        renderWeatherParticles(weather, g, dt);
+        return;
+    }
+
+    // Determine weather type based on manual override or season
     let targetType = 'none';
     let targetIntensity = 0;
 
-    if (season === 'winter') {
-        targetType = 'snow';
-        targetIntensity = 0.8; // Constant gentle snow
-    } else if (season === 'spring') {
-        // Intermittent showers
-        weather.showerTimer -= dt;
-        if (weather.showerTimer <= 0) {
-            weather.isShowering = !weather.isShowering;
-            // Showers last 10-30 seconds, breaks last 30-90 seconds
-            weather.showerTimer = weather.isShowering
-                ? 10 + Math.random() * 20
-                : 30 + Math.random() * 60;
-        }
-        if (weather.isShowering) {
+    if (manualWeather) {
+        // Manual override active
+        if (manualWeather === 'snow') {
+            targetType = 'snow';
+            targetIntensity = 0.8 * intensityMult;
+        } else if (manualWeather === 'rain') {
             targetType = 'rain';
-            targetIntensity = 0.5 + Math.random() * 0.3; // Variable intensity
+            targetIntensity = 0.7 * intensityMult;
+        }
+        // 'none' means no weather
+    } else {
+        // Auto weather based on season
+        if (season === 'winter') {
+            targetType = 'snow';
+            targetIntensity = 0.8 * intensityMult * frequencyMult;
+        } else if (season === 'spring') {
+            // Intermittent showers
+            weather.showerTimer -= dt;
+            if (weather.showerTimer <= 0) {
+                weather.isShowering = !weather.isShowering;
+                // Adjust timing based on frequency
+                const showerDuration = (10 + Math.random() * 20) * (weatherPreset === 'frequent' ? 1.5 : weatherPreset === 'rare' ? 0.5 : 1);
+                const breakDuration = (30 + Math.random() * 60) * (weatherPreset === 'frequent' ? 0.5 : weatherPreset === 'rare' ? 2 : 1);
+                weather.showerTimer = weather.isShowering ? showerDuration : breakDuration;
+            }
+            if (weather.isShowering) {
+                targetType = 'rain';
+                targetIntensity = (0.5 + Math.random() * 0.3) * intensityMult;
+            }
         }
     }
 
@@ -1530,7 +1589,13 @@ function updateWeather(delta) {
 
     // Update and render particles
     g.clear();
+    renderWeatherParticles(weather, g, dt);
+}
 
+/**
+ * Render weather particles
+ */
+function renderWeatherParticles(weather, g, dt) {
     weather.particles.forEach(p => {
         if (!p.active) return;
 

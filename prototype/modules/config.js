@@ -382,6 +382,20 @@ export const GAME_PRESETS = {
     }
 };
 
+// Weather settings
+export const WEATHER_PRESETS = {
+    auto: { label: 'Auto', desc: 'Seasonal weather (snow/rain)' },
+    frequent: { label: 'Frequent', desc: 'More weather events' },
+    rare: { label: 'Rare', desc: 'Less weather events' },
+    off: { label: 'Off', desc: 'No weather effects' }
+};
+
+export const WEATHER_INTENSITY_OPTIONS = {
+    light: { label: 'Light', multiplier: 0.5 },
+    normal: { label: 'Normal', multiplier: 1.0 },
+    heavy: { label: 'Heavy', multiplier: 1.5 }
+};
+
 // Bee constants
 export const MAX_BEES = 6;
 export const HIVE_CREATION_CHANCE = 0.2;
