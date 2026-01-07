@@ -119,15 +119,17 @@ export const GameState = {
     cookingRecipe: null,           // Currently cooking recipe name
 
     // Time & day/night
-    gameTime: 480,      // Minutes (8:00 AM start)
-    timeSpeed: 0.5,
+    gameTime: 360,      // Minutes (6:00 AM start - dawn)
+    timeSpeed: 4.8,     // Game minutes per real second (see TIME_SPEED_OPTIONS)
     isNight: false,
     day: 1,             // Current game day (starts at 1)
     lastDayUpdate: 0,   // Tracks when day last incremented
 
-    // Settings
+    // Settings - time and seasons
     settings: {
-        seasonLength: 7  // Days per season (7, 14, or 30)
+        preset: 'balanced',     // 'quickTest' | 'balanced' | 'immersive' | 'custom'
+        timeSpeedKey: 'normal', // 'relaxed' | 'normal' | 'fast' | 'hyper'
+        seasonLength: 7         // Days per season (1, 7, 14, or 30)
     },
 
     // Farming
@@ -471,6 +473,16 @@ export function loadGameSession() {
         }
         if (sessionData.settings) {
             GameState.settings = { ...sessionData.settings };
+            // Apply timeSpeed from settings if present
+            if (sessionData.settings.timeSpeedKey) {
+                // Import TIME_SPEED_OPTIONS dynamically to avoid circular dependency
+                import('./config.js').then(config => {
+                    const speedOpt = config.TIME_SPEED_OPTIONS[sessionData.settings.timeSpeedKey];
+                    if (speedOpt) {
+                        GameState.timeSpeed = speedOpt.speed;
+                    }
+                });
+            }
         }
         if (sessionData.playerName) {
             GameState.playerName = sessionData.playerName;

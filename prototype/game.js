@@ -553,6 +553,22 @@ function create() {
         GameState.butterflies.push(butterflyData);
     }
 
+    // === WEATHER SYSTEM ===
+    GameState.weather = {
+        particles: [],
+        graphics: this.add.graphics().setDepth(95), // Below UI, above most things
+        type: 'none',        // 'none' | 'snow' | 'rain'
+        intensity: 0,        // 0-1, controls particle count
+        showerTimer: 0,      // For intermittent spring showers
+        isShowering: false
+    };
+    // Pre-create particle pool
+    for (let i = 0; i < 150; i++) {
+        GameState.weather.particles.push({
+            x: 0, y: 0, speed: 0, size: 0, active: false, drift: 0
+        });
+    }
+
     // === UI SETUP ===
     setupUI(this);
 
@@ -708,17 +724,18 @@ function update(time, delta) {
     if (!this.gameStarted) return;
 
     // === TIME & DAY/NIGHT ===
-    // Skip local time advancement when connected - server syncs time
-    if (!GameState.room) {
-        GameState.gameTime += GameState.timeSpeed / 60;
-        if (GameState.gameTime >= GAME_DAY_MINUTES) {
-            GameState.gameTime = 0;
-            // New day - advance day counter and update tree lifecycle
-            GameState.day += 1;
-            updateTreeLifecycle();
-            updateHiveHoney();
-            console.log(`[Time] Day ${GameState.day} - Season: ${getCurrentSeason()}`);
-        }
+    // Always advance time locally (server can override if connected)
+    // timeSpeed = game minutes per real second, delta is in ms
+    const timeAdvance = GameState.timeSpeed * (delta / 1000);
+    GameState.gameTime += timeAdvance;
+
+    if (GameState.gameTime >= GAME_DAY_MINUTES) {
+        GameState.gameTime -= GAME_DAY_MINUTES; // Wrap around smoothly
+        // New day - advance day counter and update tree lifecycle
+        GameState.day += 1;
+        updateTreeLifecycle();
+        updateHiveHoney();
+        console.log(`[Time] Day ${GameState.day} - Season: ${getCurrentSeason()}`);
     }
 
     const phase = getDayPhase(GameState.gameTime);
@@ -758,6 +775,7 @@ function update(time, delta) {
     respawnGrassPickups(this, delta);
     updateNPCPatrol();
     updateWildlife(delta);
+    updateWeather(delta);
     updateBees(delta);
     updateFruitRegrowth(delta);
     updateHeldTool();
@@ -1346,6 +1364,109 @@ function updateWildlife(delta) {
         bf.graphics.lineStyle(1, 0x2C2C2C, 1);
         bf.graphics.lineBetween(bf.x - 1, bf.y - 5, bf.x - 3, bf.y - 9);
         bf.graphics.lineBetween(bf.x + 1, bf.y - 5, bf.x + 3, bf.y - 9);
+    });
+}
+
+/**
+ * Update weather effects based on season
+ * - Winter: gentle snowfall
+ * - Spring: intermittent rain showers
+ */
+function updateWeather(delta) {
+    const weather = GameState.weather;
+    if (!weather) return;
+
+    const dt = delta / 1000;
+    const season = getCurrentSeason();
+    const g = weather.graphics;
+
+    // Determine weather type based on season
+    let targetType = 'none';
+    let targetIntensity = 0;
+
+    if (season === 'winter') {
+        targetType = 'snow';
+        targetIntensity = 0.8; // Constant gentle snow
+    } else if (season === 'spring') {
+        // Intermittent showers
+        weather.showerTimer -= dt;
+        if (weather.showerTimer <= 0) {
+            weather.isShowering = !weather.isShowering;
+            // Showers last 10-30 seconds, breaks last 30-90 seconds
+            weather.showerTimer = weather.isShowering
+                ? 10 + Math.random() * 20
+                : 30 + Math.random() * 60;
+        }
+        if (weather.isShowering) {
+            targetType = 'rain';
+            targetIntensity = 0.5 + Math.random() * 0.3; // Variable intensity
+        }
+    }
+
+    // Smoothly transition intensity
+    const transitionSpeed = 2 * dt;
+    if (weather.type !== targetType && targetIntensity > 0) {
+        weather.type = targetType;
+    }
+    if (targetIntensity > weather.intensity) {
+        weather.intensity = Math.min(targetIntensity, weather.intensity + transitionSpeed);
+    } else {
+        weather.intensity = Math.max(targetIntensity, weather.intensity - transitionSpeed);
+    }
+
+    // If intensity is very low, set type to none
+    if (weather.intensity < 0.05) {
+        weather.type = 'none';
+    }
+
+    // Spawn new particles
+    const maxParticles = Math.floor(weather.intensity * 100);
+    let activeCount = weather.particles.filter(p => p.active).length;
+
+    for (let i = 0; i < weather.particles.length && activeCount < maxParticles; i++) {
+        const p = weather.particles[i];
+        if (!p.active) {
+            p.active = true;
+            p.x = Math.random() * GAME_WIDTH;
+            p.y = -10;
+
+            if (weather.type === 'snow') {
+                p.speed = 30 + Math.random() * 40;
+                p.size = 2 + Math.random() * 3;
+                p.drift = (Math.random() - 0.5) * 30; // Horizontal drift
+            } else if (weather.type === 'rain') {
+                p.speed = 200 + Math.random() * 100;
+                p.size = 1 + Math.random() * 2;
+                p.drift = -20; // Slight angle
+            }
+            activeCount++;
+        }
+    }
+
+    // Update and render particles
+    g.clear();
+
+    weather.particles.forEach(p => {
+        if (!p.active) return;
+
+        // Update position
+        p.y += p.speed * dt;
+        p.x += p.drift * dt;
+
+        // Deactivate if off screen
+        if (p.y > GAME_HEIGHT + 10 || p.x < -10 || p.x > GAME_WIDTH + 10) {
+            p.active = false;
+            return;
+        }
+
+        // Draw particle
+        if (weather.type === 'snow') {
+            g.fillStyle(0xFFFFFF, 0.7);
+            g.fillCircle(p.x, p.y, p.size);
+        } else if (weather.type === 'rain') {
+            g.fillStyle(0x87CEEB, 0.5);
+            g.fillRect(p.x, p.y, 1, p.size * 4);
+        }
     });
 }
 

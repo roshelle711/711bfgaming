@@ -13,8 +13,8 @@
  * - setupUI(scene): Initialize all UI elements
  */
 
-import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT, outfitData, armorData, dyeData } from './config.js';
-import { GameState, loadPreset, saveCurrentAsPreset, deletePreset } from './state.js';
+import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT, outfitData, armorData, dyeData, SEASON_OPTIONS, TIME_SPEED_OPTIONS, GAME_PRESETS } from './config.js';
+import { GameState, loadPreset, saveCurrentAsPreset, deletePreset, saveGameSession } from './state.js';
 import { createWhimsicalCharacter, createPet } from './player.js';
 import { usePotion, equipOutfit, equipArmor } from './systems.js';
 
@@ -1041,69 +1041,161 @@ export function showPauseMenu(onChangeCharacter) {
 
     const centerX = GAME_WIDTH / 2;
     const centerY = GAME_HEIGHT / 2;
+    const currentPreset = GameState.settings?.preset || 'balanced';
+    const isCustom = currentPreset === 'custom';
 
     // Overlay
     const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(300);
     GameState.pauseMenuUI.push(overlay);
 
-    // Menu panel (expanded for season settings)
-    const panel = scene.add.rectangle(centerX, centerY, 350, 360, 0x1a1a2e, 0.95)
+    // Menu panel (expanded for settings)
+    const panelHeight = isCustom ? 480 : 400;
+    const panel = scene.add.rectangle(centerX, centerY, 400, panelHeight, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(301);
     GameState.pauseMenuUI.push(panel);
 
     // Title
-    const title = scene.add.text(centerX, centerY - 150, '⏸ PAUSED', {
+    const title = scene.add.text(centerX, centerY - panelHeight/2 + 30, '⏸ PAUSED', {
         fontSize: '28px', fill: '#FFD700', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(title);
 
-    // === SEASON LENGTH SETTING ===
-    const seasonLabel = scene.add.text(centerX, centerY - 105, '🌸 Season Length', {
+    // === GAME PACE PRESETS ===
+    const presetLabel = scene.add.text(centerX, centerY - panelHeight/2 + 70, '⏱️ Game Pace', {
         fontSize: '14px', fill: '#90EE90', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(302);
-    GameState.pauseMenuUI.push(seasonLabel);
+    GameState.pauseMenuUI.push(presetLabel);
 
-    // Season length options (7, 14, 30 days)
-    const seasonOptions = [7, 14, 30];
-    const seasonLabels = ['7 days', '14 days', '30 days'];
-    const currentSeason = GameState.settings?.seasonLength || 7;
+    // Preset buttons in 2x2 grid
+    const presetKeys = ['quickTest', 'balanced', 'immersive', 'custom'];
+    const presetY = centerY - panelHeight/2 + 105;
 
-    seasonOptions.forEach((days, i) => {
-        const btnX = centerX - 90 + (i * 90);
-        const isSelected = currentSeason === days;
+    presetKeys.forEach((key, i) => {
+        const preset = GAME_PRESETS[key];
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const btnX = centerX - 90 + col * 180;
+        const btnY = presetY + row * 50;
+        const isSelected = currentPreset === key;
 
-        const btn = scene.add.rectangle(btnX, centerY - 70, 75, 32,
+        const btn = scene.add.rectangle(btnX, btnY, 165, 40,
             isSelected ? 0x27AE60 : 0x34495E, 0.9)
             .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
             .setDepth(301).setInteractive();
         GameState.pauseMenuUI.push(btn);
 
-        const btnText = scene.add.text(btnX, centerY - 70, seasonLabels[i], {
-            fontSize: '12px', fill: isSelected ? '#fff' : '#aaa', fontStyle: isSelected ? 'bold' : 'normal'
+        const btnText = scene.add.text(btnX, btnY - 5, preset.label, {
+            fontSize: '13px', fill: isSelected ? '#fff' : '#ccc', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(302);
         GameState.pauseMenuUI.push(btnText);
 
+        const descText = scene.add.text(btnX, btnY + 10, preset.desc, {
+            fontSize: '9px', fill: isSelected ? '#90EE90' : '#888'
+        }).setOrigin(0.5).setDepth(302);
+        GameState.pauseMenuUI.push(descText);
+
         btn.on('pointerdown', () => {
-            GameState.settings.seasonLength = days;
-            // Save settings and refresh menu
-            import('./state.js').then(module => module.saveGameSession());
+            applyPreset(key);
             closePauseMenu();
             showPauseMenu(onChangeCharacter);
         });
-        btn.on('pointerover', () => {
-            if (currentSeason !== days) btn.setFillStyle(0x4A5568, 1);
-        });
-        btn.on('pointerout', () => {
-            if (currentSeason !== days) btn.setFillStyle(0x34495E, 0.9);
-        });
+        btn.on('pointerover', () => { if (!isSelected) btn.setFillStyle(0x4A5568, 1); });
+        btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
+    // === CUSTOM SETTINGS (only shown when Custom is selected) ===
+    let customY = presetY + 115;
+
+    if (isCustom) {
+        // Day Length setting
+        const dayLabel = scene.add.text(centerX, customY, '☀️ Day Length', {
+            fontSize: '12px', fill: '#FFD700', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(302);
+        GameState.pauseMenuUI.push(dayLabel);
+
+        const timeSpeedKeys = ['relaxed', 'normal', 'fast', 'hyper'];
+        const currentTimeSpeed = GameState.settings?.timeSpeedKey || 'normal';
+
+        timeSpeedKeys.forEach((key, i) => {
+            const opt = TIME_SPEED_OPTIONS[key];
+            const btnX = centerX - 135 + i * 90;
+            const isSelected = currentTimeSpeed === key;
+
+            const btn = scene.add.rectangle(btnX, customY + 30, 80, 35,
+                isSelected ? 0x3498DB : 0x34495E, 0.9)
+                .setStrokeStyle(2, isSelected ? 0x5DADE2 : 0x4A5568)
+                .setDepth(301).setInteractive();
+            GameState.pauseMenuUI.push(btn);
+
+            const btnText = scene.add.text(btnX, customY + 25, opt.label, {
+                fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(302);
+            GameState.pauseMenuUI.push(btnText);
+
+            const descText = scene.add.text(btnX, customY + 38, opt.desc, {
+                fontSize: '9px', fill: isSelected ? '#87CEEB' : '#666'
+            }).setOrigin(0.5).setDepth(302);
+            GameState.pauseMenuUI.push(descText);
+
+            btn.on('pointerdown', () => {
+                GameState.settings.timeSpeedKey = key;
+                GameState.timeSpeed = TIME_SPEED_OPTIONS[key].speed;
+                saveGameSession();
+                closePauseMenu();
+                showPauseMenu(onChangeCharacter);
+            });
+            btn.on('pointerover', () => { if (!isSelected) btn.setFillStyle(0x4A5568, 1); });
+            btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
+        });
+
+        customY += 75;
+
+        // Season Length setting
+        const seasonLabel = scene.add.text(centerX, customY, '🌸 Season Length', {
+            fontSize: '12px', fill: '#90EE90', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(302);
+        GameState.pauseMenuUI.push(seasonLabel);
+
+        const seasonLabels = ['1 day', '7 days', '14 days', '30 days'];
+        const currentSeason = GameState.settings?.seasonLength || 7;
+
+        SEASON_OPTIONS.forEach((days, i) => {
+            const btnX = centerX - 135 + i * 90;
+            const isSelected = currentSeason === days;
+
+            const btn = scene.add.rectangle(btnX, customY + 28, 80, 30,
+                isSelected ? 0x27AE60 : 0x34495E, 0.9)
+                .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
+                .setDepth(301).setInteractive();
+            GameState.pauseMenuUI.push(btn);
+
+            const btnText = scene.add.text(btnX, customY + 28, seasonLabels[i], {
+                fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(302);
+            GameState.pauseMenuUI.push(btnText);
+
+            btn.on('pointerdown', () => {
+                GameState.settings.seasonLength = days;
+                saveGameSession();
+                closePauseMenu();
+                showPauseMenu(onChangeCharacter);
+            });
+            btn.on('pointerover', () => { if (!isSelected) btn.setFillStyle(0x4A5568, 1); });
+            btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
+        });
+
+        customY += 55;
+    }
+
+    // === ACTION BUTTONS ===
+    const btnY = isCustom ? customY + 10 : presetY + 130;
+
     // Continue button
-    const continueBtn = scene.add.rectangle(centerX, centerY - 10, 220, 50, 0x27AE60, 0.9)
+    const continueBtn = scene.add.rectangle(centerX, btnY, 220, 45, 0x27AE60, 0.9)
         .setStrokeStyle(3, 0x2ECC71).setDepth(301).setInteractive();
     GameState.pauseMenuUI.push(continueBtn);
-    const continueText = scene.add.text(centerX, centerY - 10, '▶ Continue', {
-        fontSize: '18px', fill: '#fff', fontStyle: 'bold'
+    const continueText = scene.add.text(centerX, btnY, '▶ Continue', {
+        fontSize: '16px', fill: '#fff', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(continueText);
 
@@ -1112,11 +1204,11 @@ export function showPauseMenu(onChangeCharacter) {
     continueBtn.on('pointerout', () => continueBtn.setFillStyle(0x27AE60, 0.9));
 
     // Change Character button
-    const changeBtn = scene.add.rectangle(centerX, centerY + 60, 220, 50, 0xE67E22, 0.9)
+    const changeBtn = scene.add.rectangle(centerX, btnY + 55, 220, 45, 0xE67E22, 0.9)
         .setStrokeStyle(3, 0xF39C12).setDepth(301).setInteractive();
     GameState.pauseMenuUI.push(changeBtn);
-    const changeText = scene.add.text(centerX, centerY + 60, '👤 Change Character', {
-        fontSize: '16px', fill: '#fff', fontStyle: 'bold'
+    const changeText = scene.add.text(centerX, btnY + 55, '👤 Change Character', {
+        fontSize: '14px', fill: '#fff', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(changeText);
 
@@ -1128,10 +1220,29 @@ export function showPauseMenu(onChangeCharacter) {
     changeBtn.on('pointerout', () => changeBtn.setFillStyle(0xE67E22, 0.9));
 
     // Hint text
-    const hint = scene.add.text(centerX, centerY + 130, '[ ESC to close ]', {
+    const hint = scene.add.text(centerX, btnY + 100, '[ ESC to close ]', {
         fontSize: '12px', fill: '#666'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(hint);
+}
+
+/**
+ * Apply a game pace preset
+ */
+function applyPreset(presetKey) {
+    const preset = GAME_PRESETS[presetKey];
+    if (!preset) return;
+
+    GameState.settings.preset = presetKey;
+
+    if (presetKey !== 'custom') {
+        // Apply preset values
+        GameState.settings.timeSpeedKey = preset.timeSpeed;
+        GameState.settings.seasonLength = preset.seasonLength;
+        GameState.timeSpeed = TIME_SPEED_OPTIONS[preset.timeSpeed].speed;
+    }
+
+    saveGameSession();
 }
 
 /**

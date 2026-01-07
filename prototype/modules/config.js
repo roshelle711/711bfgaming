@@ -310,9 +310,47 @@ export const YOUNG_YIELD_MULTIPLIER = 0.5;
 export const OLD_FRUIT_MULTIPLIER = 0.75;
 
 // Season constants
-export const SEASON_OPTIONS = [7, 14, 30];
+export const SEASON_OPTIONS = [1, 7, 14, 30];  // Days per season
 export const DEFAULT_SEASON_LENGTH = 7;
 export const SEASONS = ['spring', 'summer', 'fall', 'winter'];
+
+// Time speed settings (game minutes per real second)
+// Formula: 1440 game min / timeSpeed = real seconds per game day
+export const TIME_SPEED_OPTIONS = {
+    relaxed: { speed: 2.4, label: 'Relaxed', desc: '10 min/day' },    // 1440/2.4 = 600s = 10 min
+    normal: { speed: 4.8, label: 'Normal', desc: '5 min/day' },       // 1440/4.8 = 300s = 5 min
+    fast: { speed: 12, label: 'Fast', desc: '2 min/day' },            // 1440/12 = 120s = 2 min
+    hyper: { speed: 48, label: 'Hyper', desc: '30 sec/day' }          // 1440/48 = 30s
+};
+export const DEFAULT_TIME_SPEED = 'normal';
+
+// Game presets - combined settings for different play styles
+export const GAME_PRESETS = {
+    quickTest: {
+        label: 'Quick Test',
+        desc: 'Fast days, rapid seasons - great for testing',
+        timeSpeed: 'hyper',
+        seasonLength: 1
+    },
+    balanced: {
+        label: 'Balanced',
+        desc: 'Moderate pace - good for normal play',
+        timeSpeed: 'normal',
+        seasonLength: 7
+    },
+    immersive: {
+        label: 'Immersive',
+        desc: 'Slow days, long seasons - relaxed experience',
+        timeSpeed: 'relaxed',
+        seasonLength: 14
+    },
+    custom: {
+        label: 'Custom',
+        desc: 'Choose your own settings below',
+        timeSpeed: null,
+        seasonLength: null
+    }
+};
 
 // Bee constants
 export const MAX_BEES = 6;
