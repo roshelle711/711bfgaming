@@ -846,11 +846,13 @@ function useActiveItem(scene) {
     const tool = GameState.equippedTool;
     // Use mouse-based selection for plots
     const targetPlot = findPlotUnderMouse(100);
+    console.log('[useActiveItem] tool:', tool, 'targetPlot:', targetPlot ? `state=${targetPlot.state}, hazard=${targetPlot.hazard}` : 'none');
 
     // === UNIVERSAL ACTIONS FIRST (work with any tool) ===
 
     // Unified tree fruit harvest (click-based)
     const nearUnifiedTree = getNearbyTree(GameState.player.x, GameState.player.y, 80);
+    console.log('[useActiveItem] nearUnifiedTree:', nearUnifiedTree ? `stage=${nearUnifiedTree.tree.stage}, fruitReady=${nearUnifiedTree.tree.fruitReady}` : 'none');
     if (nearUnifiedTree && nearUnifiedTree.tree.fruitReady) {
         GameState.isHarvesting = true;
         const fruit = harvestUnifiedTreeFruit(nearUnifiedTree.index);
@@ -864,7 +866,8 @@ function useActiveItem(scene) {
     }
 
     // Farm plot universal actions (harvest, remove hazard, plant)
-    if (targetPlot) {
+    // Skip these if axe/pickaxe is equipped - those tools prioritize resource gathering
+    if (targetPlot && tool !== 'axe' && tool !== 'pickaxe') {
         // Harvest ready crops - works with any tool
         if (targetPlot.state === 'ready') {
             GameState.isHarvesting = true;
