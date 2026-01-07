@@ -9,6 +9,8 @@ import time
 import os
 import sys
 from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import json
 
 # Third-party imports
 try:
@@ -41,6 +43,44 @@ TRAEFIK_PATH = PROJECT_ROOT / "infrastructure" / "traefik"
 TRAEFIK_EXE = TRAEFIK_PATH / "traefik.exe"
 UV_PATH = Path.home() / ".local" / "bin" / "uv.exe"
 
+CONTROL_PORT = 7711  # Control API port
+
+class ControlHandler(BaseHTTPRequestHandler):
+    """HTTP handler for remote control of the tray app."""
+    manager = None  # Set by ServerManager
+
+    def log_message(self, format, *args):
+        pass  # Suppress logging
+
+    def send_json(self, data, status=200):
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
+
+    def do_GET(self):
+        if self.path == '/status':
+            status, color = self.manager.get_status()
+            traefik_running = self.manager.is_process_running(self.manager.traefik_process)
+            self.send_json({
+                'status': status,
+                'running': self.manager.running,
+                'traefik_enabled': self.manager.traefik_enabled,
+                'traefik_running': traefik_running
+            })
+        elif self.path == '/start':
+            threading.Thread(target=self.manager.start_servers).start()
+            self.send_json({'action': 'start', 'message': 'Starting servers...'})
+        elif self.path == '/stop':
+            threading.Thread(target=self.manager.stop_servers).start()
+            self.send_json({'action': 'stop', 'message': 'Stopping servers...'})
+        elif self.path == '/restart':
+            threading.Thread(target=self.manager.restart_servers).start()
+            self.send_json({'action': 'restart', 'message': 'Restarting servers...'})
+        else:
+            self.send_json({'error': 'Unknown endpoint', 'endpoints': ['/status', '/start', '/stop', '/restart']}, 404)
+
+
 class ServerManager:
     def __init__(self):
         self.colyseus_process = None
@@ -49,6 +89,7 @@ class ServerManager:
         self.running = False
         self.traefik_enabled = True  # Start with Traefik by default
         self.icon = None
+        self.control_server = None
 
     def notify(self, title, message, success=True):
         """Send a toast notification."""
@@ -145,30 +186,36 @@ class ServerManager:
         self.kill_existing_processes()
 
         try:
-            # Start Colyseus server (use npx tsx directly for reliability)
+            # Find Python executable (pythonw doesn't work well for servers)
+            python_exe = Path(sys.executable).parent / "python.exe"
+            if not python_exe.exists():
+                python_exe = "python"
+
+            # Start Colyseus server
             self.colyseus_process = subprocess.Popen(
-                ["cmd", "/c", "npx", "tsx", "--watch", "src/index.ts"],
+                "npx tsx --watch src/index.ts",
                 cwd=str(SERVER_PATH),
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 shell=True
             )
             time.sleep(3)  # Give server more time to initialize
 
-            # Start HTTP server for client (use Python directly for reliability)
+            # Start HTTP server for client
             self.http_process = subprocess.Popen(
-                [sys.executable, "-m", "http.server", "3000", "--bind", "0.0.0.0"],
+                f'"{python_exe}" -m http.server 3000 --bind 0.0.0.0',
                 cwd=str(CLIENT_PATH),
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                shell=True
             )
-
             time.sleep(1)
 
             # Start Traefik if enabled and available
             if self.traefik_enabled and TRAEFIK_EXE.exists():
                 self.traefik_process = subprocess.Popen(
-                    [str(TRAEFIK_EXE), "--configFile=traefik.yml"],
+                    f'"{TRAEFIK_EXE}" --configFile=traefik.yml',
                     cwd=str(TRAEFIK_PATH),
-                    creationflags=subprocess.CREATE_NO_WINDOW
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    shell=True
                 )
                 time.sleep(1)
 
@@ -292,8 +339,21 @@ class ServerManager:
         import webbrowser
         webbrowser.open("https://game.711bf.org")
 
+    def start_control_server(self):
+        """Start the HTTP control server in a background thread."""
+        ControlHandler.manager = self
+        try:
+            self.control_server = HTTPServer(('127.0.0.1', CONTROL_PORT), ControlHandler)
+            self.control_server.serve_forever()
+        except Exception as e:
+            print(f"Control server error: {e}")
+
     def run(self):
         """Run the tray application."""
+        # Start control server in background
+        control_thread = threading.Thread(target=self.start_control_server, daemon=True)
+        control_thread.start()
+
         self.icon = pystray.Icon(
             "711bf_gaming",
             self.create_icon_image("red"),
@@ -301,7 +361,7 @@ class ServerManager:
             self.create_menu()
         )
 
-        self.notify("711BF Gaming", "Tray app started. Right-click to manage servers.")
+        self.notify("711BF Gaming", f"Tray app started. Control API on port {CONTROL_PORT}")
         self.icon.run()
 
 
