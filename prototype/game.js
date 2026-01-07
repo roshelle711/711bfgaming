@@ -1612,11 +1612,12 @@ function renderWeatherParticles(weather, g, dt) {
 
         // Draw particle
         if (weather.type === 'snow') {
-            g.fillStyle(0xFFFFFF, 0.7);
+            g.fillStyle(0xFFFFFF, 0.8);
             g.fillCircle(p.x, p.y, p.size);
         } else if (weather.type === 'rain') {
-            g.fillStyle(0x87CEEB, 0.5);
-            g.fillRect(p.x, p.y, 1, p.size * 4);
+            // Darker blue, more opaque, thicker drops for visibility against grass
+            g.fillStyle(0x4169E1, 0.7);  // Royal blue
+            g.fillRect(p.x, p.y, 2, p.size * 6);
         }
     });
 }
