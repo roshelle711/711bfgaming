@@ -780,6 +780,17 @@ function update(time, delta) {
     // === PLAYER UPDATES ===
     updatePlayerSparkles(time);
     updatePlayerMovement();
+
+    // Auto-close dialog if player moves away
+    if (GameState.isDialogOpen && GameState.dialogOpenPosition && GameState.player) {
+        const dx = GameState.player.x - GameState.dialogOpenPosition.x;
+        const dy = GameState.player.y - GameState.dialogOpenPosition.y;
+        const distMoved = Math.sqrt(dx * dx + dy * dy);
+        if (distMoved > 50) {  // ~50 pixels threshold
+            closeDialog();
+        }
+    }
+
     updatePetFollow(delta);
 
     // === SYSTEMS UPDATES ===

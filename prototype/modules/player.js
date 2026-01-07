@@ -358,7 +358,7 @@ export function createPet(scene, x, y, petType) {
  */
 export function updatePlayerMovement() {
     const player = GameState.player;
-    if (!player || GameState.isDialogOpen || GameState.isFishing) return;
+    if (!player || GameState.isFishing) return;
 
     const cursors = GameState.cursors;
     const wasd = GameState.wasd;

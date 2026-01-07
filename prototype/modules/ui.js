@@ -77,6 +77,10 @@ export function showDialog(message) {
     GameState.dialogText.setText(message).setVisible(true);
     scene.dialogCloseText.setVisible(true);
     GameState.isDialogOpen = true;
+    // Track player position for auto-close on movement
+    if (GameState.player) {
+        GameState.dialogOpenPosition = { x: GameState.player.x, y: GameState.player.y };
+    }
     GameState.interactPrompt.setVisible(false);
     GameState.farmPrompt.setVisible(false);
 }
