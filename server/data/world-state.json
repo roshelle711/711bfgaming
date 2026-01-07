@@ -1,0 +1,210 @@
+{
+  "farmPlots": [
+    {
+      "index": 0,
+      "state": "planted",
+      "crop": "flower",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1395.5,
+      "hazard": "bugs"
+    },
+    {
+      "index": 1,
+      "state": "planted",
+      "crop": "flower",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1398,
+      "hazard": "bugs"
+    },
+    {
+      "index": 2,
+      "state": "planted",
+      "crop": "tomato",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1252,
+      "hazard": "bugs"
+    },
+    {
+      "index": 3,
+      "state": "planted",
+      "crop": "carrot",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 7,
+      "hazard": ""
+    },
+    {
+      "index": 4,
+      "state": "planted",
+      "crop": "lettuce",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1436.5,
+      "hazard": "bugs"
+    },
+    {
+      "index": 5,
+      "state": "planted",
+      "crop": "carrot",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1265.5,
+      "hazard": "bugs"
+    },
+    {
+      "index": 6,
+      "state": "planted",
+      "crop": "pepper",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1260,
+      "hazard": "bugs"
+    },
+    {
+      "index": 7,
+      "state": "tilled",
+      "crop": "",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 440.5,
+      "hazard": ""
+    },
+    {
+      "index": 8,
+      "state": "tilled",
+      "crop": "",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 436,
+      "hazard": ""
+    },
+    {
+      "index": 9,
+      "state": "tilled",
+      "crop": "",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 434,
+      "hazard": ""
+    },
+    {
+      "index": 10,
+      "state": "planted",
+      "crop": "carrot",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1274,
+      "hazard": "bugs"
+    },
+    {
+      "index": 11,
+      "state": "planted",
+      "crop": "carrot",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1278.5,
+      "hazard": "bugs"
+    },
+    {
+      "index": 12,
+      "state": "planted",
+      "crop": "potato",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 1353.5,
+      "hazard": "bugs"
+    },
+    {
+      "index": 13,
+      "state": "planted",
+      "crop": "potato",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 49,
+      "hazard": "bugs"
+    },
+    {
+      "index": 14,
+      "state": "planted",
+      "crop": "onion",
+      "growthTimer": 0,
+      "isWatered": false,
+      "lastWateredTime": 45,
+      "hazard": "bugs"
+    }
+  ],
+  "seedPickups": [
+    {
+      "index": 0,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 1,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 2,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 3,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 4,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 5,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 6,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 7,
+      "isCollected": false,
+      "respawnTimer": 0
+    },
+    {
+      "index": 8,
+      "isCollected": false,
+      "respawnTimer": 0
+    }
+  ],
+  "fruitTrees": [
+    {
+      "index": 0,
+      "hasFruit": true,
+      "fruitTimer": 0
+    },
+    {
+      "index": 1,
+      "hasFruit": true,
+      "fruitTimer": 0
+    },
+    {
+      "index": 2,
+      "hasFruit": true,
+      "fruitTimer": 0
+    },
+    {
+      "index": 3,
+      "hasFruit": true,
+      "fruitTimer": 0
+    }
+  ],
+  "gameTime": 370,
+  "lastSaved": 1767779617712
+}

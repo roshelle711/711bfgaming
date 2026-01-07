@@ -1085,18 +1085,6 @@ function handleInput(scene) {
         console.log('[INPUT] E pressed! Dialog:', GameState.isDialogOpen, '| Inventory:', GameState.inventoryOpen, '| Pause:', GameState.pauseMenuOpen);
     }
 
-    // P key - pet interaction (silent easter egg - no dialog, just does trick)
-    if (petJustDown && !GameState.isDialogOpen && !GameState.inventoryOpen && !GameState.pauseMenuOpen) {
-        const pet = GameState.playerPet;
-        const player = GameState.player;
-        if (pet && player && isNearPet()) {
-            if (pet.petState !== 'trick') {
-                petDoTrick();  // Silent trick - animation plays, no popup
-            }
-        }
-        return;
-    }
-
     // Escape key OR E key - close any open menu/dialog, or open pause menu
     if (escapeJustDown ||
         (interactJustDown && (GameState.isDialogOpen || GameState.inventoryOpen || GameState.pauseMenuOpen))) {
@@ -1666,14 +1654,9 @@ function updateProximityPrompts() {
         }
     });
 
-    // Show pet prompt if near pet and no other interaction
-    if (!GameState.canInteract && isNearPet() && GameState.playerPet?.petState !== 'trick') {
-        GameState.interactPrompt.setText('🐾 Press P to pet');
-        GameState.interactPrompt.setVisible(true);
-    } else {
-        GameState.interactPrompt.setText('🔵 Press E to interact');
-        GameState.interactPrompt.setVisible(GameState.canInteract);
-    }
+    // Show interact prompt only for interactables (pet interaction is click-based now)
+    GameState.interactPrompt.setText('🔵 Press E to interact');
+    GameState.interactPrompt.setVisible(GameState.canInteract);
 
     // Farm prompts - tool-aware with click actions
     const nearPlot = findNearestFarmPlot();

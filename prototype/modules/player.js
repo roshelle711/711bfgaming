@@ -343,12 +343,20 @@ export function createPet(scene, x, y, petType) {
 
     // Pet state for wandering and tricks
     container.petType = petType;
-    container.petState = 'following';  // 'following', 'wandering', 'trick'
+    container.petState = 'following';  // 'following', 'wandering', 'idle_wander', 'cleaning', 'trick'
     container.wanderTarget = { x: x, y: y };
     container.wanderTimer = 0;
     container.trickTimer = 0;
     container.trickType = null;
     container.originalScale = { x: 1, y: 1 };
+
+    // Make pet clickable for tricks (silent easter egg)
+    container.setInteractive(new Phaser.Geom.Circle(0, 0, 25), Phaser.Geom.Circle.Contains);
+    container.on('pointerdown', () => {
+        if (container.petState !== 'trick') {
+            petDoTrick();
+        }
+    });
 
     return container;
 }
@@ -605,6 +613,13 @@ export function updatePetFollow(delta = 16) {
             };
         }
     } else if (pet.petState === 'following') {
+        // If player is idle, switch to idle_wander regardless of distance
+        if (isPlayerIdle && dist < 100) {
+            pet.petState = 'idle_wander';
+            pet.wanderTimer = 0; // Pick target immediately
+            return;
+        }
+
         // Follow the player
         if (dist > 50) {
             const speed = Math.min(dist * 2, 180);
@@ -615,12 +630,10 @@ export function updatePetFollow(delta = 16) {
                 pet.y = newY;
             }
         } else if (dist < 40) {
-            // Close enough, start wandering (or idle wander if player idle)
-            pet.petState = isPlayerIdle ? 'idle_wander' : 'wandering';
+            // Close enough, start wandering
+            pet.petState = 'wandering';
             pet.wanderTimer = 1000 + Math.random() * 2000;
-            pet.wanderTarget = isPlayerIdle
-                ? { x: 50 + Math.random() * (GAME_WIDTH - 100), y: 50 + Math.random() * (GAME_HEIGHT - 100) }
-                : getValidWanderTarget(player.x, player.y);
+            pet.wanderTarget = getValidWanderTarget(player.x, player.y);
         }
     } else if (pet.petState === 'wandering') {
         // If player becomes idle, switch to idle_wander
