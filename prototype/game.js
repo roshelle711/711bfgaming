@@ -919,8 +919,11 @@ function useActiveItem(scene) {
 
     // AXE: Chop unified trees
     if (tool === 'axe') {
+        console.log('[AXE] Player pos:', GameState.player.x, GameState.player.y, 'Trees count:', GameState.trees?.length);
         const nearbyTree = getNearbyTree(GameState.player.x, GameState.player.y, 80);
+        console.log('[AXE] Nearby tree:', nearbyTree ? `index=${nearbyTree.index}, stage=${nearbyTree.tree.stage}` : 'none');
         if (nearbyTree && nearbyTree.tree.stage !== 'sapling') {
+            console.log('[AXE] Chopping tree!');
             const result = chopUnifiedTree(nearbyTree.index);
             if (result.destroyed) {
                 const drops = result.drops;
@@ -930,6 +933,8 @@ function useActiveItem(scene) {
                 showDialog(message);
                 updateInventoryDisplay();
                 saveGameSession();
+            } else {
+                console.log('[AXE] Tree hit! HP remaining:', nearbyTree.tree.hp);
             }
             return;
         }
