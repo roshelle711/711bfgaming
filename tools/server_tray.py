@@ -145,28 +145,21 @@ class ServerManager:
         self.kill_existing_processes()
 
         try:
-            # Start Colyseus server
+            # Start Colyseus server (use npx tsx directly for reliability)
             self.colyseus_process = subprocess.Popen(
-                ["cmd", "/c", "npm", "run", "dev:node"],
+                ["cmd", "/c", "npx", "tsx", "--watch", "src/index.ts"],
                 cwd=str(SERVER_PATH),
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                shell=True
+            )
+            time.sleep(3)  # Give server more time to initialize
+
+            # Start HTTP server for client (use Python directly for reliability)
+            self.http_process = subprocess.Popen(
+                [sys.executable, "-m", "http.server", "3000", "--bind", "0.0.0.0"],
+                cwd=str(CLIENT_PATH),
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
-            time.sleep(2)
-
-            # Start HTTP server for client
-            if UV_PATH.exists():
-                self.http_process = subprocess.Popen(
-                    [str(UV_PATH), "run", "python", "-m", "http.server", "3000", "--bind", "0.0.0.0"],
-                    cwd=str(CLIENT_PATH),
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
-            else:
-                # Fallback to regular Python
-                self.http_process = subprocess.Popen(
-                    [sys.executable, "-m", "http.server", "3000", "--bind", "0.0.0.0"],
-                    cwd=str(CLIENT_PATH),
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
 
             time.sleep(1)
 
