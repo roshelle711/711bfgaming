@@ -34,7 +34,7 @@
       "growthTimer": 0,
       "isWatered": false,
       "lastWateredTime": 7,
-      "hazard": ""
+      "hazard": "bugs"
     },
     {
       "index": 4,
@@ -205,6 +205,6 @@
       "fruitTimer": 0
     }
   ],
-  "gameTime": 370,
-  "lastSaved": 1767779617712
+  "gameTime": 1171,
+  "lastSaved": 1767779796196
 }

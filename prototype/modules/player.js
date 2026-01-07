@@ -12,7 +12,7 @@
 import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration, DEPTH_LAYERS, getWorldDepth, GAME_WIDTH, GAME_HEIGHT } from './config.js';
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
-import { removeHazard } from './systems.js';
+import { removeHazard, updateInventoryDisplay, saveGameSession } from './systems.js';
 
 // Tool graphics containers (created once, reused)
 let toolGraphics = null;
@@ -343,7 +343,7 @@ export function createPet(scene, x, y, petType) {
 
     // Pet state for wandering and tricks
     container.petType = petType;
-    container.petState = 'following';  // 'following', 'wandering', 'idle_wander', 'cleaning', 'trick'
+    container.petState = 'following';  // 'following', 'wandering', 'idle_wander', 'collecting', 'trick'
     container.wanderTarget = { x: x, y: y };
     container.wanderTimer = 0;
     container.trickTimer = 0;
@@ -450,17 +450,63 @@ function getValidWanderTarget(playerX, playerY) {
 }
 
 /**
- * Find a weed in a farm plot that the pet can clean
- * @returns {Object|null} - Plot with weed, or null
+ * Find something for the pet to collect (weed, grass, or herb)
+ * @returns {Object|null} - { type: 'weed'|'grass'|'herb', target: object } or null
  */
-function findWeedToClean() {
-    if (!GameState.farmPlots) return null;
-    for (const plot of GameState.farmPlots) {
-        if (plot.hazard === 'weeds') {
-            return plot;
+function findCollectible() {
+    // Check for weeds in farm plots
+    if (GameState.farmPlots) {
+        for (const plot of GameState.farmPlots) {
+            if (plot.hazard === 'weeds') {
+                return { type: 'weed', target: plot };
+            }
         }
     }
+
+    // Check for grass pickups (fiber)
+    if (GameState.grassPickups) {
+        for (const pickup of GameState.grassPickups) {
+            if (!pickup.isCollected) {
+                return { type: 'grass', target: pickup };
+            }
+        }
+    }
+
+    // Check for herb pickups
+    if (GameState.herbPickups) {
+        for (const pickup of GameState.herbPickups) {
+            if (!pickup.isCollected) {
+                return { type: 'herb', target: pickup };
+            }
+        }
+    }
+
     return null;
+}
+
+/**
+ * Pet collects a pickup (grass or herb)
+ */
+function petCollectPickup(pickup, type) {
+    if (!pickup || pickup.isCollected) return;
+
+    pickup.isCollected = true;
+    pickup.graphics?.clear();
+
+    if (type === 'grass') {
+        // Add fiber (1-2 per grass)
+        const amount = Math.random() < 0.3 ? 2 : 1;
+        GameState.inventory.resources.fiber = (GameState.inventory.resources.fiber || 0) + amount;
+    } else if (type === 'herb') {
+        // Add herb to ingredients
+        const herbType = pickup.herbType;
+        if (GameState.inventory.ingredients[herbType] !== undefined) {
+            GameState.inventory.ingredients[herbType]++;
+        }
+    }
+
+    updateInventoryDisplay();
+    saveGameSession();
 }
 
 /**
@@ -533,49 +579,57 @@ export function updatePetFollow(delta = 16) {
     // If player starts moving, pet returns to following
     if (!isPlayerIdle && dist > 120) {
         pet.petState = 'following';
-        pet.targetWeed = null;
+        pet.collectTarget = null;
+        pet.collectType = null;
     }
 
-    // Cleaning weed behavior (when pet reaches a weed)
-    if (pet.petState === 'cleaning') {
+    // Collecting behavior (when pet reaches a collectible)
+    if (pet.petState === 'collecting') {
         pet.cleanTimer -= delta;
-        // Little wiggle animation while cleaning
+        // Little wiggle animation while collecting
         pet.rotation = Math.sin(pet.cleanTimer / 50) * 0.2;
 
         if (pet.cleanTimer <= 0) {
-            // Remove the weed silently
-            if (pet.targetWeed && pet.targetWeed.hazard === 'weeds') {
-                removeHazard(pet.targetWeed);
+            // Collect the item based on type
+            if (pet.collectTarget) {
+                if (pet.collectType === 'weed' && pet.collectTarget.hazard === 'weeds') {
+                    removeHazard(pet.collectTarget);
+                } else if (pet.collectType === 'grass' || pet.collectType === 'herb') {
+                    petCollectPickup(pet.collectTarget, pet.collectType);
+                }
             }
-            pet.targetWeed = null;
+            pet.collectTarget = null;
+            pet.collectType = null;
             pet.petState = isPlayerIdle ? 'idle_wander' : 'following';
             pet.rotation = 0;
         }
         return;
     }
 
-    // Idle wander - expanded range, looks for weeds
+    // Idle wander - expanded range, looks for collectibles
     if (pet.petState === 'idle_wander') {
         // If player starts moving, return to following
         if (!isPlayerIdle) {
             pet.petState = 'following';
-            pet.targetWeed = null;
+            pet.collectTarget = null;
+            pet.collectType = null;
             return;
         }
 
-        // Check for weeds to clean
-        if (!pet.targetWeed) {
-            const weed = findWeedToClean();
-            if (weed) {
-                pet.targetWeed = weed;
+        // Check for things to collect (weeds, grass, herbs)
+        if (!pet.collectTarget) {
+            const collectible = findCollectible();
+            if (collectible) {
+                pet.collectTarget = collectible.target;
+                pet.collectType = collectible.type;
             }
         }
 
-        // Move toward weed or wander target
+        // Move toward collectible or wander target
         let targetX, targetY;
-        if (pet.targetWeed) {
-            targetX = pet.targetWeed.x;
-            targetY = pet.targetWeed.y;
+        if (pet.collectTarget) {
+            targetX = pet.collectTarget.x;
+            targetY = pet.collectTarget.y;
         } else {
             targetX = pet.wanderTarget?.x || player.x;
             targetY = pet.wanderTarget?.y || player.y;
@@ -585,15 +639,15 @@ export function updatePetFollow(delta = 16) {
         const wdy = targetY - pet.y;
         const wdist = Math.sqrt(wdx * wdx + wdy * wdy);
 
-        // If near weed, start cleaning
-        if (pet.targetWeed && wdist < 20) {
-            pet.petState = 'cleaning';
-            pet.cleanTimer = 600; // 600ms to clean
+        // If near collectible, start collecting
+        if (pet.collectTarget && wdist < 20) {
+            pet.petState = 'collecting';
+            pet.cleanTimer = 600; // 600ms to collect
             return;
         }
 
         if (wdist > 5) {
-            const wanderSpeed = pet.targetWeed ? 70 : 50; // Faster toward weeds
+            const wanderSpeed = pet.collectTarget ? 70 : 50; // Faster toward collectibles
             const newX = pet.x + (wdx / wdist) * wanderSpeed * delta / 1000;
             const newY = pet.y + (wdy / wdist) * wanderSpeed * delta / 1000;
             if (!isPetInPond(newX, newY)) {
@@ -602,9 +656,9 @@ export function updatePetFollow(delta = 16) {
             }
         }
 
-        // Pick new wander target periodically (if no weed target)
+        // Pick new wander target periodically (if no collect target)
         pet.wanderTimer = (pet.wanderTimer || 0) - delta;
-        if (pet.wanderTimer <= 0 && !pet.targetWeed) {
+        if (pet.wanderTimer <= 0 && !pet.collectTarget) {
             pet.wanderTimer = 2000 + Math.random() * 3000;
             // Wander anywhere on visible screen
             pet.wanderTarget = {
