@@ -23,8 +23,6 @@
 - [ ] More NPC characters with schedules
 - [ ] Quest system basics
 - [ ] More cooking recipes (unlockable via quests)
-- [ ] Weather system
-- [ ] Seasonal changes
 
 ## Polish
 - [ ] Sound effects

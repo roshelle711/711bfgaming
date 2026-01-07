@@ -5,6 +5,37 @@ Each entry includes: feature name, completion date, and implementation location 
 
 ---
 
+## v11 (2026-01-07)
+
+### Weather System
+- [x] **Weather particle effects** - `game.js:1560-1650`
+  - Snow in winter (white circles, horizontal drift)
+  - Rain in spring (cornflower blue streaks, 60% opacity, 1px x 4)
+  - Monsoon mode (royal blue, 75% opacity, 2px x 6, heavy intensity)
+  - Randomized spawn Y prevents visible row pattern
+- [x] **Weather presets** - `config.js` (WEATHER_PRESETS, WEATHER_INTENSITY_OPTIONS)
+  - Auto, Frequent, Rare, Off presets
+  - Light, Normal, Heavy intensity options
+- [x] **Manual weather toggles** - `game.js:1030-1070`
+  - Ctrl+Alt+S (snow), Ctrl+Alt+R (rain), Ctrl+Alt+M (monsoon), Ctrl+Alt+N (none)
+- [x] **Weather settings in pause menu** - `ui.js:1220-1270`
+  - Preset and intensity dropdowns
+  - Hotkey hints displayed
+
+### Time & Season System
+- [x] **Configurable game presets** - `config.js` (GAME_PRESETS, TIME_SPEED_OPTIONS)
+  - Quick Test (30s day, 1 day/season), Balanced (5m day, 7 days/season)
+  - Immersive (10m day, 14 days/season), Custom mode
+- [x] **Season length options** - `config.js` (SEASON_OPTIONS: 1, 7, 14, 30 days)
+- [x] **Day/night cycle 75%/25%** - `utils.js:getDayPhase`
+  - Daytime 6:00-22:00 (16 hours), Nighttime 23:00-5:00 (6 hours)
+- [x] **Pause menu with game settings** - `ui.js:1050-1280`
+  - Preset selection, time speed, season length controls
+  - Depth layered above all other UI (MODAL = 3000)
+  - ESC key to toggle
+
+---
+
 ## v10 (2026-01-04)
 
 ### Code Modularization
