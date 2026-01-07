@@ -1062,7 +1062,7 @@ export function showPauseMenu(onChangeCharacter) {
 
     // Menu panel - larger to fit content
     const panelWidth = 520;
-    const panelHeight = isCustom ? 780 : 660;
+    const panelHeight = isCustom ? 820 : 700;
     const panel = scene.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.MODAL + 1);
     GameState.pauseMenuUI.push(panel);
@@ -1323,7 +1323,7 @@ export function showPauseMenu(onChangeCharacter) {
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(hotkeyText);
 
-    currentY += 85;
+    currentY += 105;
 
     // === ACTION BUTTONS ===
     // Continue button
