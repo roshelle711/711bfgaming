@@ -919,7 +919,7 @@ function useActiveItem(scene) {
 
     // AXE: Chop unified trees
     if (tool === 'axe') {
-        const nearbyTree = getNearbyTree(GameState.player.x, GameState.player.y);
+        const nearbyTree = getNearbyTree(GameState.player.x, GameState.player.y, 80);
         if (nearbyTree && nearbyTree.tree.stage !== 'sapling') {
             const result = chopUnifiedTree(nearbyTree.index);
             if (result.destroyed) {
