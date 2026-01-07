@@ -520,13 +520,13 @@ export function createNPCs(scene) {
     GameState.npc.message = `Welcome, ${GameState.playerName}! 🌟\nI'm Mira, the village druid.\nGrow crops, fish, cook recipes!\nSell at the shop for coins!`;
     GameState.interactables.push(GameState.npc);
 
-    // Finn - shopkeeper with apron (in front of General Store at 1150, 150)
-    GameState.shopkeeper = createWhimsicalCharacter(scene, 1150, 240, 'priest', true, {
+    // Finn - shopkeeper with apron (left of General Store door at 1150, 150)
+    GameState.shopkeeper = createWhimsicalCharacter(scene, 1100, 230, 'priest', true, {
         body: 0x27AE60, accent: 0x2ECC71, skin: 0xC68642, hair: 0x1E8449, accessory: 'apron'
     });
     GameState.shopkeeper.body.setImmovable(true);
     // Set depth based on foot Y position (y + 25 for ~50px character)
-    GameState.shopkeeper.setDepth(getWorldDepth(240 + 25));
+    GameState.shopkeeper.setDepth(getWorldDepth(230 + 25));
 
     // Add nameplate to Finn's container
     const finnName = scene.add.text(0, -60, 'Finn 🛒', {
