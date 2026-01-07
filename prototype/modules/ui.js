@@ -1062,7 +1062,7 @@ export function showPauseMenu(onChangeCharacter) {
 
     // Menu panel - larger to fit content
     const panelWidth = 520;
-    const panelHeight = isCustom ? 700 : 580;
+    const panelHeight = isCustom ? 780 : 660;
     const panel = scene.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.MODAL + 1);
     GameState.pauseMenuUI.push(panel);
@@ -1134,7 +1134,7 @@ export function showPauseMenu(onChangeCharacter) {
         btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
-    currentY += (btnHeight + gridGapY) * 2 + 20;
+    currentY += (btnHeight + gridGapY) * 2 + 35;
 
     // === CUSTOM SETTINGS (only shown when Custom is selected) ===
     if (isCustom) {
@@ -1221,29 +1221,33 @@ export function showPauseMenu(onChangeCharacter) {
         currentY += 50;
     }
 
-    // === WEATHER SETTINGS ===
-    const weatherLabel = scene.add.text(centerX, currentY, '🌦️ Weather', {
+    // === WEATHER FREQUENCY ===
+    const weatherLabel = scene.add.text(centerX, currentY, '🌦️ Weather Frequency', {
         fontSize: '13px', fill: '#87CEEB', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(weatherLabel);
-    currentY += 28;
+    currentY += 30;
 
-    // Weather preset row
+    // Weather frequency row - centered 4 buttons
     const weatherPresetKeys = ['auto', 'frequent', 'rare', 'off'];
     const currentWeatherPreset = GameState.settings?.weatherPreset || 'auto';
+    const freqBtnWidth = 85;
+    const freqBtnGap = 10;
+    const freqTotalWidth = weatherPresetKeys.length * freqBtnWidth + (weatherPresetKeys.length - 1) * freqBtnGap;
+    const freqStartX = centerX - freqTotalWidth / 2 + freqBtnWidth / 2;
 
     weatherPresetKeys.forEach((key, i) => {
         const opt = WEATHER_PRESETS[key];
-        const btnX = centerX - 180 + i * 95;
+        const btnX = freqStartX + i * (freqBtnWidth + freqBtnGap);
         const isSelected = currentWeatherPreset === key;
 
-        const btn = scene.add.rectangle(btnX, currentY + 15, 85, 32,
+        const btn = scene.add.rectangle(btnX, currentY, freqBtnWidth, 32,
             isSelected ? 0x3498DB : 0x34495E, 0.9)
             .setStrokeStyle(2, isSelected ? 0x5DADE2 : 0x4A5568)
             .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
         GameState.pauseMenuUI.push(btn);
 
-        const btnText = scene.add.text(btnX, currentY + 15, opt.label, {
+        const btnText = scene.add.text(btnX, currentY, opt.label, {
             fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(btnText);
@@ -1259,30 +1263,36 @@ export function showPauseMenu(onChangeCharacter) {
         btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
-    currentY += 45;
+    currentY += 50;
 
-    // Weather intensity row
-    const intensityLabel = scene.add.text(centerX - 190, currentY, 'Intensity:', {
-        fontSize: '11px', fill: '#888'
-    }).setOrigin(0, 0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
+    // === WEATHER INTENSITY ===
+    const intensityLabel = scene.add.text(centerX, currentY, '💧 Weather Intensity', {
+        fontSize: '13px', fill: '#87CEEB', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(intensityLabel);
+    currentY += 30;
 
+    // Weather intensity row - centered 3 buttons
     const intensityKeys = ['light', 'normal', 'heavy'];
     const currentIntensity = GameState.settings?.weatherIntensity || 'normal';
+    const intBtnWidth = 85;
+    const intBtnGap = 10;
+    const intTotalWidth = intensityKeys.length * intBtnWidth + (intensityKeys.length - 1) * intBtnGap;
+    const intStartX = centerX - intTotalWidth / 2 + intBtnWidth / 2;
 
     intensityKeys.forEach((key, i) => {
         const opt = WEATHER_INTENSITY_OPTIONS[key];
-        const btnX = centerX - 70 + i * 80;
+        const btnX = intStartX + i * (intBtnWidth + intBtnGap);
         const isSelected = currentIntensity === key;
 
-        const btn = scene.add.rectangle(btnX, currentY, 70, 26,
+        const btn = scene.add.rectangle(btnX, currentY, intBtnWidth, 32,
             isSelected ? 0x27AE60 : 0x34495E, 0.9)
-            .setStrokeStyle(1, isSelected ? 0x2ECC71 : 0x4A5568)
+            .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
             .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
         GameState.pauseMenuUI.push(btn);
 
         const btnText = scene.add.text(btnX, currentY, opt.label, {
-            fontSize: '10px', fill: isSelected ? '#fff' : '#aaa'
+            fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(btnText);
 
@@ -1296,7 +1306,7 @@ export function showPauseMenu(onChangeCharacter) {
         btn.on('pointerout', () => { if (!isSelected) btn.setFillStyle(0x34495E, 0.9); });
     });
 
-    currentY += 35;
+    currentY += 45;
 
     // === HOTKEYS SECTION ===
     const hotkeyBox = scene.add.rectangle(centerX, currentY + 35, panelWidth - 40, 75, 0x2a2a4e, 0.8)
