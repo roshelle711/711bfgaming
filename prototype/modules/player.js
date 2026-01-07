@@ -10,9 +10,9 @@
  */
 
 import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration, DEPTH_LAYERS, getWorldDepth, GAME_WIDTH, GAME_HEIGHT } from './config.js';
-import { GameState } from './state.js';
+import { GameState, saveGameSession } from './state.js';
 import { lerp } from './utils.js';
-import { removeHazard, updateInventoryDisplay, saveGameSession } from './systems.js';
+import { removeHazard, updateInventoryDisplay } from './systems.js';
 
 // Tool graphics containers (created once, reused)
 let toolGraphics = null;
