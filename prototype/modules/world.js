@@ -390,6 +390,110 @@ export function drawSeedPickup(pickup) {
 }
 
 /**
+ * Create herb/ingredient pickup in the world
+ */
+export function createHerbPickup(scene, x, y, herbType, index = 0) {
+    const pickup = { index, x, y, herbType, isCollected: false, respawnTimer: 0, graphics: scene.add.graphics() };
+    drawHerbPickup(pickup);
+    return pickup;
+}
+
+/**
+ * Draw herb/ingredient pickup visual
+ */
+export function drawHerbPickup(pickup) {
+    pickup.graphics.clear();
+    if (pickup.isCollected) return;
+    const { x, y, herbType } = pickup;
+
+    if (herbType === 'mushroom') {
+        // Mushroom - purple cap with white stem
+        pickup.graphics.fillStyle(0xEEEEEE, 1);
+        pickup.graphics.fillRect(x - 3, y - 2, 6, 12);
+        pickup.graphics.fillStyle(0x8E44AD, 1);
+        pickup.graphics.fillEllipse(x, y - 6, 16, 10);
+        // White spots
+        pickup.graphics.fillStyle(0xFFFFFF, 0.9);
+        pickup.graphics.fillCircle(x - 4, y - 8, 2);
+        pickup.graphics.fillCircle(x + 3, y - 5, 1.5);
+        pickup.graphics.fillCircle(x, y - 4, 1);
+    } else {
+        // Herbs - colored leaves based on type
+        const colors = {
+            herb_red: 0xE74C3C,
+            herb_blue: 0x3498DB,
+            herb_green: 0x27AE60
+        };
+        const color = colors[herbType] || 0x27AE60;
+
+        // Stem
+        pickup.graphics.fillStyle(0x228B22, 1);
+        pickup.graphics.fillRect(x - 1, y - 2, 2, 14);
+
+        // Leaves (3 pairs)
+        pickup.graphics.fillStyle(color, 1);
+        // Bottom leaves
+        pickup.graphics.fillEllipse(x - 6, y + 4, 8, 5);
+        pickup.graphics.fillEllipse(x + 6, y + 4, 8, 5);
+        // Middle leaves
+        pickup.graphics.fillEllipse(x - 5, y - 2, 7, 4);
+        pickup.graphics.fillEllipse(x + 5, y - 2, 7, 4);
+        // Top leaves
+        pickup.graphics.fillEllipse(x - 4, y - 7, 6, 4);
+        pickup.graphics.fillEllipse(x + 4, y - 7, 6, 4);
+
+        // Highlight/glow based on type
+        pickup.graphics.fillStyle(color, 0.3);
+        pickup.graphics.fillCircle(x, y - 2, 12);
+    }
+}
+
+/**
+ * Create grass/weed pickup for fiber
+ */
+export function createGrassPickup(scene, x, y, index = 0) {
+    const pickup = { index, x, y, isCollected: false, respawnTimer: 0, graphics: scene.add.graphics() };
+    drawGrassPickup(pickup);
+    return pickup;
+}
+
+/**
+ * Draw grass/weed pickup visual - wild grass tuft
+ */
+export function drawGrassPickup(pickup) {
+    pickup.graphics.clear();
+    if (pickup.isCollected) return;
+    const { x, y } = pickup;
+
+    // Draw multiple grass blades fanning out
+    pickup.graphics.fillStyle(0x7CB342, 1);  // Light green grass
+
+    // Center tall blade
+    pickup.graphics.fillRect(x - 1, y - 16, 2, 18);
+
+    // Left blades (angled)
+    pickup.graphics.save();
+    pickup.graphics.fillRect(x - 4, y - 12, 2, 14);
+    pickup.graphics.fillRect(x - 7, y - 8, 2, 10);
+    pickup.graphics.restore();
+
+    // Right blades (angled)
+    pickup.graphics.fillRect(x + 2, y - 12, 2, 14);
+    pickup.graphics.fillRect(x + 5, y - 8, 2, 10);
+
+    // Darker green accents
+    pickup.graphics.fillStyle(0x558B2F, 1);
+    pickup.graphics.fillRect(x - 6, y - 10, 2, 12);
+    pickup.graphics.fillRect(x + 4, y - 10, 2, 12);
+
+    // Wispy tops
+    pickup.graphics.fillStyle(0x9CCC65, 1);
+    pickup.graphics.fillCircle(x, y - 17, 2);
+    pickup.graphics.fillCircle(x - 4, y - 13, 1.5);
+    pickup.graphics.fillCircle(x + 3, y - 13, 1.5);
+}
+
+/**
  * Create NPC characters (Mira and Finn)
  */
 export function createNPCs(scene) {
@@ -788,6 +892,138 @@ export function drawCookingStation(station) {
         station.graphics.fillCircle(x + 15, y - 50, 5);
         station.graphics.fillCircle(x + 18, y - 58, 4);
         station.graphics.fillCircle(x + 14, y - 64, 3);
+
+    } else if (stationType === 'alchemy_table') {
+        // Wooden table top
+        station.graphics.fillStyle(0x5D4037, 1);
+        station.graphics.fillRoundedRect(x - 28, y - 12, 56, 24, 3);
+        // Table surface highlight
+        station.graphics.fillStyle(0x6D5047, 1);
+        station.graphics.fillRoundedRect(x - 26, y - 10, 52, 18, 2);
+        // Table legs
+        station.graphics.fillStyle(0x4E342E, 1);
+        station.graphics.fillRect(x - 24, y + 10, 6, 14);
+        station.graphics.fillRect(x + 18, y + 10, 6, 14);
+
+        // Flask/beaker (left side)
+        station.graphics.fillStyle(0x85C1E9, 0.7);
+        station.graphics.fillTriangle(x - 18, y - 8, x - 12, y - 8, x - 15, y - 22);
+        station.graphics.fillCircle(x - 15, y - 24, 5);
+        // Bubbles in flask
+        station.graphics.fillStyle(0xAED6F1, 0.8);
+        station.graphics.fillCircle(x - 16, y - 18, 2);
+        station.graphics.fillCircle(x - 14, y - 14, 1.5);
+
+        // Mortar and pestle (center)
+        station.graphics.fillStyle(0x7F8C8D, 1);
+        station.graphics.fillEllipse(x, y - 6, 14, 8);
+        station.graphics.fillStyle(0x5D6D7E, 1);
+        station.graphics.fillEllipse(x, y - 6, 10, 5);
+        // Pestle
+        station.graphics.fillStyle(0x95A5A6, 1);
+        station.graphics.fillRect(x - 2, y - 18, 4, 14);
+        station.graphics.fillCircle(x, y - 19, 4);
+
+        // Potion bottle (right side) - purple glow
+        station.graphics.fillStyle(0x9B59B6, 0.8);
+        station.graphics.fillRoundedRect(x + 12, y - 18, 10, 14, 3);
+        station.graphics.fillRect(x + 14, y - 22, 6, 5);
+        // Cork
+        station.graphics.fillStyle(0xA0522D, 1);
+        station.graphics.fillRect(x + 15, y - 24, 4, 3);
+        // Magical glow
+        station.graphics.fillStyle(0xBB8FCE, 0.4);
+        station.graphics.fillCircle(x + 17, y - 11, 8);
+
+        // Scattered herbs/ingredients
+        station.graphics.fillStyle(0x27AE60, 0.9);
+        station.graphics.fillCircle(x - 6, y + 2, 3);
+        station.graphics.fillCircle(x + 4, y + 1, 2);
+        station.graphics.fillStyle(0xE74C3C, 0.9);
+        station.graphics.fillCircle(x - 2, y + 3, 2);
+
+    } else if (stationType === 'tailor_bench') {
+        // Wooden workbench
+        station.graphics.fillStyle(0xDEB887, 1);
+        station.graphics.fillRoundedRect(x - 30, y - 10, 60, 22, 3);
+        // Table surface highlight
+        station.graphics.fillStyle(0xE8CFA0, 1);
+        station.graphics.fillRoundedRect(x - 28, y - 8, 56, 16, 2);
+        // Table legs
+        station.graphics.fillStyle(0xA0522D, 1);
+        station.graphics.fillRect(x - 26, y + 10, 6, 14);
+        station.graphics.fillRect(x + 20, y + 10, 6, 14);
+
+        // Thread spool (left side)
+        station.graphics.fillStyle(0xE74C3C, 1);
+        station.graphics.fillRoundedRect(x - 22, y - 14, 10, 12, 2);
+        station.graphics.fillStyle(0xB22222, 1);
+        station.graphics.fillRect(x - 20, y - 12, 6, 8);
+        // Thread line
+        station.graphics.lineStyle(1, 0xE74C3C, 1);
+        station.graphics.lineBetween(x - 15, y - 8, x - 5, y - 5);
+
+        // Needle (center)
+        station.graphics.fillStyle(0xC0C0C0, 1);
+        station.graphics.fillRect(x - 2, y - 18, 2, 16);
+        station.graphics.fillTriangle(x - 1, y - 20, x + 1, y - 20, x, y - 24);
+        // Needle eye
+        station.graphics.fillStyle(0x333333, 1);
+        station.graphics.fillCircle(x, y - 6, 1);
+
+        // Fabric squares (right side)
+        station.graphics.fillStyle(0x3498DB, 0.9);
+        station.graphics.fillRect(x + 8, y - 8, 12, 10);
+        station.graphics.fillStyle(0x9B59B6, 0.9);
+        station.graphics.fillRect(x + 14, y - 6, 10, 8);
+        station.graphics.fillStyle(0x27AE60, 0.9);
+        station.graphics.fillRect(x + 10, y - 4, 8, 6);
+
+        // Scissors
+        station.graphics.fillStyle(0x808080, 1);
+        station.graphics.fillCircle(x - 8, y + 2, 4);
+        station.graphics.fillCircle(x - 2, y + 2, 4);
+
+    } else if (stationType === 'forge') {
+        // Stone base
+        station.graphics.fillStyle(0x4A4A4A, 1);
+        station.graphics.fillRoundedRect(x - 28, y - 8, 56, 28, 4);
+        // Stone texture
+        station.graphics.fillStyle(0x5A5A5A, 1);
+        station.graphics.fillCircle(x - 15, y, 6);
+        station.graphics.fillCircle(x + 10, y + 5, 5);
+        station.graphics.fillCircle(x, y + 8, 4);
+
+        // Anvil on top
+        station.graphics.fillStyle(0x2C2C2C, 1);
+        station.graphics.fillRect(x - 18, y - 16, 36, 10);
+        // Anvil horn (left)
+        station.graphics.fillTriangle(x - 18, y - 16, x - 18, y - 6, x - 28, y - 10);
+        // Anvil heel (right)
+        station.graphics.fillRect(x + 14, y - 18, 8, 14);
+        // Anvil highlight
+        station.graphics.fillStyle(0x404040, 1);
+        station.graphics.fillRect(x - 16, y - 14, 32, 4);
+
+        // Fire glow underneath
+        station.graphics.fillStyle(0xFF4500, 0.6);
+        station.graphics.fillCircle(x, y + 12, 12);
+        station.graphics.fillStyle(0xFF6347, 0.4);
+        station.graphics.fillCircle(x, y + 10, 8);
+        station.graphics.fillStyle(0xFFD700, 0.5);
+        station.graphics.fillCircle(x, y + 8, 4);
+
+        // Hammer (beside anvil)
+        station.graphics.fillStyle(0x8B4513, 1);
+        station.graphics.fillRect(x + 26, y - 20, 4, 18);
+        station.graphics.fillStyle(0x696969, 1);
+        station.graphics.fillRect(x + 22, y - 22, 12, 6);
+
+        // Sparks
+        station.graphics.fillStyle(0xFFD700, 0.8);
+        station.graphics.fillCircle(x - 5, y - 20, 2);
+        station.graphics.fillCircle(x + 8, y - 22, 1.5);
+        station.graphics.fillCircle(x + 2, y - 24, 1);
     }
 }
 

@@ -6,13 +6,15 @@
  */
 
 // === MODULE IMPORTS ===
-import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions } from './modules/config.js';
+import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions, herbSpawnPositions, grassSpawnPositions, GAME_DAY_MINUTES } from './modules/config.js';
 import { GameState, loadGameSession, saveGameSession } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
+import { initializeTrees, updateTreeLifecycle, getCurrentSeason, getDayInSeason, getNearbyTree, chopTree as chopUnifiedTree, harvestFruit as harvestUnifiedTreeFruit, harvestHoney, plantSeed as plantTreeSeed } from './modules/trees.js';
+import { initializeBees, updateBees, updateHiveHoney } from './modules/bees.js';
 import { createWhimsicalCharacter, createPet, updatePlayerMovement, updatePetFollow, updatePlayerSparkles, createToolGraphics, updateHeldTool, equipTool, initActionAnimations, updateActionAnimations, petDoTrick, isNearPet } from './modules/player.js';
-import { createHouse, createFarmPlot, drawTree, createSeedPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree, setupCookingStations, findNearestCookingStation } from './modules/world.js';
+import { createHouse, createFarmPlot, drawTree, createSeedPickup, createHerbPickup, createGrassPickup, createNPCs, updateNPCPatrol, drawLamppost, drawLamppostLight, createFruitTree, setupCookingStations, findNearestCookingStation } from './modules/world.js';
 import { setupUI, showCharacterCreation, showDialog, closeDialog, updateInventoryDisplay, updateSeedIndicator, updateCoinDisplay, toggleInventory, setActiveHotbarSlot, updateHotbarDisplay, showPauseMenu, closePauseMenu } from './modules/ui.js';
-import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, findNearestFarmPlot, isNearPond, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth, updateCooking } from './modules/systems.js';
+import { hoePlot, plantSeed, harvestCrop, updatePlantGrowth, cycleSeedType, startFishing, updateFishing, showShopMenu, showCraftingMenu, checkSeedPickups, respawnSeedPickups, checkHerbPickups, respawnHerbPickups, checkGrassPickups, respawnGrassPickups, findNearestFarmPlot, isNearPond, waterPlot, removeHazard, harvestFruit, findNearestFruitTree, updateFruitRegrowth, updateCooking } from './modules/systems.js';
 import { connectToServer, interpolateOtherPlayers, sendPositionToServer, interpolateNPCs, sendToggleLamppost, sendWaterAction, sendRemoveHazard, sendHarvestFruit } from './modules/multiplayer.js';
 import { setupResourceNodes, handleResourceClick } from './modules/resources.js';
 
@@ -404,6 +406,16 @@ function create() {
         GameState.seedPickups.push(createSeedPickup(this, loc.x, loc.y, loc.type, index));
     });
 
+    // Herb pickups (for alchemy)
+    herbSpawnPositions.forEach((loc, index) => {
+        GameState.herbPickups.push(createHerbPickup(this, loc.x, loc.y, loc.type, index));
+    });
+
+    // Grass pickups (for fiber)
+    grassSpawnPositions.forEach((loc, index) => {
+        GameState.grassPickups.push(createGrassPickup(this, loc.x, loc.y, index));
+    });
+
     // === TOWN CENTER (center-top) ===
     // Well - water source for crops
     const wellX = 700, wellY = 180;
@@ -485,7 +497,13 @@ function create() {
     // Resource nodes (trees, rocks) - harvestable for wood, stone, ore, gems
     setupResourceNodes(this);
 
-    // Cooking stations (campfire, stove, oven)
+    // Unified tree system with lifecycle and seasons
+    initializeTrees(this);
+
+    // Bee system
+    initializeBees(this);
+
+    // Crafting stations (campfire, stove, oven, alchemy_table)
     setupCookingStations(this);
 
     // Click handler for resource nodes
@@ -563,6 +581,11 @@ function create() {
         fontSize: '14px', fill: '#FFA500', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(100).setVisible(false);
 
+    // Unified tree prompt
+    GameState.treePrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 160, '', {
+        fontSize: '14px', fill: '#8B4513', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(100).setVisible(false);
+
     // === SHOW CHARACTER CREATION ===
     // Input setup moved to startGame() to avoid capturing keys during name entry
     showCharacterCreation(this, () => startGame(this));
@@ -579,6 +602,7 @@ function startGame(scene) {
     GameState.cursors = scene.input.keyboard.createCursorKeys();
     GameState.wasd = scene.input.keyboard.addKeys('W,S,A,D');
     GameState.interactKey = scene.input.keyboard.addKey('E');
+    GameState.petKey = scene.input.keyboard.addKey('P');  // Dedicated key for petting
     GameState.escapeKey = scene.input.keyboard.addKey('ESC');
     GameState.tabKey = scene.input.keyboard.addKey('TAB');
     GameState.inventoryKey = scene.input.keyboard.addKey('I');
@@ -687,7 +711,14 @@ function update(time, delta) {
     // Skip local time advancement when connected - server syncs time
     if (!GameState.room) {
         GameState.gameTime += GameState.timeSpeed / 60;
-        if (GameState.gameTime >= 1440) GameState.gameTime = 0;
+        if (GameState.gameTime >= GAME_DAY_MINUTES) {
+            GameState.gameTime = 0;
+            // New day - advance day counter and update tree lifecycle
+            GameState.day += 1;
+            updateTreeLifecycle();
+            updateHiveHoney();
+            console.log(`[Time] Day ${GameState.day} - Season: ${getCurrentSeason()}`);
+        }
     }
 
     const phase = getDayPhase(GameState.gameTime);
@@ -702,6 +733,14 @@ function update(time, delta) {
     const emoji = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
     GameState.timeDisplay.setText(`${emoji[phase]} ${getTimeString(GameState.gameTime)}`);
 
+    // Update season display
+    if (GameState.seasonDisplay) {
+        const season = getCurrentSeason();
+        const seasonEmoji = { spring: '🌸', summer: '☀️', fall: '🍂', winter: '❄️' };
+        const dayInSeason = getDayInSeason();
+        GameState.seasonDisplay.setText(`Day ${GameState.day} | ${seasonEmoji[season]} ${season.charAt(0).toUpperCase() + season.slice(1)} (${dayInSeason})`);
+    }
+
     // === PLAYER UPDATES ===
     updatePlayerSparkles(time);
     updatePlayerMovement();
@@ -713,8 +752,13 @@ function update(time, delta) {
     updateCooking(delta);
     checkSeedPickups();
     respawnSeedPickups(this, delta);
+    checkHerbPickups();
+    respawnHerbPickups(this, delta);
+    checkGrassPickups();
+    respawnGrassPickups(this, delta);
     updateNPCPatrol();
     updateWildlife(delta);
+    updateBees(delta);
     updateFruitRegrowth(delta);
     updateHeldTool();
     updateActionAnimations(delta);
@@ -804,6 +848,24 @@ function useActiveItem(scene) {
     if (tool === 'fishingRod' && isNearPond() && !GameState.isFishing) {
         startFishing();
         return;
+    }
+
+    // AXE: Chop unified trees
+    if (tool === 'axe') {
+        const nearbyTree = getNearbyTree(GameState.player.x, GameState.player.y);
+        if (nearbyTree && nearbyTree.tree.stage !== 'sapling') {
+            const result = chopUnifiedTree(nearbyTree.index);
+            if (result.destroyed) {
+                const drops = result.drops;
+                let message = `+${drops.wood} wood`;
+                if (drops.fruit > 0) message += `, +${drops.fruit} fruit`;
+                if (drops.seed > 0) message += `, +1 seed`;
+                showDialog(message);
+                updateInventoryDisplay();
+                saveGameSession();
+            }
+            return;
+        }
     }
 }
 
@@ -924,10 +986,33 @@ function handleInput(scene) {
     // Cache JustDown results - they only return true ONCE per frame!
     const escapeJustDown = Phaser.Input.Keyboard.JustDown(GameState.escapeKey);
     const interactJustDown = Phaser.Input.Keyboard.JustDown(GameState.interactKey);
+    const petJustDown = Phaser.Input.Keyboard.JustDown(GameState.petKey);
 
     // Debug: Log EVERY E key press to verify input is working
     if (interactJustDown) {
         console.log('[INPUT] E pressed! Dialog:', GameState.isDialogOpen, '| Inventory:', GameState.inventoryOpen, '| Pause:', GameState.pauseMenuOpen);
+    }
+
+    // P key - pet interaction (dedicated key to avoid conflicts)
+    if (petJustDown && !GameState.isDialogOpen && !GameState.inventoryOpen && !GameState.pauseMenuOpen) {
+        const pet = GameState.playerPet;
+        const player = GameState.player;
+        if (pet && player && isNearPet()) {
+            const petState = pet.petState;
+            if (petState !== 'trick') {
+                const trick = petDoTrick();
+                if (trick) {
+                    const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
+                    const trickMessages = {
+                        spin: `${petName} does a happy spin! 🎉`,
+                        jump: `${petName} jumps with joy! 🎉`,
+                        flip: `${petName} does a cute flip! 🎉`
+                    };
+                    showDialog(trickMessages[trick]);
+                }
+            }
+        }
+        return;
     }
 
     // Escape key OR E key - close any open menu/dialog, or open pause menu
@@ -958,59 +1043,42 @@ function handleInput(scene) {
         const tool = GameState.equippedTool;
         const nearPlot = findNearestFarmPlot();
 
-        // === CALCULATE DISTANCES FOR PET AND LAMPPOST ===
-        const pet = GameState.playerPet;
-        const player = GameState.player;
-        const nearestLamppost = findNearestLamppost();
-
-        let petDist = Infinity;
-        let lamppostDist = Infinity;
-
-        if (pet && player) {
-            petDist = Math.sqrt(Math.pow(player.x - pet.x, 2) + Math.pow(player.y - pet.y, 2));
-        }
-
-        if (nearestLamppost && player) {
-            lamppostDist = Math.sqrt(Math.pow(player.x - nearestLamppost.x, 2) + Math.pow(player.y - nearestLamppost.y, 2));
-        }
-
-        console.log('[E key] Pet dist:', petDist.toFixed(0), '| Lamppost dist:', lamppostDist.toFixed(0));
-
-        // === LAMPPOST TOGGLE (prioritize if closer than pet) ===
-        if (nearestLamppost && lamppostDist < petDist) {
-            console.log('[E key] Toggling lamppost (closer than pet)');
-            const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
-            if (!sendToggleLamppost(lamppostIndex)) {
-                nearestLamppost.lightOn = !nearestLamppost.lightOn;
-                nearestLamppost.lightGraphics.setVisible(nearestLamppost.lightOn);
+        // === UNIFIED TREE INTERACTIONS ===
+        const nearbyTree = getNearbyTree(GameState.player.x, GameState.player.y);
+        if (nearbyTree) {
+            const { index, tree } = nearbyTree;
+            // Harvest honey from hive
+            if (tree.hasHive && tree.hiveHoney > 0) {
+                const honey = harvestHoney(index);
+                if (honey > 0) {
+                    showDialog(`Harvested ${honey} honey! 🍯`);
+                    updateInventoryDisplay();
+                    saveGameSession();
+                }
+                return;
             }
+            // Harvest fruit from tree
+            if (tree.fruitReady && (getCurrentSeason() === 'summer' || getCurrentSeason() === 'fall')) {
+                const fruit = harvestUnifiedTreeFruit(index);
+                if (fruit > 0) {
+                    showDialog(`Picked ${fruit} fruit! 🍎`);
+                    updateInventoryDisplay();
+                    saveGameSession();
+                }
+                return;
+            }
+        }
+
+        // === COOKING STATION (priority over lamppost) ===
+        if (findNearestCookingStation()) {
+            showCraftingMenu();
             return;
         }
 
-        // === PET INTERACTION ===
-        if (pet && player && petDist < 120) {
-            const petState = pet.petState;
-            console.log('[E key] Pet state:', petState);
-
-            if (petState !== 'trick') {
-                console.log('[E key] Triggering pet trick!');
-                const trick = petDoTrick();
-                if (trick) {
-                    const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
-                    const trickMessages = {
-                        spin: `${petName} does a happy spin! 🎉`,
-                        jump: `${petName} jumps with joy! 🎉`,
-                        flip: `${petName} does a cute flip! 🎉`
-                    };
-                    showDialog(trickMessages[trick]);
-                    return;
-                }
-            }
-        }
-
-        // === LAMPPOST TOGGLE (fallback if pet not interactable) ===
+        // === LAMPPOST TOGGLE ===
+        const nearestLamppost = findNearestLamppost();
         if (nearestLamppost) {
-            console.log('[E key] Toggling lamppost (pet not interactable)');
+            console.log('[E key] Toggling lamppost');
             const lamppostIndex = GameState.lampposts.indexOf(nearestLamppost);
             if (!sendToggleLamppost(lamppostIndex)) {
                 nearestLamppost.lightOn = !nearestLamppost.lightOn;
@@ -1072,12 +1140,6 @@ function handleInput(scene) {
             } else if (GameState.currentInteractable.message) {
                 showDialog(GameState.currentInteractable.message);
             }
-            return;
-        }
-
-        // Cooking station
-        if (findNearestCookingStation()) {
-            showCraftingMenu();
             return;
         }
     }
@@ -1308,7 +1370,7 @@ function updateProximityPrompts() {
 
     // Show pet prompt if near pet and no other interaction
     if (!GameState.canInteract && isNearPet() && GameState.playerPet?.petState !== 'trick') {
-        GameState.interactPrompt.setText('🐾 Press E to pet');
+        GameState.interactPrompt.setText('🐾 Press P to pet');
         GameState.interactPrompt.setVisible(true);
     } else {
         GameState.interactPrompt.setText('🔵 Press E to interact');
@@ -1377,13 +1439,21 @@ function updateProximityPrompts() {
         GameState.fishingPrompt.setVisible(false);
     }
 
-    // Cooking station prompt and state
+    // Crafting station prompt and state
     const nearStation = findNearestCookingStation();
     if (nearStation) {
-        const stationConfig = { campfire: '🔥', stove: '🍳', oven: '🧱' };
+        const stationConfig = {
+            campfire: '🔥', stove: '🍳', oven: '🧱',
+            alchemy_table: '⚗️', tailor_bench: '🧵', forge: '🔨'
+        };
+        const actionConfig = {
+            campfire: 'cook', stove: 'cook', oven: 'bake',
+            alchemy_table: 'brew', tailor_bench: 'tailor', forge: 'forge'
+        };
         const emoji = stationConfig[nearStation.stationType] || '🍳';
+        const action = actionConfig[nearStation.stationType] || 'craft';
         GameState.currentStationType = nearStation.stationType;
-        GameState.cookingPrompt.setText(`${emoji} E to cook`).setVisible(true);
+        GameState.cookingPrompt.setText(`${emoji} E to ${action}`).setVisible(true);
     } else {
         GameState.currentStationType = null;
         GameState.cookingPrompt.setVisible(false);
@@ -1396,5 +1466,40 @@ function updateProximityPrompts() {
         GameState.lamppostPrompt.setText(`💡 E to turn ${status}`).setVisible(true);
     } else {
         GameState.lamppostPrompt.setVisible(false);
+    }
+
+    // Unified tree prompt
+    if (GameState.player && GameState.treePrompt) {
+        const nearbyTree = getNearbyTree(GameState.player.x, GameState.player.y);
+        if (nearbyTree) {
+            const { tree } = nearbyTree;
+            const tool = GameState.equippedTool;
+            let promptText = '';
+
+            if (tree.stage === 'sapling') {
+                promptText = '🌱 Sapling - too young';
+            } else if (tree.stage === 'fallen') {
+                if (tool === 'axe') {
+                    promptText = '🪵 Click to chop (10x wood!)';
+                } else {
+                    promptText = '🪓 Equip axe to chop';
+                }
+            } else if (tree.hasHive && tree.hiveHoney > 0) {
+                promptText = `🍯 E to harvest honey (${tree.hiveHoney})`;
+            } else if (tree.fruitReady && tree.stage !== 'sapling') {
+                const season = getCurrentSeason();
+                if (season === 'summer' || season === 'fall') {
+                    promptText = '🍎 E to pick fruit';
+                }
+            } else if (tool === 'axe') {
+                promptText = `🪓 Click to chop (${tree.hp}/${tree.maxHp} HP)`;
+            } else {
+                promptText = '🌳 ' + tree.stage.charAt(0).toUpperCase() + tree.stage.slice(1);
+            }
+
+            GameState.treePrompt.setText(promptText).setVisible(true);
+        } else {
+            GameState.treePrompt.setVisible(false);
+        }
     }
 }

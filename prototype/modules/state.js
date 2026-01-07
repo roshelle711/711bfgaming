@@ -37,6 +37,8 @@ export const GameState = {
         crops: { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
         fruits: { apple: 0, orange: 0, peach: 0, cherry: 0 },
         fish: { bass: 0, salmon: 0, goldfish: 0 },
+        ingredients: { herb_red: 3, herb_blue: 3, herb_green: 3, mushroom: 2, water_bottle: 5 },  // Starter alchemy mats
+        potions: { health_potion_small: 0, mana_potion_small: 0, stamina_potion_small: 0, speed_potion: 0 },
         crafted: {
             // No-station recipes
             salad: 0, bouquet: 0, magicPotion: 0,
@@ -45,11 +47,48 @@ export const GameState = {
             // Stove
             fishStew: 0, vegetableSoup: 0, friedPotatoes: 0,
             // Oven
-            bakedPotato: 0, fruitPie: 0, pumpkinPie: 0
+            bakedPotato: 0, fruitPie: 0, pumpkinPie: 0,
+            // Alchemy
+            health_potion_small: 0, mana_potion_small: 0, stamina_potion_small: 0, speed_potion: 0
         },
-        resources: { wood: 0, stone: 0, ore: 0, gem: 0 }
+        resources: { wood: 0, stone: 0, fiber: 0, copper_ore: 0, iron_ore: 0, copper_ingot: 0, iron_ingot: 0, gem: 0, blacksmith_hammer: 0, honey: 0 },
+        treeSeeds: { apple_seed: 0, orange_seed: 0, cherry_seed: 0, peach_seed: 0, acorn: 0, pinecone: 0, birch_seed: 0 },
+        dyes: { dye_red: 0, dye_blue: 0, dye_green: 0, dye_yellow: 0 },
+        outfits: {},  // Dynamic: { fisher_hat: 1, chef_apron: 1, etc. }
+        armor: {}     // Dynamic: { iron_chest: 1, iron_legs: 1, etc. }
     },
     coins: 50,
+
+    // Equipment - worn outfit and armor
+    equipment: {
+        // Outfit slots (cozy skill gear)
+        hat: null,        // { id: 'fisher_hat', color: null }
+        top: null,
+        bottom: null,
+        shoes: null,
+        accessory: null,
+        // Armor slots (combat gear)
+        chest: null,      // { id: 'iron_chest' }
+        legs: null,
+        boots: null
+    },
+
+    // Computed modifiers from equipment (recalculated on equip change)
+    playerModifiers: {
+        // Skill bonuses (outfit layer)
+        fishingBiteChance: 0,
+        fishingRareChance: 0,
+        cookTimeMultiplier: 1.0,
+        extraPortionChance: 0,
+        harvestYieldChance: 0,
+        growthSpeedMultiplier: 1.0,
+        potionPotency: 0,
+        ingredientSaveChance: 0,
+        dyeYieldChance: 0,
+        // Combat stats (armor layer)
+        defense: 0,
+        maxHP: 0
+    },
 
     // Hotbar system - 5 slots for tools and items
     // type: 'tool' | 'seed' | 'crop' | 'fruit' | 'fish' | 'empty'
@@ -83,12 +122,29 @@ export const GameState = {
     gameTime: 480,      // Minutes (8:00 AM start)
     timeSpeed: 0.5,
     isNight: false,
+    day: 1,             // Current game day (starts at 1)
+    lastDayUpdate: 0,   // Tracks when day last incremented
+
+    // Settings
+    settings: {
+        seasonLength: 7  // Days per season (7, 14, or 30)
+    },
 
     // Farming
     farmPlots: [],
     currentSeedIndex: 0,
     seedPickups: [],
-    fruitTrees: [],
+    fruitTrees: [],       // Legacy fruit tree system (for backwards compatibility)
+
+    // Unified tree system
+    trees: [],            // Array of tree objects with lifecycle
+    bees: [],             // Array of bee objects
+
+    // Alchemy ingredients
+    herbPickups: [],
+
+    // Grass/weeds for fiber
+    grassPickups: [],
 
     // Resource gathering
     resourceNodes: [],
@@ -206,9 +262,16 @@ export function saveCurrentAsPreset(slot) {
             crops: { ...GameState.inventory.crops },
             fruits: { ...GameState.inventory.fruits },
             fish: { ...GameState.inventory.fish },
+            ingredients: { ...GameState.inventory.ingredients },
+            potions: { ...GameState.inventory.potions },
             crafted: { ...GameState.inventory.crafted },
-            resources: { ...GameState.inventory.resources }
+            resources: { ...GameState.inventory.resources },
+            treeSeeds: { ...GameState.inventory.treeSeeds },
+            dyes: { ...GameState.inventory.dyes },
+            outfits: { ...GameState.inventory.outfits },
+            armor: { ...GameState.inventory.armor }
         },
+        equipment: { ...GameState.equipment },
         coins: GameState.coins
     };
     savePresets();
@@ -228,9 +291,19 @@ export function loadPreset(slot) {
                 crops: { ...preset.inventory.crops },
                 fruits: { ...preset.inventory.fruits },
                 fish: { ...preset.inventory.fish },
+                ingredients: preset.inventory.ingredients ? { ...preset.inventory.ingredients } : { herb_red: 3, herb_blue: 3, herb_green: 3, mushroom: 2, water_bottle: 5 },
+                potions: preset.inventory.potions ? { ...preset.inventory.potions } : { health_potion_small: 0, mana_potion_small: 0, stamina_potion_small: 0, speed_potion: 0 },
                 crafted: { ...preset.inventory.crafted },
-                resources: preset.inventory.resources ? { ...preset.inventory.resources } : { wood: 0, stone: 0, ore: 0, gem: 0 }
+                resources: preset.inventory.resources ? { ...preset.inventory.resources } : { wood: 0, stone: 0, fiber: 0, copper_ore: 0, iron_ore: 0, copper_ingot: 0, iron_ingot: 0, gem: 0, blacksmith_hammer: 0, honey: 0 },
+                treeSeeds: preset.inventory.treeSeeds ? { ...preset.inventory.treeSeeds } : { apple_seed: 0, orange_seed: 0, cherry_seed: 0, peach_seed: 0, acorn: 0, pinecone: 0, birch_seed: 0 },
+                dyes: preset.inventory.dyes ? { ...preset.inventory.dyes } : { dye_red: 0, dye_blue: 0, dye_green: 0, dye_yellow: 0 },
+                outfits: preset.inventory.outfits ? { ...preset.inventory.outfits } : {},
+                armor: preset.inventory.armor ? { ...preset.inventory.armor } : {}
             };
+        }
+        // Load equipment if saved
+        if (preset.equipment) {
+            GameState.equipment = { ...preset.equipment };
         }
         if (preset.coins !== undefined) {
             GameState.coins = preset.coins;
@@ -257,25 +330,50 @@ export function resetState() {
         crops: { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
         fruits: { apple: 0, orange: 0, peach: 0, cherry: 0 },
         fish: { bass: 0, salmon: 0, goldfish: 0 },
+        ingredients: { herb_red: 3, herb_blue: 3, herb_green: 3, mushroom: 2, water_bottle: 5 },
+        potions: { health_potion_small: 0, mana_potion_small: 0, stamina_potion_small: 0, speed_potion: 0 },
         crafted: {
             salad: 0, bouquet: 0, magicPotion: 0,
             grilledFish: 0, grilledSalmon: 0, roastedCorn: 0,
             fishStew: 0, vegetableSoup: 0, friedPotatoes: 0,
-            bakedPotato: 0, fruitPie: 0, pumpkinPie: 0
+            bakedPotato: 0, fruitPie: 0, pumpkinPie: 0,
+            health_potion_small: 0, mana_potion_small: 0, stamina_potion_small: 0, speed_potion: 0
         },
-        resources: { wood: 0, stone: 0, ore: 0, gem: 0 }
+        resources: { wood: 0, stone: 0, fiber: 0, copper_ore: 0, iron_ore: 0, copper_ingot: 0, iron_ingot: 0, gem: 0, blacksmith_hammer: 0, honey: 0 },
+        treeSeeds: { apple_seed: 0, orange_seed: 0, cherry_seed: 0, peach_seed: 0, acorn: 0, pinecone: 0, birch_seed: 0 },
+        dyes: { dye_red: 0, dye_blue: 0, dye_green: 0, dye_yellow: 0 },
+        outfits: {},
+        armor: {}
     };
     GameState.coins = 50;
     GameState.gameTime = 480;
+    GameState.day = 1;
+    GameState.lastDayUpdate = 0;
     GameState.farmPlots = [];
     GameState.seedPickups = [];
+    GameState.herbPickups = [];
+    GameState.grassPickups = [];
     GameState.fruitTrees = [];
+    GameState.trees = [];
+    GameState.bees = [];
     GameState.resourceNodes = [];
     GameState.cookingStations = [];
     GameState.currentStationType = null;
     GameState.isCooking = false;
     GameState.otherPlayers = {};
     GameState.equippedTool = 'none';
+    // Reset equipment
+    GameState.equipment = {
+        hat: null, top: null, bottom: null, shoes: null, accessory: null,
+        chest: null, legs: null, boots: null
+    };
+    GameState.playerModifiers = {
+        fishingBiteChance: 0, fishingRareChance: 0,
+        cookTimeMultiplier: 1.0, extraPortionChance: 0,
+        harvestYieldChance: 0, growthSpeedMultiplier: 1.0,
+        potionPotency: 0, ingredientSaveChance: 0, dyeYieldChance: 0,
+        defense: 0, maxHP: 0
+    };
 }
 
 // === GAME SESSION PERSISTENCE ===
@@ -292,11 +390,20 @@ export function saveGameSession() {
                 crops: { ...GameState.inventory.crops },
                 fruits: { ...GameState.inventory.fruits },
                 fish: { ...GameState.inventory.fish },
+                ingredients: { ...GameState.inventory.ingredients },
+                potions: { ...GameState.inventory.potions },
                 crafted: { ...GameState.inventory.crafted },
-                resources: { ...GameState.inventory.resources }
+                resources: { ...GameState.inventory.resources },
+                treeSeeds: { ...GameState.inventory.treeSeeds },
+                dyes: { ...GameState.inventory.dyes },
+                outfits: { ...GameState.inventory.outfits },
+                armor: { ...GameState.inventory.armor }
             },
+            equipment: { ...GameState.equipment },
             coins: GameState.coins,
             gameTime: GameState.gameTime,
+            day: GameState.day,
+            settings: { ...GameState.settings },
             playerName: GameState.playerName,
             playerClass: GameState.playerClass,
             customization: { ...GameState.customization },
@@ -329,16 +436,28 @@ export function loadGameSession() {
                 crops: sessionData.inventory.crops || { carrot: 0, tomato: 0, flower: 0, lettuce: 0, onion: 0, potato: 0, pepper: 0, corn: 0, pumpkin: 0 },
                 fruits: sessionData.inventory.fruits || { apple: 0, orange: 0, peach: 0, cherry: 0 },
                 fish: sessionData.inventory.fish || { bass: 0, salmon: 0, goldfish: 0 },
+                ingredients: sessionData.inventory.ingredients || { herb_red: 3, herb_blue: 3, herb_green: 3, mushroom: 2, water_bottle: 5 },
+                potions: sessionData.inventory.potions || { health_potion_small: 0, mana_potion_small: 0, stamina_potion_small: 0, speed_potion: 0 },
                 crafted: {
                     // Defaults for all recipes (new ones will be 0 if not in saved data)
                     salad: 0, bouquet: 0, magicPotion: 0,
                     grilledFish: 0, grilledSalmon: 0, roastedCorn: 0,
                     fishStew: 0, vegetableSoup: 0, friedPotatoes: 0,
                     bakedPotato: 0, fruitPie: 0, pumpkinPie: 0,
+                    health_potion_small: 0, mana_potion_small: 0, stamina_potion_small: 0, speed_potion: 0,
                     ...(sessionData.inventory.crafted || {})
                 },
-                resources: sessionData.inventory.resources || { wood: 0, stone: 0, ore: 0, gem: 0 }
+                resources: sessionData.inventory.resources || { wood: 0, stone: 0, fiber: 0, copper_ore: 0, iron_ore: 0, copper_ingot: 0, iron_ingot: 0, gem: 0, blacksmith_hammer: 0, honey: 0 },
+                treeSeeds: sessionData.inventory.treeSeeds || { apple_seed: 0, orange_seed: 0, cherry_seed: 0, peach_seed: 0, acorn: 0, pinecone: 0, birch_seed: 0 },
+                dyes: sessionData.inventory.dyes || { dye_red: 0, dye_blue: 0, dye_green: 0, dye_yellow: 0 },
+                outfits: sessionData.inventory.outfits || {},
+                armor: sessionData.inventory.armor || {}
             };
+        }
+
+        // Restore equipment
+        if (sessionData.equipment) {
+            GameState.equipment = { ...sessionData.equipment };
         }
 
         if (sessionData.coins !== undefined) {
@@ -346,6 +465,12 @@ export function loadGameSession() {
         }
         if (sessionData.gameTime !== undefined) {
             GameState.gameTime = sessionData.gameTime;
+        }
+        if (sessionData.day !== undefined) {
+            GameState.day = sessionData.day;
+        }
+        if (sessionData.settings) {
+            GameState.settings = { ...sessionData.settings };
         }
         if (sessionData.playerName) {
             GameState.playerName = sessionData.playerName;

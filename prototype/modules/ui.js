@@ -13,9 +13,10 @@
  * - setupUI(scene): Initialize all UI elements
  */
 
-import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT } from './config.js';
+import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT, outfitData, armorData, dyeData } from './config.js';
 import { GameState, loadPreset, saveCurrentAsPreset, deletePreset } from './state.js';
 import { createWhimsicalCharacter, createPet } from './player.js';
+import { usePotion, equipOutfit, equipArmor } from './systems.js';
 
 /**
  * Show a dialog box with a message
@@ -132,8 +133,50 @@ const inventoryItems = {
     // Resources
     wood: { emoji: '🪵', name: 'Wood', category: 'resources', key: 'wood' },
     stone: { emoji: '🪨', name: 'Stone', category: 'resources', key: 'stone' },
-    ore: { emoji: '�ite', name: 'Ore', category: 'resources', key: 'ore' },
-    gem: { emoji: '💎', name: 'Gem', category: 'resources', key: 'gem' }
+    fiber: { emoji: '🌿', name: 'Fiber', category: 'resources', key: 'fiber' },
+    copper_ore: { emoji: '🟤', name: 'Copper Ore', category: 'resources', key: 'copper_ore' },
+    iron_ore: { emoji: '�ite', name: 'Iron Ore', category: 'resources', key: 'iron_ore' },
+    copper_ingot: { emoji: '🥉', name: 'Copper Ingot', category: 'resources', key: 'copper_ingot' },
+    iron_ingot: { emoji: '🪙', name: 'Iron Ingot', category: 'resources', key: 'iron_ingot' },
+    gem: { emoji: '💎', name: 'Gem', category: 'resources', key: 'gem' },
+    blacksmith_hammer: { emoji: '🔨', name: 'Hammer', category: 'resources', key: 'blacksmith_hammer' },
+    honey: { emoji: '🍯', name: 'Honey', category: 'resources', key: 'honey' },
+    // Tree Seeds
+    apple_seed: { emoji: '🌱', name: 'Apple Seed', category: 'treeSeeds', key: 'apple_seed' },
+    orange_seed: { emoji: '🌱', name: 'Orange Seed', category: 'treeSeeds', key: 'orange_seed' },
+    cherry_seed: { emoji: '🌱', name: 'Cherry Seed', category: 'treeSeeds', key: 'cherry_seed' },
+    peach_seed: { emoji: '🌱', name: 'Peach Seed', category: 'treeSeeds', key: 'peach_seed' },
+    acorn: { emoji: '🌰', name: 'Acorn', category: 'treeSeeds', key: 'acorn' },
+    pinecone: { emoji: '🌲', name: 'Pinecone', category: 'treeSeeds', key: 'pinecone' },
+    birch_seed: { emoji: '🌱', name: 'Birch Seed', category: 'treeSeeds', key: 'birch_seed' },
+    // Alchemy Ingredients
+    herb_red: { emoji: '🌿', name: 'Red Herb', category: 'ingredients', key: 'herb_red' },
+    herb_blue: { emoji: '🌿', name: 'Blue Herb', category: 'ingredients', key: 'herb_blue' },
+    herb_green: { emoji: '🌿', name: 'Green Herb', category: 'ingredients', key: 'herb_green' },
+    mushroom: { emoji: '🍄', name: 'Mushroom', category: 'ingredients', key: 'mushroom' },
+    water_bottle: { emoji: '🧴', name: 'Water Bottle', category: 'ingredients', key: 'water_bottle' },
+    // Potions
+    health_potion_small: { emoji: '❤️', name: 'Health Potion', category: 'potions', key: 'health_potion_small' },
+    mana_potion_small: { emoji: '💙', name: 'Mana Potion', category: 'potions', key: 'mana_potion_small' },
+    stamina_potion_small: { emoji: '💚', name: 'Stamina Potion', category: 'potions', key: 'stamina_potion_small' },
+    speed_potion: { emoji: '💨', name: 'Speed Potion', category: 'potions', key: 'speed_potion' },
+    // Dyes
+    dye_red: { emoji: '🔴', name: 'Red Dye', category: 'dyes', key: 'dye_red' },
+    dye_blue: { emoji: '🔵', name: 'Blue Dye', category: 'dyes', key: 'dye_blue' },
+    dye_green: { emoji: '🟢', name: 'Green Dye', category: 'dyes', key: 'dye_green' },
+    dye_yellow: { emoji: '🟡', name: 'Yellow Dye', category: 'dyes', key: 'dye_yellow' },
+    // Outfits (dynamically created from outfitData)
+    fisher_hat: { emoji: '🎣', name: 'Fisher Hat', category: 'outfits', key: 'fisher_hat' },
+    fisher_vest: { emoji: '🦺', name: 'Fisher Vest', category: 'outfits', key: 'fisher_vest' },
+    fisher_pants: { emoji: '👖', name: 'Fisher Pants', category: 'outfits', key: 'fisher_pants' },
+    chef_hat: { emoji: '👨‍🍳', name: 'Chef Hat', category: 'outfits', key: 'chef_hat' },
+    chef_apron: { emoji: '🧑‍🍳', name: 'Chef Apron', category: 'outfits', key: 'chef_apron' },
+    farmer_hat: { emoji: '👒', name: 'Farmer Hat', category: 'outfits', key: 'farmer_hat' },
+    farmer_overalls: { emoji: '👕', name: 'Farmer Overalls', category: 'outfits', key: 'farmer_overalls' },
+    // Armor
+    iron_chest: { emoji: '🛡️', name: 'Iron Chestplate', category: 'armor', key: 'iron_chest' },
+    iron_legs: { emoji: '🦿', name: 'Iron Leggings', category: 'armor', key: 'iron_legs' },
+    iron_boots: { emoji: '🥾', name: 'Iron Boots', category: 'armor', key: 'iron_boots' }
 };
 
 /**
@@ -145,23 +188,29 @@ export function createInventoryIcons(scene) {
 
     GameState.inventoryIcons = [];
 
-    // Panel background - larger to fit more items including resources
-    GameState.inventoryPanel = scene.add.rectangle(centerX, centerY, 700, 540, 0x1a1a2e, 0.95)
+    // Panel background - larger to fit all categories including dyes, outfits, armor
+    GameState.inventoryPanel = scene.add.rectangle(centerX, centerY, 700, 820, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(150).setVisible(false);
 
     // Title
-    GameState.inventoryTitle = scene.add.text(centerX, centerY - 250, '📦 INVENTORY', {
+    GameState.inventoryTitle = scene.add.text(centerX, centerY - 390, '📦 INVENTORY', {
         fontSize: '20px', fill: '#FFD700', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
-    // Category labels and icons - expanded for all items
+    // Category labels and icons - expanded for all items including gear
     const categories = [
-        { name: '🌱 Seeds', items: ['carrotSeed', 'tomatoSeed', 'flowerSeed', 'lettuceSeed', 'onionSeed', 'potatoSeed', 'pepperSeed', 'cornSeed', 'pumpkinSeed'], y: -180 },
-        { name: '🌾 Crops', items: ['carrot', 'tomato', 'flower', 'lettuce', 'onion', 'potato', 'pepper', 'corn', 'pumpkin'], y: -115 },
-        { name: '🍎 Fruits', items: ['apple', 'orange', 'peach', 'cherry'], y: -50 },
-        { name: '🐟 Fish', items: ['bass', 'salmon', 'goldfish'], y: 15 },
-        { name: '🍳 Cooked', items: ['salad', 'bouquet', 'fishStew', 'magicPotion'], y: 80 },
-        { name: '🪵 Materials', items: ['wood', 'stone', 'ore', 'gem'], y: 145 }
+        { name: '🌱 Seeds', items: ['carrotSeed', 'tomatoSeed', 'flowerSeed', 'lettuceSeed', 'onionSeed', 'potatoSeed', 'pepperSeed', 'cornSeed', 'pumpkinSeed'], y: -370 },
+        { name: '🌳 Tree Seeds', items: ['apple_seed', 'orange_seed', 'cherry_seed', 'peach_seed', 'acorn', 'pinecone', 'birch_seed'], y: -310 },
+        { name: '🌾 Crops', items: ['carrot', 'tomato', 'flower', 'lettuce', 'onion', 'potato', 'pepper', 'corn', 'pumpkin'], y: -250 },
+        { name: '🍎 Fruits', items: ['apple', 'orange', 'peach', 'cherry'], y: -190 },
+        { name: '🐟 Fish', items: ['bass', 'salmon', 'goldfish'], y: -130 },
+        { name: '🍳 Cooked', items: ['salad', 'bouquet', 'fishStew', 'magicPotion'], y: -70 },
+        { name: '🪵 Materials', items: ['wood', 'stone', 'fiber', 'copper_ore', 'iron_ore', 'copper_ingot', 'iron_ingot', 'gem', 'blacksmith_hammer', 'honey'], y: -10 },
+        { name: '⚗️ Ingredients', items: ['herb_red', 'herb_blue', 'herb_green', 'mushroom', 'water_bottle'], y: 50 },
+        { name: '🧪 Potions', items: ['health_potion_small', 'mana_potion_small', 'stamina_potion_small', 'speed_potion'], y: 110 },
+        { name: '🎨 Dyes', items: ['dye_red', 'dye_blue', 'dye_green', 'dye_yellow'], y: 170 },
+        { name: '👔 Outfits', items: ['fisher_hat', 'fisher_vest', 'fisher_pants', 'chef_hat', 'chef_apron', 'farmer_hat', 'farmer_overalls'], y: 230 },
+        { name: '🛡️ Armor', items: ['iron_chest', 'iron_legs', 'iron_boots'], y: 290 }
     ];
 
     categories.forEach(cat => {
@@ -205,17 +254,44 @@ export function createInventoryIcons(scene) {
             // Hover events
             bg.on('pointerover', () => {
                 bg.setStrokeStyle(2, 0xFFD700);
-                showInventoryTooltip(scene, x, y - 45, item.name);
+                let tooltipText = item.name;
+                if (item.category === 'potions') tooltipText = `${item.name} (click to use)`;
+                else if (item.category === 'outfits') tooltipText = `${item.name} (click to equip)`;
+                else if (item.category === 'armor') tooltipText = `${item.name} (click to equip)`;
+                showInventoryTooltip(scene, x, y - 45, tooltipText);
             });
             bg.on('pointerout', () => {
                 bg.setStrokeStyle(2, 0x3498DB);
                 hideInventoryTooltip();
             });
+
+            // Click to use potions
+            if (item.category === 'potions') {
+                bg.on('pointerdown', () => {
+                    usePotion(item.key);
+                });
+            }
+
+            // Click to equip outfits
+            if (item.category === 'outfits') {
+                bg.on('pointerdown', () => {
+                    equipOutfit(item.key);
+                    updateInventoryDisplay();
+                });
+            }
+
+            // Click to equip armor
+            if (item.category === 'armor') {
+                bg.on('pointerdown', () => {
+                    equipArmor(item.key);
+                    updateInventoryDisplay();
+                });
+            }
         });
     });
 
     // Close hint
-    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 245, '[ I, E, or ESC to close ]', {
+    GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 380, '[ I, E, or ESC to close ]', {
         fontSize: '12px', fill: '#666'
     }).setOrigin(0.5).setDepth(151).setVisible(false);
 
@@ -250,29 +326,61 @@ function hideInventoryTooltip() {
 export function updateInventoryDisplay() {
     if (!GameState.inventoryIcons) return;
     const inv = GameState.inventory;
+    const eq = GameState.equipment;
 
     GameState.inventoryIcons.forEach(item => {
         if (item.type !== 'item') return;
 
         let amount = 0;
+        let isEquipped = false;
+
         if (item.category === 'seeds') {
             amount = inv.seeds[item.key] || 0;
+        } else if (item.category === 'treeSeeds') {
+            amount = inv.treeSeeds?.[item.key] || 0;
         } else if (item.category === 'crops') {
             amount = inv.crops[item.key] || 0;
         } else if (item.category === 'fruits') {
             amount = inv.fruits[item.key] || 0;
         } else if (item.category === 'fish') {
             amount = inv.fish[item.key] || 0;
+        } else if (item.category === 'ingredients') {
+            amount = inv.ingredients?.[item.key] || 0;
+        } else if (item.category === 'potions') {
+            amount = inv.potions?.[item.key] || 0;
         } else if (item.category === 'crafted') {
             amount = inv.crafted[item.key] || 0;
         } else if (item.category === 'resources') {
             amount = inv.resources[item.key] || 0;
+        } else if (item.category === 'dyes') {
+            amount = inv.dyes?.[item.key] || 0;
+        } else if (item.category === 'outfits') {
+            amount = inv.outfits?.[item.key] || 0;
+            // Check if this outfit is equipped
+            const outfitItem = outfitData[item.key];
+            if (outfitItem && eq[outfitItem.slot]?.id === item.key) {
+                isEquipped = true;
+            }
+        } else if (item.category === 'armor') {
+            amount = inv.armor?.[item.key] || 0;
+            // Check if this armor is equipped
+            const armorItem = armorData[item.key];
+            if (armorItem && eq[armorItem.slot]?.id === item.key) {
+                isEquipped = true;
+            }
         }
 
         item.count.setText(amount.toString());
-        // Dim items with 0 count
-        item.icon.setAlpha(amount > 0 ? 1 : 0.4);
-        item.count.setAlpha(amount > 0 ? 1 : 0.5);
+        // Dim items with 0 count, highlight equipped items
+        if (isEquipped) {
+            item.bg.setStrokeStyle(3, 0x27AE60); // Green border for equipped
+            item.icon.setAlpha(1);
+            item.count.setAlpha(1);
+        } else {
+            item.bg.setStrokeStyle(2, 0x3498DB); // Default blue border
+            item.icon.setAlpha(amount > 0 ? 1 : 0.4);
+            item.count.setAlpha(amount > 0 ? 1 : 0.5);
+        }
     });
 }
 
@@ -541,6 +649,11 @@ export function setupUI(scene) {
     // Time display
     GameState.timeDisplay = scene.add.text(10, 50, '', {
         fontSize: '14px', fill: '#fff', backgroundColor: '#00000099', padding: { x: 6, y: 4 }
+    }).setDepth(100).setScrollFactor(0);
+
+    // Season display (day + season)
+    GameState.seasonDisplay = scene.add.text(10, 80, '', {
+        fontSize: '12px', fill: '#90EE90', backgroundColor: '#00000099', padding: { x: 6, y: 3 }
     }).setDepth(100).setScrollFactor(0);
 
     // Day/night overlay
@@ -933,22 +1046,63 @@ export function showPauseMenu(onChangeCharacter) {
     const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(300);
     GameState.pauseMenuUI.push(overlay);
 
-    // Menu panel
-    const panel = scene.add.rectangle(centerX, centerY, 350, 280, 0x1a1a2e, 0.95)
+    // Menu panel (expanded for season settings)
+    const panel = scene.add.rectangle(centerX, centerY, 350, 360, 0x1a1a2e, 0.95)
         .setStrokeStyle(3, 0x9B59B6).setDepth(301);
     GameState.pauseMenuUI.push(panel);
 
     // Title
-    const title = scene.add.text(centerX, centerY - 100, '⏸ PAUSED', {
+    const title = scene.add.text(centerX, centerY - 150, '⏸ PAUSED', {
         fontSize: '28px', fill: '#FFD700', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(title);
 
+    // === SEASON LENGTH SETTING ===
+    const seasonLabel = scene.add.text(centerX, centerY - 105, '🌸 Season Length', {
+        fontSize: '14px', fill: '#90EE90', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(302);
+    GameState.pauseMenuUI.push(seasonLabel);
+
+    // Season length options (7, 14, 30 days)
+    const seasonOptions = [7, 14, 30];
+    const seasonLabels = ['7 days', '14 days', '30 days'];
+    const currentSeason = GameState.settings?.seasonLength || 7;
+
+    seasonOptions.forEach((days, i) => {
+        const btnX = centerX - 90 + (i * 90);
+        const isSelected = currentSeason === days;
+
+        const btn = scene.add.rectangle(btnX, centerY - 70, 75, 32,
+            isSelected ? 0x27AE60 : 0x34495E, 0.9)
+            .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
+            .setDepth(301).setInteractive();
+        GameState.pauseMenuUI.push(btn);
+
+        const btnText = scene.add.text(btnX, centerY - 70, seasonLabels[i], {
+            fontSize: '12px', fill: isSelected ? '#fff' : '#aaa', fontStyle: isSelected ? 'bold' : 'normal'
+        }).setOrigin(0.5).setDepth(302);
+        GameState.pauseMenuUI.push(btnText);
+
+        btn.on('pointerdown', () => {
+            GameState.settings.seasonLength = days;
+            // Save settings and refresh menu
+            import('./state.js').then(module => module.saveGameSession());
+            closePauseMenu();
+            showPauseMenu(onChangeCharacter);
+        });
+        btn.on('pointerover', () => {
+            if (currentSeason !== days) btn.setFillStyle(0x4A5568, 1);
+        });
+        btn.on('pointerout', () => {
+            if (currentSeason !== days) btn.setFillStyle(0x34495E, 0.9);
+        });
+    });
+
     // Continue button
-    const continueBtn = scene.add.rectangle(centerX, centerY - 20, 220, 50, 0x27AE60, 0.9)
+    const continueBtn = scene.add.rectangle(centerX, centerY - 10, 220, 50, 0x27AE60, 0.9)
         .setStrokeStyle(3, 0x2ECC71).setDepth(301).setInteractive();
     GameState.pauseMenuUI.push(continueBtn);
-    const continueText = scene.add.text(centerX, centerY - 20, '▶ Continue', {
+    const continueText = scene.add.text(centerX, centerY - 10, '▶ Continue', {
         fontSize: '18px', fill: '#fff', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(continueText);
@@ -958,10 +1112,10 @@ export function showPauseMenu(onChangeCharacter) {
     continueBtn.on('pointerout', () => continueBtn.setFillStyle(0x27AE60, 0.9));
 
     // Change Character button
-    const changeBtn = scene.add.rectangle(centerX, centerY + 50, 220, 50, 0xE67E22, 0.9)
+    const changeBtn = scene.add.rectangle(centerX, centerY + 60, 220, 50, 0xE67E22, 0.9)
         .setStrokeStyle(3, 0xF39C12).setDepth(301).setInteractive();
     GameState.pauseMenuUI.push(changeBtn);
-    const changeText = scene.add.text(centerX, centerY + 50, '👤 Change Character', {
+    const changeText = scene.add.text(centerX, centerY + 60, '👤 Change Character', {
         fontSize: '16px', fill: '#fff', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(changeText);
@@ -974,7 +1128,7 @@ export function showPauseMenu(onChangeCharacter) {
     changeBtn.on('pointerout', () => changeBtn.setFillStyle(0xE67E22, 0.9));
 
     // Hint text
-    const hint = scene.add.text(centerX, centerY + 110, '[ ESC to close ]', {
+    const hint = scene.add.text(centerX, centerY + 130, '[ ESC to close ]', {
         fontSize: '12px', fill: '#666'
     }).setOrigin(0.5).setDepth(302);
     GameState.pauseMenuUI.push(hint);
