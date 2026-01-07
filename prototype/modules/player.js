@@ -9,7 +9,7 @@
  * - updatePlayerSparkles(time): Animate player sparkles
  */
 
-import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration } from './config.js';
+import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration, DEPTH_LAYERS, getWorldDepth } from './config.js';
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
 
@@ -389,8 +389,8 @@ export function updatePlayerMovement() {
     player.body.velocity.x = lerp(player.body.velocity.x, GameState.targetVelocity.x, lerpFactor);
     player.body.velocity.y = lerp(player.body.velocity.y, GameState.targetVelocity.y, lerpFactor);
 
-    // Update player depth based on Y position for proper layering with trees
-    player.setDepth(player.y);
+    // Update player depth based on foot Y position (y + 25 for ~50px character)
+    player.setDepth(getWorldDepth(player.y + 25));
 }
 
 /**
@@ -517,8 +517,8 @@ export function updatePetFollow(delta = 16) {
         }
     }
 
-    // Update depth based on Y position
-    pet.setDepth(pet.y);
+    // Update depth based on foot Y position (y + 10 for ~20px pet, -0.1 sublayer to stay behind player)
+    pet.setDepth(getWorldDepth(pet.y + 10, -0.1));
 }
 
 /**
@@ -578,7 +578,7 @@ export function createToolGraphics(scene) {
     if (toolGraphics) return toolGraphics;
 
     toolGraphics = scene.add.graphics();
-    toolGraphics.setDepth(50); // Above player but below UI modals (depth 150+)
+    toolGraphics.setDepth(DEPTH_LAYERS.TOOL_EFFECTS);
     return toolGraphics;
 }
 
@@ -679,7 +679,7 @@ let actionGraphics = null;
  */
 export function initActionAnimations(scene) {
     actionGraphics = scene.add.graphics();
-    actionGraphics.setDepth(51); // Above tools (50) but below UI modals (depth 150+)
+    actionGraphics.setDepth(DEPTH_LAYERS.ACTION_EFFECTS);
 }
 
 /**

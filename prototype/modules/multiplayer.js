@@ -17,7 +17,7 @@
  * - interpolateNPCs(): Smooth NPC movement
  */
 
-import { classes, SERVER_URL } from './config.js';
+import { classes, SERVER_URL, getWorldDepth } from './config.js';
 import { GameState, saveGameSession } from './state.js';
 import { lerp } from './utils.js';
 import { drawPlot, drawPlant, drawSeedPickup, drawLamppostLight, drawFruitTree } from './world.js';
@@ -350,6 +350,9 @@ export function interpolateOtherPlayers() {
         // Interpolate position
         otherPlayer.x = lerp(otherPlayer.x, otherPlayer.targetX, lerpFactor);
         otherPlayer.y = lerp(otherPlayer.y, otherPlayer.targetY, lerpFactor);
+
+        // Update depth based on foot Y position (y + 25 for ~50px character)
+        otherPlayer.setDepth(getWorldDepth(otherPlayer.y + 25));
     });
 }
 
@@ -576,5 +579,8 @@ export function interpolateNPCs() {
     if (GameState.npc && GameState.npc.targetX !== undefined) {
         GameState.npc.x = lerp(GameState.npc.x, GameState.npc.targetX, lerpFactor);
         GameState.npc.y = lerp(GameState.npc.y, GameState.npc.targetY, lerpFactor);
+
+        // Update depth based on foot Y position (y + 25 for ~50px character)
+        GameState.npc.setDepth(getWorldDepth(GameState.npc.y + 25));
     }
 }

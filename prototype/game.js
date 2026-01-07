@@ -6,7 +6,7 @@
  */
 
 // === MODULE IMPORTS ===
-import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions, herbSpawnPositions, grassSpawnPositions, GAME_DAY_MINUTES } from './modules/config.js';
+import { GAME_WIDTH, GAME_HEIGHT, classes, baseSpeed, maxSpeed, fruitTreePositions, herbSpawnPositions, grassSpawnPositions, GAME_DAY_MINUTES, DEPTH_LAYERS, getWorldDepth } from './modules/config.js';
 import { GameState, loadGameSession, saveGameSession } from './modules/state.js';
 import { getTimeString, getDayPhase } from './modules/utils.js';
 import { initializeTrees, updateTreeLifecycle, getCurrentSeason, getDayInSeason, getNearbyTree, chopTree as chopUnifiedTree, harvestFruit as harvestUnifiedTreeFruit, harvestHoney, plantSeed as plantTreeSeed } from './modules/trees.js';
@@ -237,8 +237,8 @@ function create() {
     trees.forEach(t => {
         // Each tree gets its own graphics object for depth control
         const treeGfx = this.add.graphics();
-        // Foreground trees have depth 900+ (above player ~450), background trees use Y position
-        const treeDepth = t.foreground ? 900 + t.y : t.y;
+        // Foreground trees have depth 900+ (above player), background trees use world depth formula
+        const treeDepth = t.foreground ? DEPTH_LAYERS.FOREGROUND_TREES + t.y : getWorldDepth(t.y + t.s);
         treeGfx.setDepth(treeDepth);
 
         // Ground shadow (ellipse beneath tree)
@@ -556,7 +556,7 @@ function create() {
     // === WEATHER SYSTEM ===
     GameState.weather = {
         particles: [],
-        graphics: this.add.graphics().setDepth(95), // Below UI, above most things
+        graphics: this.add.graphics().setDepth(DEPTH_LAYERS.WEATHER),
         type: 'none',        // 'none' | 'snow' | 'rain'
         intensity: 0,        // 0-1, controls particle count
         showerTimer: 0,      // For intermittent spring showers
@@ -575,32 +575,32 @@ function create() {
     // Lamppost prompt (added after UI setup)
     GameState.lamppostPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 240, '', {
         fontSize: '14px', fill: '#FFD700', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     // Water prompt (added after UI setup)
     GameState.waterPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 200, '', {
         fontSize: '14px', fill: '#87CEEB', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     // Hazard prompt (added after UI setup)
     GameState.hazardPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 180, '', {
         fontSize: '14px', fill: '#FF6B6B', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     // Fruit tree prompt (added after UI setup)
     GameState.fruitTreePrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 220, '', {
         fontSize: '14px', fill: '#90EE90', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     // Cooking station prompt
     GameState.cookingPrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 180, '', {
         fontSize: '14px', fill: '#FFA500', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     // Unified tree prompt
     GameState.treePrompt = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 160, '', {
         fontSize: '14px', fill: '#8B4513', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     // === SHOW CHARACTER CREATION ===
     // Input setup moved to startGame() to avoid capturing keys during name entry
@@ -663,7 +663,7 @@ function startGame(scene) {
 
     // Create target highlight graphics for hoe
     GameState.targetHighlight = scene.add.graphics();
-    GameState.targetHighlight.setDepth(5);
+    GameState.targetHighlight.setDepth(DEPTH_LAYERS.GROUND_ITEMS);
 
     // Track mouse position for plot selection and dialog positioning
     // Initialize to player spawn position, then track mouse movement
@@ -696,7 +696,8 @@ function startGame(scene) {
     if (GameState.customization.pet !== 'none') {
         GameState.playerPet = createPet(scene, 650, 450, GameState.customization.pet);
         if (GameState.playerPet) {
-            GameState.playerPet.setDepth(GameState.player.depth - 1);
+            // Pet starts at y=450, foot position is y+10, use sublayer -0.1 to stay behind player
+            GameState.playerPet.setDepth(getWorldDepth(450 + 10, -0.1));
         }
     }
 

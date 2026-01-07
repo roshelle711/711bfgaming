@@ -18,7 +18,8 @@ import {
     treeData, treeSpawnPositions, plantableSeeds, seedData,
     TREE_STAGE_THRESHOLDS, FALLEN_WOOD_MULTIPLIER,
     YOUNG_YIELD_MULTIPLIER, OLD_FRUIT_MULTIPLIER,
-    DEFAULT_SEASON_LENGTH, SEASONS, GAME_DAY_MINUTES
+    DEFAULT_SEASON_LENGTH, SEASONS, GAME_DAY_MINUTES,
+    getWorldDepth
 } from './config.js';
 
 // === SEASON SYSTEM ===
@@ -105,6 +106,9 @@ export function createTree(scene, type, x, y, initialStage = 'mature') {
         fruitReady: initialStage === 'mature' || initialStage === 'old',
         lastFruitHarvest: 0
     };
+
+    // Set depth based on foot Y position (trunk base at y + 20)
+    tree.graphics.setDepth(getWorldDepth(y + 20));
 
     drawTree(tree);
     return tree;

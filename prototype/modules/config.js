@@ -18,6 +18,47 @@
 export const GAME_WIDTH = 1400;
 export const GAME_HEIGHT = 900;
 
+// === DEPTH LAYER SYSTEM ===
+// Explicit depth layers for proper visual ordering
+// Objects use foot position (bottom of sprite) + WORLD_BASE for Y-sorting
+export const DEPTH_LAYERS = {
+    // Ground layer (0-99)
+    GROUND: 0,           // Grass, paths, shadows
+    GROUND_ITEMS: 5,     // Target highlights, ground decals
+    FARM_PLOTS: 10,      // Farm plot tiles
+    FARM_PLANTS: 15,     // Crops growing on plots
+
+    // World objects layer (100-899) - Y-sorted within this range
+    // Actual depth = WORLD_BASE + footY + subLayer
+    WORLD_BASE: 100,
+
+    // Foreground layer (900-999)
+    FOREGROUND_TREES: 900,  // Trees that render in front of player (bottom of screen)
+
+    // Effects layer (1000-1099)
+    WEATHER: 1000,
+    TOOL_EFFECTS: 1010,
+    ACTION_EFFECTS: 1020,
+
+    // UI layer (2000+)
+    DAY_OVERLAY: 2000,
+    UI_HUD: 2100,
+    UI_PROMPTS: 2200,
+    DIALOG: 2500,
+    MODAL: 3000,
+    CHARACTER_CREATION: 4000
+};
+
+/**
+ * Calculate world object depth based on foot position
+ * @param {number} footY - Y position of object's base/feet (where it touches ground)
+ * @param {number} subLayer - Optional 0.0-0.9 offset for ordering objects at same Y
+ * @returns {number} Depth value for setDepth()
+ */
+export function getWorldDepth(footY, subLayer = 0) {
+    return DEPTH_LAYERS.WORLD_BASE + footY + subLayer;
+}
+
 // Tool types with emojis
 export const toolTypes = {
     hoe: { emoji: '🔨', name: 'Hoe' },

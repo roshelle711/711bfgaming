@@ -13,7 +13,7 @@
  * - setupUI(scene): Initialize all UI elements
  */
 
-import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT, outfitData, armorData, dyeData, SEASON_OPTIONS, TIME_SPEED_OPTIONS, GAME_PRESETS } from './config.js';
+import { classes, petTypes, skinTones, hairColors, seedTypes, toolTypes, cropData, fruitData, GAME_WIDTH, GAME_HEIGHT, outfitData, armorData, dyeData, SEASON_OPTIONS, TIME_SPEED_OPTIONS, GAME_PRESETS, DEPTH_LAYERS } from './config.js';
 import { GameState, loadPreset, saveCurrentAsPreset, deletePreset, saveGameSession } from './state.js';
 import { createWhimsicalCharacter, createPet } from './player.js';
 import { usePotion, equipOutfit, equipArmor } from './systems.js';
@@ -190,12 +190,12 @@ export function createInventoryIcons(scene) {
 
     // Panel background - larger to fit all categories including dyes, outfits, armor
     GameState.inventoryPanel = scene.add.rectangle(centerX, centerY, 700, 820, 0x1a1a2e, 0.95)
-        .setStrokeStyle(3, 0x9B59B6).setDepth(150).setVisible(false);
+        .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.DIALOG).setVisible(false);
 
     // Title
     GameState.inventoryTitle = scene.add.text(centerX, centerY - 390, '📦 INVENTORY', {
         fontSize: '20px', fill: '#FFD700', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(151).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.DIALOG + 1).setVisible(false);
 
     // Category labels and icons - expanded for all items including gear
     const categories = [
@@ -217,7 +217,7 @@ export function createInventoryIcons(scene) {
         // Category label
         const label = scene.add.text(centerX - 310, centerY + cat.y, cat.name, {
             fontSize: '14px', fill: '#aaa'
-        }).setDepth(151).setVisible(false);
+        }).setDepth(DEPTH_LAYERS.DIALOG + 1).setVisible(false);
         GameState.inventoryIcons.push({ type: 'label', obj: label });
 
         // Item icons - arranged in a row with tighter spacing to avoid label overlap
@@ -228,17 +228,17 @@ export function createInventoryIcons(scene) {
 
             // Icon background (interactive)
             const bg = scene.add.rectangle(x, y, 55, 55, 0x2C3E50, 0.9)
-                .setStrokeStyle(2, 0x3498DB).setDepth(151).setInteractive().setVisible(false);
+                .setStrokeStyle(2, 0x3498DB).setDepth(DEPTH_LAYERS.DIALOG + 1).setInteractive().setVisible(false);
 
             // Emoji icon
             const icon = scene.add.text(x, y - 5, item.emoji, {
                 fontSize: '24px'
-            }).setOrigin(0.5).setDepth(152).setVisible(false);
+            }).setOrigin(0.5).setDepth(DEPTH_LAYERS.DIALOG + 2).setVisible(false);
 
             // Count text
             const count = scene.add.text(x, y + 18, '0', {
                 fontSize: '12px', fill: '#fff', fontStyle: 'bold'
-            }).setOrigin(0.5).setDepth(152).setVisible(false);
+            }).setOrigin(0.5).setDepth(DEPTH_LAYERS.DIALOG + 2).setVisible(false);
 
             // Store reference
             GameState.inventoryIcons.push({
@@ -293,12 +293,12 @@ export function createInventoryIcons(scene) {
     // Close hint
     GameState.inventoryCloseHint = scene.add.text(centerX, centerY + 380, '[ I, E, or ESC to close ]', {
         fontSize: '12px', fill: '#666'
-    }).setOrigin(0.5).setDepth(151).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.DIALOG + 1).setVisible(false);
 
     // Tooltip (hidden by default)
     GameState.inventoryTooltip = scene.add.text(0, 0, '', {
         fontSize: '12px', fill: '#fff', backgroundColor: '#000000cc', padding: { x: 6, y: 4 }
-    }).setOrigin(0.5).setDepth(160).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.DIALOG + 10).setVisible(false);
 }
 
 /**
@@ -487,22 +487,22 @@ function createHotbarUI(scene) {
         // Slot background
         const bg = scene.add.rectangle(x, y, slotSize, slotSize, 0x2C3E50, 0.9)
             .setStrokeStyle(3, 0x3498DB)
-            .setDepth(100);
+            .setDepth(DEPTH_LAYERS.UI_HUD);
 
         // Slot number (1-5)
         const numText = scene.add.text(x - slotSize/2 + 5, y - slotSize/2 + 2, `${i + 1}`, {
             fontSize: '10px', fill: '#888'
-        }).setDepth(101);
+        }).setDepth(DEPTH_LAYERS.UI_HUD + 1);
 
         // Item icon (emoji)
         const icon = scene.add.text(x, y - 5, '', {
             fontSize: '22px'
-        }).setOrigin(0.5).setDepth(101);
+        }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_HUD + 1);
 
         // Count text (for stackable items)
         const count = scene.add.text(x + slotSize/2 - 5, y + slotSize/2 - 5, '', {
             fontSize: '11px', fill: '#fff', fontStyle: 'bold'
-        }).setOrigin(1).setDepth(101);
+        }).setOrigin(1).setDepth(DEPTH_LAYERS.UI_HUD + 1);
 
         GameState.hotbarSlots.push({ bg, numText, icon, count, x, y });
     }
@@ -510,7 +510,7 @@ function createHotbarUI(scene) {
     // Hotbar background panel
     GameState.hotbarPanel = scene.add.rectangle(GAME_WIDTH / 2, y, totalWidth + 20, slotSize + 16, 0x1a1a2e, 0.8)
         .setStrokeStyle(2, 0x9B59B6)
-        .setDepth(99);
+        .setDepth(DEPTH_LAYERS.UI_HUD - 1);
 }
 
 /**
@@ -633,60 +633,60 @@ export function setupUI(scene) {
     // Inventory hint (top right corner)
     scene.add.text(GAME_WIDTH - 10, 10, '📦 I = Inventory', {
         fontSize: '12px', fill: '#aaa', backgroundColor: '#00000066', padding: { x: 6, y: 4 }
-    }).setOrigin(1, 0).setDepth(100).setScrollFactor(0);
+    }).setOrigin(1, 0).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
 
     // Seed indicator (below inventory hint)
     GameState.seedIndicator = scene.add.text(GAME_WIDTH - 10, 45, '', {
         fontSize: '14px', fill: '#fff', backgroundColor: '#00000099', padding: { x: 6, y: 4 }
-    }).setOrigin(1, 0).setDepth(100).setScrollFactor(0);
+    }).setOrigin(1, 0).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
 
     // Coin display
     GameState.coinDisplay = scene.add.text(10, 10, '', {
         fontSize: '18px', fill: '#FFD700', fontStyle: 'bold',
         backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setDepth(100).setScrollFactor(0);
+    }).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
 
     // Time display
     GameState.timeDisplay = scene.add.text(10, 50, '', {
         fontSize: '14px', fill: '#fff', backgroundColor: '#00000099', padding: { x: 6, y: 4 }
-    }).setDepth(100).setScrollFactor(0);
+    }).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
 
     // Season display (day + season)
     GameState.seasonDisplay = scene.add.text(10, 80, '', {
         fontSize: '12px', fill: '#90EE90', backgroundColor: '#00000099', padding: { x: 6, y: 3 }
-    }).setDepth(100).setScrollFactor(0);
+    }).setDepth(DEPTH_LAYERS.UI_HUD).setScrollFactor(0);
 
     // Day/night overlay
-    GameState.dayOverlay = scene.add.rectangle(centerX, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a0a23, 0).setDepth(50);
+    GameState.dayOverlay = scene.add.rectangle(centerX, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a0a23, 0).setDepth(DEPTH_LAYERS.DAY_OVERLAY);
 
     // Prompts
     GameState.interactPrompt = scene.add.text(centerX, bottomY - 150, '🔵 Press E to interact', {
         fontSize: '16px', fill: '#FFD700', fontStyle: 'bold', backgroundColor: '#00000099', padding: { x: 10, y: 5 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     GameState.farmPrompt = scene.add.text(centerX, bottomY - 180, '', {
         fontSize: '14px', fill: '#90EE90', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     GameState.fishingPrompt = scene.add.text(centerX, bottomY - 210, '', {
         fontSize: '14px', fill: '#87CEEB', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     GameState.cookingPrompt = scene.add.text(centerX, bottomY - 210, '', {
         fontSize: '14px', fill: '#FF6B35', backgroundColor: '#00000099', padding: { x: 8, y: 4 }
-    }).setOrigin(0.5).setDepth(100).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.UI_PROMPTS).setVisible(false);
 
     // Dialog box
     GameState.dialogBox = scene.add.rectangle(centerX, bottomY - 50, 600, 100, 0x2C3E50, 0.95)
-        .setStrokeStyle(3, 0x9B59B6).setDepth(150).setVisible(false);
+        .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.DIALOG).setVisible(false);
 
     GameState.dialogText = scene.add.text(centerX, bottomY - 70, '', {
         fontSize: '14px', fill: '#fff', wordWrap: { width: 560 }, lineSpacing: 6, align: 'center'
-    }).setOrigin(0.5).setDepth(151).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.DIALOG + 1).setVisible(false);
 
     scene.dialogCloseText = scene.add.text(centerX, bottomY - 10, '[ E or ESC to close ]', {
         fontSize: '11px', fill: '#888'
-    }).setOrigin(0.5).setDepth(151).setVisible(false);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.DIALOG + 1).setVisible(false);
 
     // Hotbar UI - 5 slots at bottom of screen
     createHotbarUI(scene);
@@ -708,19 +708,19 @@ export function showCharacterCreation(scene, onComplete) {
     const centerX = GAME_WIDTH / 2;
     const centerY = GAME_HEIGHT / 2;
 
-    // Use depth 2000+ to render above all world elements (foreground trees at depth ~1700)
-    const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.92).setDepth(2000);
+    // Use CHARACTER_CREATION depth to render above all world elements
+    const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.92).setDepth(DEPTH_LAYERS.CHARACTER_CREATION);
     creationUI.push(overlay);
 
     // Title
     const title = scene.add.text(centerX, 50, '✨ Create Your Character ✨', {
         fontSize: '42px', fill: '#FFD700', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(2001);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(title);
 
     // === LEFT COLUMN: Class Selection (x: 100-350) ===
     const leftX = 220;
-    const classLabel = scene.add.text(leftX, 120, 'Choose Class', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2001);
+    const classLabel = scene.add.text(leftX, 120, 'Choose Class', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(classLabel);
 
     const classKeys = Object.keys(classes);
@@ -735,14 +735,14 @@ export function showCharacterCreation(scene, onComplete) {
 
         const btn = scene.add.rectangle(x, y, 150, 85, 0x2C3E50, 0.9)
             .setStrokeStyle(4, GameState.playerClass === cls ? 0xFFD700 : data.color)
-            .setDepth(2001).setInteractive();
+            .setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive();
         creationUI.push(btn);
         classButtons.push({ btn, cls });
 
-        const emoji = scene.add.text(x, y - 18, data.emoji, { fontSize: '32px' }).setOrigin(0.5).setDepth(2002);
+        const emoji = scene.add.text(x, y - 18, data.emoji, { fontSize: '32px' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
         creationUI.push(emoji);
 
-        const name = scene.add.text(x, y + 22, cls.toUpperCase(), { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2002);
+        const name = scene.add.text(x, y + 22, cls.toUpperCase(), { fontSize: '14px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
         creationUI.push(name);
 
         btn.on('pointerdown', () => {
@@ -755,7 +755,7 @@ export function showCharacterCreation(scene, onComplete) {
     });
 
     // === CENTER: Preview & Name (x: 500-900) ===
-    const nameLabel = scene.add.text(centerX, 120, 'Your Name', { fontSize: '22px', fill: '#fff' }).setOrigin(0.5).setDepth(2001);
+    const nameLabel = scene.add.text(centerX, 120, 'Your Name', { fontSize: '22px', fill: '#fff' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(nameLabel);
 
     const nameInput = scene.add.dom(centerX, 165).createFromHTML(`
@@ -763,7 +763,7 @@ export function showCharacterCreation(scene, onComplete) {
         style="width: 260px; padding: 12px 16px; font-size: 20px; text-align: center;
         border: 3px solid #9B59B6; border-radius: 10px; background: #2C3E50; color: #fff;
         outline: none;">
-    `).setDepth(2005);
+    `).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 5);
     creationUI.push(nameInput);
 
     nameInput.addListener('input');
@@ -773,15 +773,15 @@ export function showCharacterCreation(scene, onComplete) {
 
     // Preview area background
     const previewBg = scene.add.rectangle(centerX, 350, 280, 280, 0x1a1a2e, 0.6)
-        .setStrokeStyle(2, 0x9B59B6).setDepth(2001);
+        .setStrokeStyle(2, 0x9B59B6).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(previewBg);
 
-    const previewLabel = scene.add.text(centerX, 225, 'Preview', { fontSize: '16px', fill: '#888' }).setOrigin(0.5).setDepth(2001);
+    const previewLabel = scene.add.text(centerX, 225, 'Preview', { fontSize: '16px', fill: '#888' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(previewLabel);
 
     // Character preview (scaled up)
     let previewChar = createWhimsicalCharacter(scene, centerX, 360, GameState.playerClass, false, null, GameState.customization);
-    previewChar.setDepth(2005);
+    previewChar.setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 5);
     previewChar.setScale(1.8);
     creationUI.push(previewChar);
 
@@ -792,7 +792,7 @@ export function showCharacterCreation(scene, onComplete) {
         if (GameState.customization.pet !== 'none') {
             previewPet = createPet(scene, centerX + 90, 400, GameState.customization.pet);
             if (previewPet) {
-                previewPet.setDepth(2004);
+                previewPet.setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 4);
                 previewPet.setScale(1.5);
                 creationUI.push(previewPet);
             }
@@ -803,7 +803,7 @@ export function showCharacterCreation(scene, onComplete) {
     function refreshPreview() {
         previewChar.destroy();
         previewChar = createWhimsicalCharacter(scene, centerX, 360, GameState.playerClass, false, null, GameState.customization);
-        previewChar.setDepth(2005);
+        previewChar.setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 5);
         previewChar.setScale(1.8);
         creationUI.push(previewChar);
         updatePetPreview();
@@ -811,23 +811,23 @@ export function showCharacterCreation(scene, onComplete) {
 
     // === RIGHT COLUMN: Appearance (x: 1050-1350) ===
     const rightX = GAME_WIDTH - 220;
-    const appearLabel = scene.add.text(rightX, 120, 'Appearance', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2001);
+    const appearLabel = scene.add.text(rightX, 120, 'Appearance', { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(appearLabel);
 
     // Body style
-    const bodyLabel = scene.add.text(rightX, 170, 'Body Style', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(2001);
+    const bodyLabel = scene.add.text(rightX, 170, 'Body Style', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(bodyLabel);
 
-    const femBtn = scene.add.rectangle(rightX - 65, 210, 110, 40, 0x9B59B6, 0.8).setDepth(2001).setInteractive()
+    const femBtn = scene.add.rectangle(rightX - 65, 210, 110, 40, 0x9B59B6, 0.8).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive()
         .setStrokeStyle(3, GameState.customization.gender === 'female' ? 0xFFD700 : 0x9B59B6);
     creationUI.push(femBtn);
-    const femText = scene.add.text(rightX - 65, 210, 'Feminine', { fontSize: '15px', fill: '#fff' }).setOrigin(0.5).setDepth(2002);
+    const femText = scene.add.text(rightX - 65, 210, 'Feminine', { fontSize: '15px', fill: '#fff' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
     creationUI.push(femText);
 
-    const mascBtn = scene.add.rectangle(rightX + 65, 210, 110, 40, 0x3498DB, 0.8).setDepth(2001).setInteractive()
+    const mascBtn = scene.add.rectangle(rightX + 65, 210, 110, 40, 0x3498DB, 0.8).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive()
         .setStrokeStyle(3, GameState.customization.gender === 'male' ? 0xFFD700 : 0x3498DB);
     creationUI.push(mascBtn);
-    const mascText = scene.add.text(rightX + 65, 210, 'Masculine', { fontSize: '15px', fill: '#fff' }).setOrigin(0.5).setDepth(2002);
+    const mascText = scene.add.text(rightX + 65, 210, 'Masculine', { fontSize: '15px', fill: '#fff' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
     creationUI.push(mascText);
 
     femBtn.on('pointerdown', () => {
@@ -844,14 +844,14 @@ export function showCharacterCreation(scene, onComplete) {
     });
 
     // Skin tone
-    const skinLabel = scene.add.text(rightX, 270, 'Skin Tone', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(2001);
+    const skinLabel = scene.add.text(rightX, 270, 'Skin Tone', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(skinLabel);
 
     const skinButtons = [];
     skinTones.forEach((tone, i) => {
         const x = rightX - 90 + (i % 6) * 36;
         const y = 310;
-        const btn = scene.add.circle(x, y, 14, tone).setDepth(2001).setInteractive()
+        const btn = scene.add.circle(x, y, 14, tone).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive()
             .setStrokeStyle(3, GameState.customization.skinTone === tone ? 0xFFD700 : 0x333333);
         creationUI.push(btn);
         skinButtons.push({ btn, tone });
@@ -863,14 +863,14 @@ export function showCharacterCreation(scene, onComplete) {
     });
 
     // Hair color
-    const hairLabel = scene.add.text(rightX, 360, 'Hair Color', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(2001);
+    const hairLabel = scene.add.text(rightX, 360, 'Hair Color', { fontSize: '16px', fill: '#aaa' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(hairLabel);
 
     const hairButtons = [];
     hairColors.forEach((color, i) => {
         const x = rightX - 90 + (i % 5) * 45;
         const y = 400 + Math.floor(i / 5) * 40;
-        const btn = scene.add.circle(x, y, 14, color).setDepth(2001).setInteractive()
+        const btn = scene.add.circle(x, y, 14, color).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive()
             .setStrokeStyle(3, GameState.customization.hairColor === color ? 0xFFD700 : 0x333333);
         creationUI.push(btn);
         hairButtons.push({ btn, color });
@@ -882,7 +882,7 @@ export function showCharacterCreation(scene, onComplete) {
     });
 
     // === BOTTOM LEFT: Pets (aligned with class column) ===
-    const petLabel = scene.add.text(leftX, 530, 'Pet Companion', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2001);
+    const petLabel = scene.add.text(leftX, 530, 'Pet Companion', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(petLabel);
 
     const petKeys = Object.keys(petTypes);
@@ -897,14 +897,14 @@ export function showCharacterCreation(scene, onComplete) {
 
         const btn = scene.add.rectangle(x, y, 95, 75, 0x2C3E50, 0.9)
             .setStrokeStyle(3, GameState.customization.pet === pet ? 0xFFD700 : data.color)
-            .setDepth(2001).setInteractive();
+            .setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive();
         creationUI.push(btn);
         petButtons.push({ btn, pet });
 
-        const emoji = scene.add.text(x, y - 12, data.emoji, { fontSize: '28px' }).setOrigin(0.5).setDepth(2002);
+        const emoji = scene.add.text(x, y - 12, data.emoji, { fontSize: '28px' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
         creationUI.push(emoji);
 
-        const name = scene.add.text(x, y + 24, data.name, { fontSize: '12px', fill: '#aaa' }).setOrigin(0.5).setDepth(2002);
+        const name = scene.add.text(x, y + 24, data.name, { fontSize: '12px', fill: '#aaa' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
         creationUI.push(name);
 
         btn.on('pointerdown', () => {
@@ -917,7 +917,7 @@ export function showCharacterCreation(scene, onComplete) {
     });
 
     // === BOTTOM CENTER: Character Profiles (6 slots in 2x3 grid) ===
-    const presetLabel = scene.add.text(centerX, 530, 'Character Profiles', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2001);
+    const presetLabel = scene.add.text(centerX, 530, 'Character Profiles', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(presetLabel);
 
     for (let i = 0; i < 6; i++) {
@@ -928,23 +928,23 @@ export function showCharacterCreation(scene, onComplete) {
         const preset = GameState.characterPresets[i];
 
         const slotBtn = scene.add.rectangle(x, y, 115, 70, preset ? 0x2C3E50 : 0x1a1a2e, 0.9)
-            .setStrokeStyle(3, preset ? 0x27AE60 : 0x444444).setDepth(2001).setInteractive();
+            .setStrokeStyle(3, preset ? 0x27AE60 : 0x444444).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive();
         creationUI.push(slotBtn);
 
         if (preset) {
             // Class emoji centered at top of slot
-            const emoji = scene.add.text(x, y - 15, classes[preset.class]?.emoji || '?', { fontSize: '24px' }).setOrigin(0.5).setDepth(2002);
+            const emoji = scene.add.text(x, y - 15, classes[preset.class]?.emoji || '?', { fontSize: '24px' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
             creationUI.push(emoji);
             // Name centered below emoji, truncated to 8 chars
             const displayName = preset.name.length > 8 ? preset.name.substring(0, 8) : preset.name;
-            const pname = scene.add.text(x, y + 15, displayName, { fontSize: '13px', fill: '#fff' }).setOrigin(0.5).setDepth(2002);
+            const pname = scene.add.text(x, y + 15, displayName, { fontSize: '13px', fill: '#fff' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
             creationUI.push(pname);
 
             // Delete button centered below slot (smaller)
             const delBtn = scene.add.rectangle(x, y + 48, 50, 18, 0xC0392B, 0.8)
-                .setStrokeStyle(1, 0xE74C3C).setDepth(2003).setInteractive();
+                .setStrokeStyle(1, 0xE74C3C).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 3).setInteractive();
             creationUI.push(delBtn);
-            const delX = scene.add.text(x, y + 48, '🗑 delete', { fontSize: '10px', fill: '#fff' }).setOrigin(0.5).setDepth(2004);
+            const delX = scene.add.text(x, y + 48, '🗑 delete', { fontSize: '10px', fill: '#fff' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 4);
             creationUI.push(delX);
 
             delBtn.on('pointerdown', (pointer) => {
@@ -968,9 +968,9 @@ export function showCharacterCreation(scene, onComplete) {
                 refreshPreview();
             });
         } else {
-            const plus = scene.add.text(x, y - 8, '💾', { fontSize: '22px' }).setOrigin(0.5).setDepth(2002);
+            const plus = scene.add.text(x, y - 8, '💾', { fontSize: '22px' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
             creationUI.push(plus);
-            const saveLabel = scene.add.text(x, y + 18, 'Save Slot', { fontSize: '11px', fill: '#666' }).setOrigin(0.5).setDepth(2002);
+            const saveLabel = scene.add.text(x, y + 18, 'Save Slot', { fontSize: '11px', fill: '#666' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
             creationUI.push(saveLabel);
 
             slotBtn.on('pointerdown', () => {
@@ -985,9 +985,9 @@ export function showCharacterCreation(scene, onComplete) {
 
     // === BOTTOM RIGHT: Actions ===
     // Randomize button
-    const randomBtn = scene.add.rectangle(rightX, 560, 180, 50, 0xE67E22, 0.9).setDepth(2001).setInteractive().setStrokeStyle(3, 0xF39C12);
+    const randomBtn = scene.add.rectangle(rightX, 560, 180, 50, 0xE67E22, 0.9).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive().setStrokeStyle(3, 0xF39C12);
     creationUI.push(randomBtn);
-    const randomText = scene.add.text(rightX, 560, '🎲 Randomize', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2002);
+    const randomText = scene.add.text(rightX, 560, '🎲 Randomize', { fontSize: '18px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
     creationUI.push(randomText);
 
     randomBtn.on('pointerdown', () => {
@@ -1010,9 +1010,9 @@ export function showCharacterCreation(scene, onComplete) {
     randomBtn.on('pointerout', () => randomBtn.setAlpha(1));
 
     // Play button
-    const playBtn = scene.add.rectangle(rightX, 640, 220, 70, 0x27AE60, 1).setDepth(2001).setInteractive().setStrokeStyle(4, 0x2ECC71);
+    const playBtn = scene.add.rectangle(rightX, 640, 220, 70, 0x27AE60, 1).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1).setInteractive().setStrokeStyle(4, 0x2ECC71);
     creationUI.push(playBtn);
-    const playText = scene.add.text(rightX, 640, '▶ START GAME', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(2002);
+    const playText = scene.add.text(rightX, 640, '▶ START GAME', { fontSize: '22px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 2);
     creationUI.push(playText);
 
     playBtn.on('pointerdown', () => {
@@ -1024,7 +1024,7 @@ export function showCharacterCreation(scene, onComplete) {
     playBtn.on('pointerout', () => playBtn.setFillStyle(0x27AE60, 1));
 
     // Hint text at bottom
-    const hintText = scene.add.text(rightX, 720, 'Click a saved profile to load it', { fontSize: '12px', fill: '#666' }).setOrigin(0.5).setDepth(2001);
+    const hintText = scene.add.text(rightX, 720, 'Click a saved profile to load it', { fontSize: '12px', fill: '#666' }).setOrigin(0.5).setDepth(DEPTH_LAYERS.CHARACTER_CREATION + 1);
     creationUI.push(hintText);
 }
 
@@ -1045,25 +1045,25 @@ export function showPauseMenu(onChangeCharacter) {
     const isCustom = currentPreset === 'custom';
 
     // Overlay
-    const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(300);
+    const overlay = scene.add.rectangle(centerX, centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setDepth(DEPTH_LAYERS.MODAL);
     GameState.pauseMenuUI.push(overlay);
 
     // Menu panel (expanded for settings)
     const panelHeight = isCustom ? 480 : 400;
     const panel = scene.add.rectangle(centerX, centerY, 400, panelHeight, 0x1a1a2e, 0.95)
-        .setStrokeStyle(3, 0x9B59B6).setDepth(301);
+        .setStrokeStyle(3, 0x9B59B6).setDepth(DEPTH_LAYERS.MODAL + 1);
     GameState.pauseMenuUI.push(panel);
 
     // Title
     const title = scene.add.text(centerX, centerY - panelHeight/2 + 30, '⏸ PAUSED', {
         fontSize: '28px', fill: '#FFD700', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(302);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(title);
 
     // === GAME PACE PRESETS ===
     const presetLabel = scene.add.text(centerX, centerY - panelHeight/2 + 70, '⏱️ Game Pace', {
         fontSize: '14px', fill: '#90EE90', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(302);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(presetLabel);
 
     // Preset buttons in 2x2 grid
@@ -1081,17 +1081,17 @@ export function showPauseMenu(onChangeCharacter) {
         const btn = scene.add.rectangle(btnX, btnY, 165, 40,
             isSelected ? 0x27AE60 : 0x34495E, 0.9)
             .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
-            .setDepth(301).setInteractive();
+            .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
         GameState.pauseMenuUI.push(btn);
 
         const btnText = scene.add.text(btnX, btnY - 5, preset.label, {
             fontSize: '13px', fill: isSelected ? '#fff' : '#ccc', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(302);
+        }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(btnText);
 
         const descText = scene.add.text(btnX, btnY + 10, preset.desc, {
             fontSize: '9px', fill: isSelected ? '#90EE90' : '#888'
-        }).setOrigin(0.5).setDepth(302);
+        }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(descText);
 
         btn.on('pointerdown', () => {
@@ -1110,7 +1110,7 @@ export function showPauseMenu(onChangeCharacter) {
         // Day Length setting
         const dayLabel = scene.add.text(centerX, customY, '☀️ Day Length', {
             fontSize: '12px', fill: '#FFD700', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(302);
+        }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(dayLabel);
 
         const timeSpeedKeys = ['relaxed', 'normal', 'fast', 'hyper'];
@@ -1124,17 +1124,17 @@ export function showPauseMenu(onChangeCharacter) {
             const btn = scene.add.rectangle(btnX, customY + 30, 80, 35,
                 isSelected ? 0x3498DB : 0x34495E, 0.9)
                 .setStrokeStyle(2, isSelected ? 0x5DADE2 : 0x4A5568)
-                .setDepth(301).setInteractive();
+                .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
             GameState.pauseMenuUI.push(btn);
 
             const btnText = scene.add.text(btnX, customY + 25, opt.label, {
                 fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
-            }).setOrigin(0.5).setDepth(302);
+            }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
             GameState.pauseMenuUI.push(btnText);
 
             const descText = scene.add.text(btnX, customY + 38, opt.desc, {
                 fontSize: '9px', fill: isSelected ? '#87CEEB' : '#666'
-            }).setOrigin(0.5).setDepth(302);
+            }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
             GameState.pauseMenuUI.push(descText);
 
             btn.on('pointerdown', () => {
@@ -1153,7 +1153,7 @@ export function showPauseMenu(onChangeCharacter) {
         // Season Length setting
         const seasonLabel = scene.add.text(centerX, customY, '🌸 Season Length', {
             fontSize: '12px', fill: '#90EE90', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(302);
+        }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
         GameState.pauseMenuUI.push(seasonLabel);
 
         const seasonLabels = ['1 day', '7 days', '14 days', '30 days'];
@@ -1166,12 +1166,12 @@ export function showPauseMenu(onChangeCharacter) {
             const btn = scene.add.rectangle(btnX, customY + 28, 80, 30,
                 isSelected ? 0x27AE60 : 0x34495E, 0.9)
                 .setStrokeStyle(2, isSelected ? 0x2ECC71 : 0x4A5568)
-                .setDepth(301).setInteractive();
+                .setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
             GameState.pauseMenuUI.push(btn);
 
             const btnText = scene.add.text(btnX, customY + 28, seasonLabels[i], {
                 fontSize: '11px', fill: isSelected ? '#fff' : '#aaa', fontStyle: 'bold'
-            }).setOrigin(0.5).setDepth(302);
+            }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
             GameState.pauseMenuUI.push(btnText);
 
             btn.on('pointerdown', () => {
@@ -1192,11 +1192,11 @@ export function showPauseMenu(onChangeCharacter) {
 
     // Continue button
     const continueBtn = scene.add.rectangle(centerX, btnY, 220, 45, 0x27AE60, 0.9)
-        .setStrokeStyle(3, 0x2ECC71).setDepth(301).setInteractive();
+        .setStrokeStyle(3, 0x2ECC71).setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
     GameState.pauseMenuUI.push(continueBtn);
     const continueText = scene.add.text(centerX, btnY, '▶ Continue', {
         fontSize: '16px', fill: '#fff', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(302);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(continueText);
 
     continueBtn.on('pointerdown', () => closePauseMenu());
@@ -1205,11 +1205,11 @@ export function showPauseMenu(onChangeCharacter) {
 
     // Change Character button
     const changeBtn = scene.add.rectangle(centerX, btnY + 55, 220, 45, 0xE67E22, 0.9)
-        .setStrokeStyle(3, 0xF39C12).setDepth(301).setInteractive();
+        .setStrokeStyle(3, 0xF39C12).setDepth(DEPTH_LAYERS.MODAL + 1).setInteractive();
     GameState.pauseMenuUI.push(changeBtn);
     const changeText = scene.add.text(centerX, btnY + 55, '👤 Change Character', {
         fontSize: '14px', fill: '#fff', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(302);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(changeText);
 
     changeBtn.on('pointerdown', () => {
@@ -1222,7 +1222,7 @@ export function showPauseMenu(onChangeCharacter) {
     // Hint text
     const hint = scene.add.text(centerX, btnY + 100, '[ ESC to close ]', {
         fontSize: '12px', fill: '#666'
-    }).setOrigin(0.5).setDepth(302);
+    }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(hint);
 }
 

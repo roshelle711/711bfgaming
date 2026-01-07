@@ -18,7 +18,7 @@
  * - findNearestCookingStation(maxDistance): Find nearest station within range
  */
 
-import { npcPatrolPoints, miraHome, npcSpeed, cookingStations, cookingStationPositions } from './config.js';
+import { npcPatrolPoints, miraHome, npcSpeed, cookingStations, cookingStationPositions, DEPTH_LAYERS, getWorldDepth } from './config.js';
 import { GameState } from './state.js';
 import { getDayPhase } from './utils.js';
 import { createWhimsicalCharacter } from './player.js';
@@ -77,6 +77,7 @@ export function createFarmPlot(scene, x, y, index = 0) {
         graphics: scene.add.graphics(),
         plantGraphics: null
     };
+    plot.graphics.setDepth(DEPTH_LAYERS.FARM_PLOTS);
     drawPlot(plot);
     return plot;
 }
@@ -148,6 +149,7 @@ export function drawPlant(scene, plot) {
     if (!plot.crop) return;
 
     plot.plantGraphics = scene.add.graphics();
+    plot.plantGraphics.setDepth(DEPTH_LAYERS.FARM_PLANTS);
     const { x, y, crop, state } = plot;
 
     if (crop === 'carrot') {
@@ -523,8 +525,8 @@ export function createNPCs(scene) {
         body: 0x27AE60, accent: 0x2ECC71, skin: 0xC68642, hair: 0x1E8449, accessory: 'apron'
     });
     GameState.shopkeeper.body.setImmovable(true);
-    // Set depth based on Y position
-    GameState.shopkeeper.setDepth(240);
+    // Set depth based on foot Y position (y + 25 for ~50px character)
+    GameState.shopkeeper.setDepth(getWorldDepth(240 + 25));
 
     // Add nameplate to Finn's container
     const finnName = scene.add.text(0, -60, 'Finn 🛒', {
@@ -684,9 +686,8 @@ export function createFruitTree(scene, x, y, treeType, index = 0) {
         graphics: scene.add.graphics(),
         needsRedraw: false
     };
-    // Set depth based on Y position for proper layering
-    // Lower depth = behind other objects
-    tree.graphics.setDepth(y);
+    // Set depth based on foot Y position (trunk base at y + 30)
+    tree.graphics.setDepth(getWorldDepth(y + 30));
     drawFruitTree(tree);
     return tree;
 }
@@ -788,8 +789,8 @@ export function createCookingStation(scene, x, y, stationType, index = 0) {
         label: null
     };
 
-    // Set depth based on Y position
-    station.graphics.setDepth(y);
+    // Set depth based on foot Y position (~35px tall stations)
+    station.graphics.setDepth(getWorldDepth(y + 15));
 
     // Draw the station
     drawCookingStation(station);
@@ -800,7 +801,7 @@ export function createCookingStation(scene, x, y, stationType, index = 0) {
         fill: '#FFFFFF',
         stroke: '#000000',
         strokeThickness: 2
-    }).setOrigin(0.5).setDepth(y + 1);
+    }).setOrigin(0.5).setDepth(getWorldDepth(y + 15, 1));
 
     return station;
 }
