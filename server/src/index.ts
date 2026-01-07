@@ -46,7 +46,7 @@ gameServer
 ╔════════════════════════════════════════════════════════════╗
 ║           711BF Gaming - Colyseus Server                   ║
 ╠════════════════════════════════════════════════════════════╣
-║  Status:     RUNNING                                       ║
+║  Status:     RUNNING (Node.js + tsx)                       ║
 ║  Port:       ${PORT}                                          ║
 ║  Host:       0.0.0.0 (all interfaces)                      ║
 ║  Tailscale:  ${TAILSCALE_IP}:${PORT}                            ║

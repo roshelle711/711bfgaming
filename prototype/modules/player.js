@@ -9,9 +9,12 @@
  * - updatePlayerSparkles(time): Animate player sparkles
  */
 
-import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration } from './config.js';
+import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration, DEPTH_LAYERS, getWorldDepth } from './config.js';
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
+
+// Tool graphics containers (created once, reused)
+let toolGraphics = null;
 
 /**
  * Create a whimsical character sprite
@@ -31,10 +34,21 @@ export function createWhimsicalCharacter(scene, x, y, classType, isNPC = false, 
 
     container.floatOffset = Math.random() * Math.PI * 2;
 
-    // Shadow
-    const shadow = scene.add.ellipse(0, 28, 30, 10, 0x000000, 0.25);
-    container.add(shadow);
-    container.shadow = shadow;
+    // Shadow - separate from container so it can have independent depth
+    // For player, shadow is stored externally and updated in movement
+    // For NPCs, shadow stays in container (simpler, less critical)
+    if (isNPC) {
+        const shadow = scene.add.ellipse(0, 28, 30, 10, 0x000000, 0.25);
+        container.add(shadow);
+        container.shadow = shadow;
+    } else {
+        // Player shadow: external object with Y-based depth (slightly behind player)
+        const shadow = scene.add.ellipse(x, y + 28, 30, 10, 0x000000, 0.25);
+        // Shadow at foot position depth but with -1 sublayer to render behind player
+        shadow.setDepth(getWorldDepth(y + 28, -1));
+        container.externalShadow = shadow;
+        console.log(`[Shadow] Created at Y=${y + 28}, depth=${getWorldDepth(y + 28, -1)}`);
+    }
 
     // Sparkles for player
     if (!isNPC) {
@@ -50,11 +64,12 @@ export function createWhimsicalCharacter(scene, x, y, classType, isNPC = false, 
     const bodyColor = isNPC ? (npcStyle?.body || 0xE67E22) : cls.color;
 
     if (isFemale) {
+        // Dress body (no triangle bottom)
         container.add(scene.add.ellipse(0, -2, 28, 14, bodyColor));
-        container.add(scene.add.ellipse(0, 8, 18, 12, bodyColor));
-        container.add(scene.add.ellipse(0, 18, 26, 16, bodyColor));
-        container.add(scene.add.triangle(0, 28, -18, 0, 0, 12, 18, 0, bodyColor));
+        container.add(scene.add.ellipse(0, 8, 20, 14, bodyColor));
+        container.add(scene.add.ellipse(0, 18, 24, 14, bodyColor));  // Rounded bottom instead of triangle
         const accentColor = isNPC ? (npcStyle?.accent || 0xF39C12) : cls.accent;
+        // Belt/ribbon detail
         container.add(scene.add.ellipse(0, 10, 20, 4, accentColor));
         container.add(scene.add.circle(-4, 10, 3, accentColor));
         container.add(scene.add.circle(4, 10, 3, accentColor));
@@ -134,9 +149,10 @@ export function createWhimsicalCharacter(scene, x, y, classType, isNPC = false, 
             container.add(scene.add.triangle(-14, -42, 0, 12, 4, 0, 8, 12, 0x696969));
             container.add(scene.add.triangle(14, -42, 0, 12, 4, 0, 8, 12, 0x696969));
         } else if (classType === 'mage') {
-            container.add(scene.add.triangle(0, -58, -16, 18, 0, -20, 16, 18, 0x3498DB));
-            container.add(scene.add.ellipse(0, -40, 34, 8, 0x2980B9));
-            container.add(scene.add.circle(0, -56, 4, 0xF1C40F));
+            // Wizard hat - smaller, more proportional
+            container.add(scene.add.triangle(0, -50, -10, 12, 0, -14, 10, 12, 0x3498DB));
+            container.add(scene.add.ellipse(0, -40, 26, 6, 0x2980B9));  // Hat brim
+            container.add(scene.add.circle(0, -52, 3, 0xF1C40F));  // Star on tip
         } else if (classType === 'priest') {
             container.add(scene.add.circle(0, -48, 12, 0xF1C40F, 0.3));
             const haloRing = scene.add.circle(0, -48, 12, 0xF1C40F, 0);
@@ -177,70 +193,162 @@ export function createPet(scene, x, y, petType) {
 
     container.add(scene.add.ellipse(0, 12, 16, 5, 0x000000, 0.2));
 
+    // Darken color helper for shading - proper per-channel RGB subtraction
+    const darken = (color, amount = 0x22) => {
+        const r = Math.max(0, ((color >> 16) & 0xFF) - amount);
+        const g = Math.max(0, ((color >> 8) & 0xFF) - amount);
+        const b = Math.max(0, (color & 0xFF) - amount);
+        return (r << 16) | (g << 8) | b;
+    };
+
     if (petType === 'cat') {
-        container.add(scene.add.ellipse(0, 4, 18, 14, pet.color));
-        container.add(scene.add.circle(0, -8, 10, pet.color));
-        container.add(scene.add.triangle(-8, -18, 0, 8, 4, 0, 8, 8, pet.color));
-        container.add(scene.add.triangle(8, -18, 0, 8, 4, 0, 8, 8, pet.color));
-        container.add(scene.add.triangle(-8, -16, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
-        container.add(scene.add.triangle(8, -16, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
-        container.add(scene.add.ellipse(-4, -9, 4, 5, 0x90EE90));
-        container.add(scene.add.ellipse(4, -9, 4, 5, 0x90EE90));
-        container.add(scene.add.ellipse(-4, -9, 2, 4, 0x000000));
-        container.add(scene.add.ellipse(4, -9, 2, 4, 0x000000));
-        container.add(scene.add.triangle(0, -5, -2, 3, 0, 0, 2, 3, 0xFFB6C1));
-        container.add(scene.add.ellipse(12, 0, 4, 12, pet.color));
+        // Body with shading
+        container.add(scene.add.ellipse(0, 5, 20, 16, darken(pet.color)));  // Shadow layer
+        container.add(scene.add.ellipse(-2, 4, 18, 14, pet.color));  // Main body
+        // Head with shading
+        container.add(scene.add.circle(0, -6, 12, darken(pet.color)));
+        container.add(scene.add.circle(-1, -7, 11, pet.color));
+        // Ears
+        container.add(scene.add.triangle(-7, -16, 0, 8, 4, 0, 8, 8, pet.color));
+        container.add(scene.add.triangle(7, -16, 0, 8, 4, 0, 8, 8, pet.color));
+        container.add(scene.add.triangle(-7, -14, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
+        container.add(scene.add.triangle(7, -14, 0, 5, 2, 0, 4, 5, 0xFFB6C1));
+        // Eyes
+        container.add(scene.add.ellipse(-4, -7, 5, 6, 0x90EE90));
+        container.add(scene.add.ellipse(4, -7, 5, 6, 0x90EE90));
+        container.add(scene.add.ellipse(-4, -7, 2, 4, 0x000000));
+        container.add(scene.add.ellipse(4, -7, 2, 4, 0x000000));
+        container.add(scene.add.circle(-5, -8, 1.5, 0xFFFFFF));
+        container.add(scene.add.circle(3, -8, 1.5, 0xFFFFFF));
+        // Nose
+        container.add(scene.add.triangle(0, -3, -2, 3, 0, 0, 2, 3, 0xFFB6C1));
+        // Tail with shading
+        container.add(scene.add.ellipse(12, 2, 5, 14, darken(pet.color)));
+        container.add(scene.add.ellipse(11, 1, 4, 12, pet.color));
     } else if (petType === 'dog') {
-        container.add(scene.add.ellipse(0, 4, 20, 14, pet.color));
-        container.add(scene.add.ellipse(0, -8, 14, 12, pet.color));
-        container.add(scene.add.ellipse(-10, -4, 6, 10, pet.color));
-        container.add(scene.add.ellipse(10, -4, 6, 10, pet.color));
-        container.add(scene.add.ellipse(0, -4, 8, 6, pet.accent));
-        container.add(scene.add.circle(-4, -10, 3, 0x000000));
-        container.add(scene.add.circle(4, -10, 3, 0x000000));
-        container.add(scene.add.circle(0, -4, 3, 0x000000));
-        container.add(scene.add.ellipse(14, -2, 5, 8, pet.color));
+        // Body with shading
+        container.add(scene.add.ellipse(0, 6, 22, 16, darken(pet.color)));
+        container.add(scene.add.ellipse(-1, 5, 20, 14, pet.color));
+        // Belly patch
+        container.add(scene.add.ellipse(0, 8, 12, 8, pet.accent));
+        // Head with shading
+        container.add(scene.add.circle(0, -6, 13, darken(pet.color)));
+        container.add(scene.add.circle(-1, -7, 12, pet.color));
+        // Snout
+        container.add(scene.add.ellipse(0, -2, 8, 5, pet.accent));
+        // Floppy ears
+        container.add(scene.add.ellipse(-11, -2, 6, 11, darken(pet.color)));
+        container.add(scene.add.ellipse(-10, -3, 5, 10, pet.color));
+        container.add(scene.add.ellipse(11, -2, 6, 11, darken(pet.color)));
+        container.add(scene.add.ellipse(10, -3, 5, 10, pet.color));
+        // Eyes
+        container.add(scene.add.circle(-5, -9, 4, 0xFFFFFF));
+        container.add(scene.add.circle(5, -9, 4, 0xFFFFFF));
+        container.add(scene.add.circle(-5, -9, 2.5, 0x4A3728));
+        container.add(scene.add.circle(5, -9, 2.5, 0x4A3728));
+        container.add(scene.add.circle(-6, -10, 1, 0xFFFFFF));
+        container.add(scene.add.circle(4, -10, 1, 0xFFFFFF));
+        // Nose
+        container.add(scene.add.ellipse(0, -1, 4, 3, 0x000000));
+        // Tail
+        container.add(scene.add.ellipse(14, 0, 5, 10, pet.color));
     } else if (petType === 'bunny') {
-        container.add(scene.add.ellipse(0, 6, 16, 14, pet.color));
-        container.add(scene.add.circle(0, -6, 11, pet.color));
-        container.add(scene.add.ellipse(-5, -24, 5, 14, pet.color));
-        container.add(scene.add.ellipse(5, -24, 5, 14, pet.color));
-        container.add(scene.add.ellipse(-5, -24, 3, 10, pet.accent));
-        container.add(scene.add.ellipse(5, -24, 3, 10, pet.accent));
-        container.add(scene.add.circle(-4, -7, 3, 0xFF69B4));
-        container.add(scene.add.circle(4, -7, 3, 0xFF69B4));
-        container.add(scene.add.circle(-4, -7, 1.5, 0x000000));
-        container.add(scene.add.circle(4, -7, 1.5, 0x000000));
-        container.add(scene.add.circle(10, 6, 6, pet.color));
+        // Body with shading
+        container.add(scene.add.ellipse(0, 6, 18, 16, darken(pet.color)));
+        container.add(scene.add.ellipse(-1, 5, 16, 14, pet.color));
+        // Head with shading
+        container.add(scene.add.circle(0, -5, 12, darken(pet.color)));
+        container.add(scene.add.circle(-1, -6, 11, pet.color));
+        // Long ears with shading
+        container.add(scene.add.ellipse(-5, -22, 5, 16, darken(pet.color)));
+        container.add(scene.add.ellipse(-5, -23, 4, 15, pet.color));
+        container.add(scene.add.ellipse(5, -22, 5, 16, darken(pet.color)));
+        container.add(scene.add.ellipse(5, -23, 4, 15, pet.color));
+        // Inner ears
+        container.add(scene.add.ellipse(-5, -23, 2, 11, pet.accent));
+        container.add(scene.add.ellipse(5, -23, 2, 11, pet.accent));
+        // Big cute eyes
+        container.add(scene.add.circle(-4, -6, 5, 0xFF69B4));
+        container.add(scene.add.circle(4, -6, 5, 0xFF69B4));
+        container.add(scene.add.circle(-4, -6, 2.5, 0x000000));
+        container.add(scene.add.circle(4, -6, 2.5, 0x000000));
+        container.add(scene.add.circle(-5, -7, 1.5, 0xFFFFFF));
+        container.add(scene.add.circle(3, -7, 1.5, 0xFFFFFF));
+        // Nose
+        container.add(scene.add.triangle(0, -2, -2, 2, 0, 0, 2, 2, 0xFFB6C1));
+        // Cheeks
+        container.add(scene.add.circle(-8, -3, 3, 0xFFB6C1, 0.4));
+        container.add(scene.add.circle(8, -3, 3, 0xFFB6C1, 0.4));
+        // Fluffy tail
+        container.add(scene.add.circle(10, 8, 6, pet.color));
+        container.add(scene.add.circle(9, 7, 4, pet.accent));
     } else if (petType === 'bird') {
+        // Body
         container.add(scene.add.ellipse(0, 2, 14, 12, pet.color));
+        // Head
         container.add(scene.add.circle(0, -8, 8, pet.color));
-        container.add(scene.add.ellipse(6, 2, 8, 10, pet.accent));
+        // Wing
+        container.add(scene.add.ellipse(5, 2, 8, 10, pet.accent));
+        // Beak
         container.add(scene.add.triangle(8, -8, 0, 4, 8, 2, 0, 0, 0xF39C12));
-        container.add(scene.add.circle(-2, -9, 2, 0x000000));
+        // Eye
+        container.add(scene.add.circle(-2, -9, 3, 0xFFFFFF));
+        container.add(scene.add.circle(-2, -9, 1.5, 0x000000));
+        // Tail feathers
         container.add(scene.add.triangle(-8, 4, 0, 8, 4, 0, 8, 8, pet.accent));
     } else if (petType === 'fox') {
-        container.add(scene.add.ellipse(0, 4, 18, 14, pet.color));
-        container.add(scene.add.ellipse(0, -8, 12, 10, pet.color));
-        container.add(scene.add.triangle(-8, -20, 0, 10, 5, 0, 10, 10, pet.color));
-        container.add(scene.add.triangle(8, -20, 0, 10, 5, 0, 10, 10, pet.color));
-        container.add(scene.add.ellipse(0, -4, 8, 6, pet.accent));
-        container.add(scene.add.ellipse(-4, -10, 3, 4, 0x2ECC71));
-        container.add(scene.add.ellipse(4, -10, 3, 4, 0x2ECC71));
-        container.add(scene.add.ellipse(-4, -10, 1, 3, 0x000000));
-        container.add(scene.add.ellipse(4, -10, 1, 3, 0x000000));
-        container.add(scene.add.circle(0, -5, 2, 0x000000));
-        container.add(scene.add.ellipse(14, 0, 6, 12, pet.color));
-        container.add(scene.add.ellipse(16, 4, 4, 6, pet.accent));
+        // === CUTE FOX REDESIGN ===
+        // Fluffy tail first (renders behind body)
+        container.add(scene.add.ellipse(14, 4, 10, 16, darken(pet.color)));  // Tail shadow
+        container.add(scene.add.ellipse(13, 3, 9, 14, pet.color));           // Tail main
+        container.add(scene.add.ellipse(15, 10, 5, 8, pet.accent));          // Tail white tip
+
+        // Round body (cuter proportions)
+        container.add(scene.add.ellipse(0, 6, 20, 14, darken(pet.color)));   // Body shadow
+        container.add(scene.add.ellipse(-1, 5, 18, 12, pet.color));          // Body main
+        container.add(scene.add.ellipse(0, 8, 10, 6, pet.accent));           // White belly
+
+        // Cute round head (larger for kawaii look)
+        container.add(scene.add.circle(0, -7, 14, darken(pet.color)));       // Head shadow
+        container.add(scene.add.circle(-1, -8, 13, pet.color));              // Head main
+
+        // White face markings
+        container.add(scene.add.ellipse(0, -3, 10, 8, pet.accent));          // White muzzle area
+        container.add(scene.add.ellipse(-5, -6, 4, 5, pet.accent));          // Left cheek patch
+        container.add(scene.add.ellipse(5, -6, 4, 5, pet.accent));           // Right cheek patch
+
+        // Pointed ears (on top of head)
+        container.add(scene.add.triangle(-8, -20, 0, 10, 5, 0, 10, 10, pet.color));   // Left ear
+        container.add(scene.add.triangle(8, -20, 0, 10, 5, 0, 10, 10, pet.color));    // Right ear
+        container.add(scene.add.triangle(-8, -17, 0, 6, 3, 0, 6, 6, 0x1A1A1A));       // Left inner
+        container.add(scene.add.triangle(8, -17, 0, 6, 3, 0, 6, 6, 0x1A1A1A));        // Right inner
+
+        // Big cute eyes
+        container.add(scene.add.ellipse(-5, -9, 5, 6, 0xFFFFFF));            // Left eye white
+        container.add(scene.add.ellipse(5, -9, 5, 6, 0xFFFFFF));             // Right eye white
+        container.add(scene.add.ellipse(-5, -8, 3, 4, 0x4A3000));            // Left pupil (amber)
+        container.add(scene.add.ellipse(5, -8, 3, 4, 0x4A3000));             // Right pupil (amber)
+        container.add(scene.add.circle(-6, -10, 1.5, 0xFFFFFF));             // Left eye shine
+        container.add(scene.add.circle(4, -10, 1.5, 0xFFFFFF));              // Right eye shine
+
+        // Small black nose
+        container.add(scene.add.ellipse(0, -2, 4, 3, 0x000000));
     }
 
-    const nameTag = scene.add.text(0, -35, pet.emoji, { fontSize: '12px' }).setOrigin(0.5);
-    container.add(nameTag);
+    // No nameTag - pets are visually distinct without labels
 
     scene.physics.add.existing(container);
     container.body.setSize(20, 20).setOffset(-10, -5);
 
+    // Pet state for wandering and tricks
     container.petType = petType;
+    container.petState = 'following';  // 'following', 'wandering', 'trick'
+    container.wanderTarget = { x: x, y: y };
+    container.wanderTimer = 0;
+    container.trickTimer = 0;
+    container.trickType = null;
+    container.originalScale = { x: 1, y: 1 };
+
     return container;
 }
 
@@ -291,13 +399,52 @@ export function updatePlayerMovement() {
     const lerpFactor = 0.2;
     player.body.velocity.x = lerp(player.body.velocity.x, GameState.targetVelocity.x, lerpFactor);
     player.body.velocity.y = lerp(player.body.velocity.y, GameState.targetVelocity.y, lerpFactor);
+
+    // Update player depth based on foot Y position (y + 25 for ~50px character)
+    player.setDepth(getWorldDepth(player.y + 25));
+
+    // Update external shadow position and depth (shadow follows player)
+    if (player.externalShadow) {
+        player.externalShadow.x = player.x;
+        player.externalShadow.y = player.y + 28;
+        // Shadow at same Y-depth as player feet but -1 sublayer to render behind
+        player.externalShadow.setDepth(getWorldDepth(player.y + 28, -1));
+    }
 }
 
 /**
- * Update pet following behavior
- * Call this in the update loop
+ * Check if a position is in the pond (forbidden zone for pet)
  */
-export function updatePetFollow() {
+function isPetInPond(x, y) {
+    // Pond is an ellipse centered at (220, 680) with rx=100, ry=70
+    const pondX = 220, pondY = 680, pondRx = 100, pondRy = 70;
+    const dx = (x - pondX) / pondRx;
+    const dy = (y - pondY) / pondRy;
+    return (dx * dx + dy * dy) < 1;
+}
+
+/**
+ * Get a valid wander target for the pet (avoiding pond)
+ */
+function getValidWanderTarget(playerX, playerY) {
+    for (let attempts = 0; attempts < 10; attempts++) {
+        const target = {
+            x: playerX + (Math.random() - 0.5) * 100,
+            y: playerY + (Math.random() - 0.5) * 100
+        };
+        if (!isPetInPond(target.x, target.y)) {
+            return target;
+        }
+    }
+    // Fallback: stay near player
+    return { x: playerX + 20, y: playerY + 20 };
+}
+
+/**
+ * Update pet behavior - following, wandering, and tricks
+ * @param {number} delta - Time delta in ms
+ */
+export function updatePetFollow(delta = 16) {
     const pet = GameState.playerPet;
     const player = GameState.player;
     if (!pet || !player) return;
@@ -306,11 +453,124 @@ export function updatePetFollow() {
     const dy = player.y - pet.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > 50) {
-        const speed = Math.min(dist * 2, 180);
-        pet.x += (dx / dist) * speed * 0.016;
-        pet.y += (dy / dist) * speed * 0.016;
+    // Update trick animation
+    if (pet.petState === 'trick') {
+        pet.trickTimer -= delta;
+        const progress = 1 - (pet.trickTimer / 800);
+
+        if (pet.trickType === 'spin') {
+            // Spin animation
+            pet.rotation = progress * Math.PI * 4;
+        } else if (pet.trickType === 'jump') {
+            // Jump animation
+            const jumpHeight = Math.sin(progress * Math.PI) * 25;
+            pet.y = pet.baseY - jumpHeight;
+        } else if (pet.trickType === 'flip') {
+            // Flip animation (scale Y)
+            pet.scaleY = Math.cos(progress * Math.PI * 2);
+        }
+
+        if (pet.trickTimer <= 0) {
+            pet.petState = 'following';
+            pet.rotation = 0;
+            pet.scaleY = 1;
+            if (pet.baseY) pet.y = pet.baseY;
+        }
+        return;
     }
+
+    // If pet somehow ends up in pond, push it out
+    if (isPetInPond(pet.x, pet.y)) {
+        // Move toward player to escape pond
+        pet.x += (dx / dist) * 100 * delta / 1000;
+        pet.y += (dy / dist) * 100 * delta / 1000;
+        return;
+    }
+
+    // If player is too far, follow them
+    if (dist > 120) {
+        pet.petState = 'following';
+    }
+
+    if (pet.petState === 'following') {
+        // Follow the player
+        if (dist > 50) {
+            const speed = Math.min(dist * 2, 180);
+            const newX = pet.x + (dx / dist) * speed * delta / 1000;
+            const newY = pet.y + (dy / dist) * speed * delta / 1000;
+            // Only move if not entering pond
+            if (!isPetInPond(newX, newY)) {
+                pet.x = newX;
+                pet.y = newY;
+            }
+        } else if (dist < 40) {
+            // Close enough, start wandering
+            pet.petState = 'wandering';
+            pet.wanderTimer = 1000 + Math.random() * 2000;
+            pet.wanderTarget = getValidWanderTarget(player.x, player.y);
+        }
+    } else if (pet.petState === 'wandering') {
+        // Wander around near the player
+        pet.wanderTimer -= delta;
+
+        // Move toward wander target
+        const wdx = pet.wanderTarget.x - pet.x;
+        const wdy = pet.wanderTarget.y - pet.y;
+        const wdist = Math.sqrt(wdx * wdx + wdy * wdy);
+
+        if (wdist > 5) {
+            const wanderSpeed = 40;
+            const newX = pet.x + (wdx / wdist) * wanderSpeed * delta / 1000;
+            const newY = pet.y + (wdy / wdist) * wanderSpeed * delta / 1000;
+            // Only move if not entering pond
+            if (!isPetInPond(newX, newY)) {
+                pet.x = newX;
+                pet.y = newY;
+            }
+        }
+
+        // Pick new wander target periodically
+        if (pet.wanderTimer <= 0) {
+            pet.wanderTimer = 1500 + Math.random() * 2500;
+            pet.wanderTarget = getValidWanderTarget(player.x, player.y);
+        }
+    }
+
+    // Update depth based on foot Y position (y + 10 for ~20px pet, -0.1 sublayer to stay behind player)
+    pet.setDepth(getWorldDepth(pet.y + 10, -0.1));
+}
+
+/**
+ * Make the pet do a trick animation
+ * @returns {string} The trick performed
+ */
+export function petDoTrick() {
+    const pet = GameState.playerPet;
+    if (!pet || pet.petState === 'trick') return null;
+
+    const tricks = ['spin', 'jump', 'flip'];
+    const trick = tricks[Math.floor(Math.random() * tricks.length)];
+
+    pet.petState = 'trick';
+    pet.trickType = trick;
+    pet.trickTimer = 800;
+    pet.baseY = pet.y;
+
+    return trick;
+}
+
+/**
+ * Check if player is near their pet
+ * @returns {boolean}
+ */
+export function isNearPet() {
+    const pet = GameState.playerPet;
+    const player = GameState.player;
+    if (!pet || !player) return false;
+
+    const dx = player.x - pet.x;
+    const dy = player.y - pet.y;
+    return Math.sqrt(dx * dx + dy * dy) < 120;  // Allow petting within 120px (matches return-to-follow distance)
 }
 
 /**
@@ -327,4 +587,270 @@ export function updatePlayerSparkles(time) {
         sparkle.x = -15 + Math.sin(t + i) * 30;
         sparkle.y = -35 + Math.cos(t * 0.7 + i) * 20;
     });
+}
+
+/**
+ * Create tool graphics container for player
+ * @param {Phaser.Scene} scene - Phaser scene
+ */
+export function createToolGraphics(scene) {
+    if (toolGraphics) return toolGraphics;
+
+    toolGraphics = scene.add.graphics();
+    toolGraphics.setDepth(DEPTH_LAYERS.TOOL_EFFECTS);
+    return toolGraphics;
+}
+
+/**
+ * Draw the currently equipped tool
+ * Call this in the update loop after player position is set
+ */
+export function updateHeldTool() {
+    if (!toolGraphics || !GameState.player) return;
+
+    toolGraphics.clear();
+
+    const tool = GameState.equippedTool;
+    if (tool === 'none') return;
+
+    const px = GameState.player.x;
+    const py = GameState.player.y;
+
+    // Offset for hand position (right side of character)
+    const toolX = px + 18;
+    const toolY = py - 5;
+
+    if (tool === 'hoe') {
+        // Hoe: wooden handle + metal blade
+        toolGraphics.fillStyle(0x8B4513, 1); // Brown handle
+        toolGraphics.fillRect(toolX, toolY - 20, 4, 30);
+        toolGraphics.fillStyle(0x696969, 1); // Gray metal blade
+        toolGraphics.fillRect(toolX - 6, toolY - 22, 16, 5);
+        toolGraphics.fillStyle(0x505050, 1); // Darker edge
+        toolGraphics.fillRect(toolX - 6, toolY - 18, 16, 2);
+    } else if (tool === 'wateringCan') {
+        // Watering can: body + spout + handle
+        toolGraphics.fillStyle(0x4682B4, 1); // Steel blue
+        toolGraphics.fillEllipse(toolX, toolY, 16, 12); // Body
+        toolGraphics.fillRect(toolX + 6, toolY - 10, 10, 4); // Spout
+        toolGraphics.fillStyle(0x5F9EA0, 1); // Lighter shade
+        toolGraphics.fillEllipse(toolX, toolY - 2, 10, 6); // Highlight
+        // Handle
+        toolGraphics.lineStyle(3, 0x4682B4, 1);
+        toolGraphics.beginPath();
+        toolGraphics.arc(toolX - 8, toolY - 8, 6, 0, Math.PI, true);
+        toolGraphics.strokePath();
+        // Water droplets from spout (when watering)
+        if (GameState.isWatering) {
+            toolGraphics.fillStyle(0x87CEEB, 0.8);
+            for (let i = 0; i < 3; i++) {
+                toolGraphics.fillCircle(toolX + 18 + i * 3, toolY - 8 + i * 4, 2);
+            }
+        }
+    } else if (tool === 'fishingRod') {
+        // Fishing rod: long pole + reel + line
+        // Pond center and dimensions for bobber positioning
+        const pondCenterX = 220;
+        const pondCenterY = 680;
+        const facingLeft = px > pondCenterX + 50; // If right of pond, face left toward water
+        const dir = facingLeft ? -1 : 1;
+        const rodX = facingLeft ? px - 18 : px + 18; // Flip rod position when facing left
+        const rodTipY = toolY - 40;
+
+        toolGraphics.fillStyle(0x8B4513, 1); // Brown pole
+        toolGraphics.fillRect(rodX, toolY - 35, 3, 45); // Main pole
+        toolGraphics.fillStyle(0x654321, 1); // Darker tip
+        toolGraphics.fillRect(rodX, toolY - 40, 2, 8);
+        // Reel
+        toolGraphics.fillStyle(0x696969, 1);
+        toolGraphics.fillCircle(rodX + 1, toolY + 5, 5);
+        toolGraphics.fillStyle(0x505050, 1);
+        toolGraphics.fillCircle(rodX + 1, toolY + 5, 3);
+        // Line (when fishing) - bobber lands at random position in pond
+        if (GameState.isFishing) {
+            // Use the random offset set when fishing started
+            const randOffsetX = GameState.bobberOffset?.x || 0;
+            const randOffsetY = GameState.bobberOffset?.y || 0;
+
+            // Bobber position inside pond with random offset
+            const bobberX = pondCenterX + randOffsetX;
+            const bobberY = pondCenterY - 10 + randOffsetY + (Math.sin(GameState.gameTime * 0.15) * 2);
+
+            // Draw straight fishing line from rod tip to bobber
+            const rodTipX = rodX + 1;
+            toolGraphics.lineStyle(1, 0xAAAAAA, 0.8);
+            toolGraphics.lineBetween(rodTipX, rodTipY, bobberX, bobberY);
+
+            // Bobber
+            toolGraphics.fillStyle(0xFF6347, 1);
+            toolGraphics.fillCircle(bobberX, bobberY, 5);
+            toolGraphics.fillStyle(0xFFFFFF, 1);
+            toolGraphics.fillCircle(bobberX, bobberY + 2, 2);
+        }
+    }
+}
+
+// Action animation graphics (particles, effects)
+let actionGraphics = null;
+
+/**
+ * Initialize action animation graphics
+ */
+export function initActionAnimations(scene) {
+    actionGraphics = scene.add.graphics();
+    actionGraphics.setDepth(DEPTH_LAYERS.ACTION_EFFECTS);
+}
+
+/**
+ * Update action animations - call in game update loop
+ * Renders particle effects for actions
+ */
+export function updateActionAnimations(delta) {
+    if (!actionGraphics || !GameState.player) return;
+
+    actionGraphics.clear();
+    const px = GameState.player.x;
+    const py = GameState.player.y;
+
+    // Update animation timer
+    if (GameState.isHoeing || GameState.isPlanting || GameState.isHarvesting ||
+        GameState.isRemoving || GameState.isWatering) {
+        GameState.actionAnimTimer = Math.min(1, GameState.actionAnimTimer + delta / 300);
+    } else {
+        GameState.actionAnimTimer = 0;
+    }
+
+    const t = GameState.actionAnimTimer;
+
+    // HOEING: Dirt particles flying up (offset to the right of player)
+    if (GameState.isHoeing) {
+        const offsetX = 30; // Offset from player center
+        const numParticles = 8;
+        for (let i = 0; i < numParticles; i++) {
+            const spread = 20 + i * 10;
+            const height = 35 * t * (1 - t * 0.5);
+            const angle = (i / numParticles) * Math.PI - Math.PI / 2;
+            const dx = Math.cos(angle) * spread * t;
+            const dy = -height + Math.sin(angle) * 8;
+            actionGraphics.fillStyle(0x8B4513, 0.9 - t * 0.5);
+            actionGraphics.fillCircle(px + offsetX + dx, py + 20 + dy, 3 + Math.random() * 2);
+        }
+        // Dust cloud
+        actionGraphics.fillStyle(0xD2B48C, 0.5 * (1 - t));
+        actionGraphics.fillEllipse(px + offsetX, py + 30, 45 * t, 15);
+    }
+
+    // PLANTING: Seed dropping + sparkles (offset forward)
+    if (GameState.isPlanting) {
+        const offsetX = 25;
+        // Falling seed
+        const seedY = py - 15 + t * 45;
+        actionGraphics.fillStyle(0x228B22, 1);
+        actionGraphics.fillCircle(px + offsetX, seedY, 5);
+        actionGraphics.fillStyle(0x90EE90, 0.8);
+        actionGraphics.fillCircle(px + offsetX - 1, seedY - 1, 2);
+        // Green sparkles around plot
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + t * 4;
+            const dist = 18 + t * 12;
+            actionGraphics.fillStyle(0x90EE90, 0.9 * (1 - t * 0.7));
+            actionGraphics.fillCircle(
+                px + offsetX + Math.cos(angle) * dist,
+                py + 25 + Math.sin(angle) * dist * 0.5,
+                3 + Math.random()
+            );
+        }
+        // Ground glow
+        actionGraphics.fillStyle(0x228B22, 0.3 * (1 - t));
+        actionGraphics.fillEllipse(px + offsetX, py + 30, 35, 12);
+    }
+
+    // HARVESTING: Crop rising + sparkles (offset forward)
+    if (GameState.isHarvesting) {
+        const offsetX = 25;
+        // Rising crop icon
+        const cropY = py + 20 - t * 45;
+        actionGraphics.fillStyle(0xFFD700, 1);
+        actionGraphics.fillCircle(px + offsetX, cropY, 8);
+        actionGraphics.fillStyle(0xFFF8DC, 0.9);
+        actionGraphics.fillCircle(px + offsetX - 2, cropY - 2, 3);
+        // Golden sparkles
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2 + t * 6;
+            const dist = 25 * t;
+            actionGraphics.fillStyle(0xFFD700, 0.9 * (1 - t * 0.6));
+            actionGraphics.fillCircle(
+                px + offsetX + Math.cos(angle) * dist,
+                cropY + Math.sin(angle) * dist * 0.4,
+                3 + t * 3
+            );
+        }
+        // Burst effect
+        actionGraphics.fillStyle(0xFFD700, 0.4 * (1 - t));
+        actionGraphics.fillCircle(px + offsetX, py + 20, 30 * t);
+    }
+
+    // REMOVING (weeds/bugs): Debris scattering (offset forward)
+    if (GameState.isRemoving) {
+        const offsetX = 25;
+        // Debris flying away
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + t * 3;
+            const dist = 35 * t;
+            const debrisY = py + 20 - t * 25;
+            actionGraphics.fillStyle(i % 2 === 0 ? 0x228B22 : 0x8B4513, 0.9 * (1 - t * 0.7));
+            actionGraphics.fillCircle(
+                px + offsetX + Math.cos(angle) * dist,
+                debrisY + Math.sin(angle) * 10,
+                3 + Math.random() * 2
+            );
+        }
+        // Poof cloud
+        actionGraphics.fillStyle(0xD2B48C, 0.4 * (1 - t));
+        actionGraphics.fillCircle(px + offsetX, py + 20, 25 * t);
+    }
+
+    // WATERING: Enhanced water arc (offset forward)
+    if (GameState.isWatering) {
+        const offsetX = 20;
+        const numDrops = 12;
+        for (let i = 0; i < numDrops; i++) {
+            const dropT = (t + i * 0.08) % 1;
+            const arc = Math.sin(dropT * Math.PI);
+            const dx = offsetX + dropT * 35;
+            const dy = -arc * 30 + dropT * 20;
+            actionGraphics.fillStyle(0x87CEEB, 0.8 * (1 - dropT * 0.4));
+            actionGraphics.fillCircle(px + dx, py + dy, 3 + arc * 2);
+        }
+        // Splash at landing
+        if (t > 0.4) {
+            const splashT = (t - 0.4) / 0.6;
+            actionGraphics.fillStyle(0x87CEEB, 0.5 * (1 - splashT));
+            actionGraphics.fillEllipse(px + offsetX + 35, py + 25, 25 * splashT, 10 * splashT);
+            // Splash droplets
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI - Math.PI / 2;
+                actionGraphics.fillCircle(
+                    px + offsetX + 35 + Math.cos(angle) * 15 * splashT,
+                    py + 25 - Math.sin(angle) * 12 * splashT,
+                    2
+                );
+            }
+        }
+    }
+}
+
+/**
+ * Equip a tool
+ * @param {string} toolType - 'hoe', 'wateringCan', or 'none'
+ */
+export function equipTool(toolType) {
+    GameState.equippedTool = toolType;
+}
+
+/**
+ * Unequip the current tool
+ */
+export function unequipTool() {
+    GameState.equippedTool = 'none';
 }

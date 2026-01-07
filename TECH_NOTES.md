@@ -149,6 +149,30 @@ Start with **Phaser.js** for quick 2D prototypes OR **PlayCanvas** if you want 3
 
 ---
 
+## Runtime Stack
+
+### Server Runtime: Node.js + tsx
+- **What**: Node.js with tsx for native TypeScript execution
+- **Why**: Colyseus 0.14.x doesn't work with Bun (state sync breaks)
+- **tsx**: TypeScript execute - runs .ts files directly without compilation
+- **Note**: We initially tried Bun but reverted due to Colyseus 0.14.x compatibility issues (state never synced to clients)
+
+### Python Runner: uv
+- **What**: Fast Python package manager and runner
+- **Why**: Faster startup, consistent tooling with modern Python ecosystem
+- **Install**: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- **Location**: `~/.local/bin/uv.exe`
+
+### How They're Used
+- **Colyseus Server**: `npm run dev:node` (in `server/` directory)
+- **HTTP Static Server**: `uv run python -m http.server 3000` (in `prototype/` directory)
+- **Traefik**: Native executable for HTTPS reverse proxy
+
+### Bun Compatibility Note
+Bun was tested but doesn't work with Colyseus 0.14.x - the @colyseus/schema state synchronization fails completely (clients receive empty state). This may be fixed in Colyseus 0.15+ with official Bun transport, but 0.15 requires a different client SDK that isn't browser-compatible yet.
+
+---
+
 ## Decisions Made
 
 ### Prototype Approach: 2D with Phaser.js
@@ -169,4 +193,4 @@ Start with **Phaser.js** for quick 2D prototypes OR **PlayCanvas** if you want 3
 
 ---
 
-*Last updated: 2026-01-03*
+*Last updated: 2026-01-04*

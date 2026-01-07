@@ -1,5 +1,5 @@
 /**
- * multiplayer.js - Colyseus connection, player synchronization
+ * multiplayer.js - Colyseus connection, player/world synchronization
  *
  * Exports:
  * - connectToServer(): Connect to Colyseus server
@@ -8,11 +8,20 @@
  * - updateOtherPlayer(sessionId, x, y): Update remote player target position
  * - interpolateOtherPlayers(): Smooth movement for remote players
  * - sendPositionToServer(): Send local player position to server
+ * - sendFarmAction(plotIndex, action, seedType): Send farm action to server
+ * - sendCollectSeed(pickupIndex): Send seed collection to server
+ * - sendToggleLamppost(lamppostIndex): Toggle lamppost light
+ * - sendWaterAction(plotIndex): Water a crop
+ * - sendRemoveHazard(plotIndex): Remove hazard from plot
+ * - sendHarvestFruit(treeIndex): Harvest fruit from tree
+ * - interpolateNPCs(): Smooth NPC movement
  */
 
-import { classes, SERVER_URL } from './config.js';
-import { GameState } from './state.js';
+import { classes, SERVER_URL, getWorldDepth } from './config.js';
+import { GameState, saveGameSession } from './state.js';
 import { lerp } from './utils.js';
+import { drawPlot, drawPlant, drawSeedPickup, drawLamppostLight, drawFruitTree } from './world.js';
+import { updateInventoryDisplay, updateSeedIndicator } from './ui.js';
 
 /**
  * Connect to Colyseus multiplayer server
@@ -24,16 +33,23 @@ export async function connectToServer() {
         GameState.room = await client.joinOrCreate("game", {
             name: GameState.playerName,
             playerClass: GameState.playerClass,
-            customization: GameState.customization
+            gender: GameState.customization.gender,
+            skinTone: GameState.customization.skinTone,
+            hairColor: GameState.customization.hairColor,
+            pet: GameState.customization.pet
         });
 
         console.log("Connected to server! Session ID:", GameState.room.sessionId);
 
-        // Listen for players joining (0.14.x API uses assignment)
-        GameState.room.state.players.onAdd = (playerData, sessionId) => {
+        // Helper function to handle a player (new or existing)
+        const handlePlayer = (playerData, sessionId) => {
             // Skip if this is our own player
             if (sessionId === GameState.room.sessionId) {
-                console.log("Local player registered on server");
+                return;
+            }
+
+            // Skip if we already have this player
+            if (GameState.otherPlayers[sessionId]) {
                 return;
             }
 
@@ -50,6 +66,16 @@ export async function connectToServer() {
             };
         };
 
+        // Listen for NEW players joining (0.14.x API uses assignment)
+        GameState.room.state.players.onAdd = (playerData, sessionId) => {
+            handlePlayer(playerData, sessionId);
+        };
+
+        // Process EXISTING players already in the room
+        GameState.room.state.players.forEach((playerData, sessionId) => {
+            handlePlayer(playerData, sessionId);
+        });
+
         // Listen for players leaving (0.14.x API uses assignment)
         GameState.room.state.players.onRemove = (playerData, sessionId) => {
             console.log("Player left:", sessionId);
@@ -58,6 +84,96 @@ export async function connectToServer() {
                 delete GameState.otherPlayers[sessionId];
             }
         };
+
+        // ===== World State Sync =====
+
+        // Sync farm plots from server
+        GameState.room.state.farmPlots.onAdd = (plotData, key) => {
+            syncFarmPlot(plotData);
+
+            plotData.onChange = () => {
+                syncFarmPlot(plotData);
+            };
+        };
+
+        // Sync NPCs from server
+        GameState.room.state.npcs.onAdd = (npcData, key) => {
+            syncNPC(npcData);
+
+            npcData.onChange = () => {
+                syncNPC(npcData);
+            };
+        };
+
+        // Sync seed pickups from server
+        GameState.room.state.seedPickups.onAdd = (pickupData, key) => {
+            syncSeedPickup(pickupData);
+
+            pickupData.onChange = () => {
+                syncSeedPickup(pickupData);
+            };
+        };
+
+        // Sync lampposts from server
+        GameState.room.state.lampposts.onAdd = (lamppostData, key) => {
+            syncLamppost(lamppostData);
+
+            lamppostData.onChange = () => {
+                syncLamppost(lamppostData);
+            };
+        };
+
+        // Sync fruit trees from server
+        GameState.room.state.fruitTrees.onAdd = (treeData, key) => {
+            syncFruitTree(treeData);
+
+            treeData.onChange = () => {
+                syncFruitTree(treeData);
+            };
+        };
+
+        // Sync game time from server
+        GameState.room.state.onChange = (changes) => {
+            changes.forEach(change => {
+                if (change.field === "gameTime") {
+                    GameState.gameTime = change.value;
+                }
+                if (change.field === "timeSpeed") {
+                    GameState.timeSpeed = change.value;
+                }
+            });
+        };
+
+        // Listen for harvest broadcast (to add crop to our inventory)
+        GameState.room.onMessage("cropHarvested", (message) => {
+            // Only add to inventory if we harvested it
+            if (message.harvestedBy === GameState.room.sessionId) {
+                GameState.inventory.crops[message.crop]++;
+                updateInventoryDisplay();
+                saveGameSession();
+            }
+        });
+
+        // Listen for seed collection broadcast
+        GameState.room.onMessage("seedCollected", (message) => {
+            // Only add to inventory if we collected it
+            if (message.collectedBy === GameState.room.sessionId) {
+                GameState.inventory.seeds[message.seedType] += message.amount;
+                updateInventoryDisplay();
+                updateSeedIndicator();
+                saveGameSession();
+            }
+        });
+
+        // Listen for fruit harvest broadcast
+        GameState.room.onMessage("fruitHarvested", (message) => {
+            // Only add to inventory if we harvested it
+            if (message.harvestedBy === GameState.room.sessionId) {
+                GameState.inventory.fruits[message.fruitType]++;
+                updateInventoryDisplay();
+                saveGameSession();
+            }
+        });
 
         // Handle disconnection
         GameState.room.onLeave((code) => {
@@ -99,12 +215,12 @@ export function createOtherPlayer(sessionId, playerData) {
     const scene = GameState.scene;
     if (!scene) return null;
 
-    // Extract customization data from server
+    // Extract customization data from server (stored as flat fields on Player schema)
     const charCustom = {
-        skinTone: playerData.customization?.skinTone || 0xFFDBB4,
-        hairColor: playerData.customization?.hairColor || 0x4A3728,
-        gender: playerData.customization?.gender || 'female',
-        pet: playerData.customization?.pet || 'none'
+        skinTone: playerData.skinTone || 0xFFDBB4,
+        hairColor: playerData.hairColor || 0x4A3728,
+        gender: playerData.gender || 'female',
+        pet: playerData.pet || 'none'
     };
 
     const classType = playerData.playerClass || 'druid';
@@ -234,6 +350,9 @@ export function interpolateOtherPlayers() {
         // Interpolate position
         otherPlayer.x = lerp(otherPlayer.x, otherPlayer.targetX, lerpFactor);
         otherPlayer.y = lerp(otherPlayer.y, otherPlayer.targetY, lerpFactor);
+
+        // Update depth based on foot Y position (y + 25 for ~50px character)
+        otherPlayer.setDepth(getWorldDepth(otherPlayer.y + 25));
     });
 }
 
@@ -261,5 +380,207 @@ export function sendPositionToServer() {
 
         GameState.lastSentVelocity.x = vx;
         GameState.lastSentVelocity.y = vy;
+    }
+}
+
+// ===== World Sync Helper Functions =====
+
+/**
+ * Sync farm plot state from server data
+ */
+function syncFarmPlot(plotData) {
+    const localPlot = GameState.farmPlots[plotData.index];
+    if (!localPlot) return;
+
+    const stateChanged = localPlot.state !== plotData.state;
+    const cropChanged = localPlot.crop !== plotData.crop;
+    const wateredChanged = localPlot.isWatered !== plotData.isWatered;
+    const hazardChanged = localPlot.hazard !== plotData.hazard;
+
+    localPlot.state = plotData.state;
+    localPlot.crop = plotData.crop || null;
+    localPlot.growthTimer = plotData.growthTimer;
+    localPlot.isWatered = plotData.isWatered;
+    localPlot.lastWateredTime = plotData.lastWateredTime;
+    localPlot.hazard = plotData.hazard || '';
+
+    // Redraw if state, crop, water, or hazard changed
+    if (stateChanged || cropChanged || wateredChanged || hazardChanged) {
+        drawPlot(localPlot);
+        if (localPlot.crop && localPlot.state !== 'wilted' && localPlot.state !== 'dead') {
+            drawPlant(GameState.scene, localPlot);
+        } else if (localPlot.plantGraphics) {
+            localPlot.plantGraphics.destroy();
+            localPlot.plantGraphics = null;
+        }
+    }
+}
+
+/**
+ * Sync NPC position from server data
+ */
+function syncNPC(npcData) {
+    if (npcData.id === "mira" && GameState.npc) {
+        // Use interpolation targets for smooth movement
+        GameState.npc.targetX = npcData.x;
+        GameState.npc.targetY = npcData.y;
+    } else if (npcData.id === "finn" && GameState.shopkeeper) {
+        // Finn stays stationary, just update directly
+        GameState.shopkeeper.x = npcData.x;
+        GameState.shopkeeper.y = npcData.y;
+    }
+}
+
+/**
+ * Sync seed pickup state from server data
+ */
+function syncSeedPickup(pickupData) {
+    const localPickup = GameState.seedPickups[pickupData.index];
+    if (!localPickup) return;
+
+    const wasCollected = localPickup.isCollected;
+    localPickup.isCollected = pickupData.isCollected;
+    localPickup.respawnTimer = pickupData.respawnTimer;
+
+    // Redraw if collected state changed
+    if (wasCollected !== pickupData.isCollected) {
+        drawSeedPickup(localPickup);
+    }
+}
+
+/**
+ * Sync lamppost state from server data
+ */
+function syncLamppost(lamppostData) {
+    const localLamppost = GameState.lampposts[lamppostData.index];
+    if (!localLamppost) return;
+
+    const wasOn = localLamppost.lightOn;
+    localLamppost.lightOn = lamppostData.lightOn;
+
+    // Update light graphics if state changed
+    if (wasOn !== lamppostData.lightOn) {
+        if (lamppostData.lightOn) {
+            // Redraw the light graphics
+            localLamppost.lightGraphics.clear();
+            drawLamppostLight(localLamppost.lightGraphics, localLamppost.x, localLamppost.y);
+            localLamppost.lightGraphics.visible = true;
+        } else {
+            localLamppost.lightGraphics.visible = false;
+        }
+    }
+}
+
+/**
+ * Sync fruit tree state from server data
+ */
+function syncFruitTree(treeData) {
+    const localTree = GameState.fruitTrees[treeData.index];
+    if (!localTree) return;
+
+    const fruitChanged = localTree.hasFruit !== treeData.hasFruit;
+
+    localTree.hasFruit = treeData.hasFruit;
+    localTree.fruitTimer = treeData.fruitTimer;
+
+    // Redraw tree when fruit state changes
+    if (fruitChanged && localTree.graphics) {
+        drawFruitTree(localTree);
+    }
+}
+
+// ===== Action Senders =====
+
+/**
+ * Send farm action to server
+ * @param {number} plotIndex - Index of the farm plot (0-7)
+ * @param {string} action - "hoe", "plant", or "harvest"
+ * @param {string|null} seedType - Required for "plant" action
+ * @returns {boolean} True if message was sent
+ */
+export function sendFarmAction(plotIndex, action, seedType = null) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("farmAction", {
+        plotIndex,
+        action,
+        seedType
+    });
+    return true;
+}
+
+/**
+ * Send seed pickup collection to server
+ * @param {number} pickupIndex - Index of the seed pickup (0-2)
+ * @returns {boolean} True if message was sent
+ */
+export function sendCollectSeed(pickupIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("collectSeed", { pickupIndex });
+    return true;
+}
+
+/**
+ * Send lamppost toggle to server
+ * @param {number} lamppostIndex - Index of the lamppost (0-5)
+ * @returns {boolean} True if message was sent
+ */
+export function sendToggleLamppost(lamppostIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("toggleLamppost", { lamppostIndex });
+    return true;
+}
+
+/**
+ * Send water action to server
+ * @param {number} plotIndex - Index of the farm plot
+ * @returns {boolean} True if message was sent
+ */
+export function sendWaterAction(plotIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("waterAction", { plotIndex });
+    return true;
+}
+
+/**
+ * Send hazard removal to server
+ * @param {number} plotIndex - Index of the farm plot
+ * @returns {boolean} True if message was sent
+ */
+export function sendRemoveHazard(plotIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("removeHazard", { plotIndex });
+    return true;
+}
+
+/**
+ * Send fruit harvest to server
+ * @param {number} treeIndex - Index of the fruit tree
+ * @returns {boolean} True if message was sent
+ */
+export function sendHarvestFruit(treeIndex) {
+    if (!GameState.room) return false;
+
+    GameState.room.send("harvestFruit", { treeIndex });
+    return true;
+}
+
+/**
+ * Interpolate NPC positions for smooth movement
+ */
+export function interpolateNPCs() {
+    const lerpFactor = 0.1;
+
+    // Mira interpolation
+    if (GameState.npc && GameState.npc.targetX !== undefined) {
+        GameState.npc.x = lerp(GameState.npc.x, GameState.npc.targetX, lerpFactor);
+        GameState.npc.y = lerp(GameState.npc.y, GameState.npc.targetY, lerpFactor);
+
+        // Update depth based on foot Y position (y + 25 for ~50px character)
+        GameState.npc.setDepth(getWorldDepth(GameState.npc.y + 25));
     }
 }

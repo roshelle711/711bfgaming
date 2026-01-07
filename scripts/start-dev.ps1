@@ -3,26 +3,28 @@
     Starts the 711BF Gaming development servers.
 
 .DESCRIPTION
-    Launches both the Colyseus game server and the HTTP client server.
-    Both are accessible on the Tailscale network at 100.66.58.107.
+    Launches the Colyseus game server, HTTP client server, and Traefik reverse proxy.
+    All services accessible on Tailscale network at 100.66.58.107.
 
-    With -Traefik switch, also starts Traefik reverse proxy for HTTPS access:
+    HTTPS access via Traefik:
     - https://game.711bf.org     -> localhost:3000
     - wss://ws.game.711bf.org    -> localhost:2567
 
-.PARAMETER Traefik
-    Start Traefik reverse proxy alongside game servers.
+.PARAMETER NoTraefik
+    Skip starting Traefik (local development only).
 
 .EXAMPLE
     .\scripts\start-dev.ps1
 
 .EXAMPLE
-    .\scripts\start-dev.ps1 -Traefik
+    .\scripts\start-dev.ps1 -NoTraefik
 #>
 
 param(
-    [switch]$Traefik
+    [switch]$NoTraefik
 )
+
+$Traefik = -not $NoTraefik
 
 $ErrorActionPreference = "Stop"
 
@@ -32,7 +34,7 @@ Write-Host ""
 # Kill any existing processes
 Write-Host "Stopping any existing servers..." -ForegroundColor Yellow
 Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
-Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process uv, python -ErrorAction SilentlyContinue | Stop-Process -Force
 if ($Traefik) {
     Get-Process traefik -ErrorAction SilentlyContinue | Stop-Process -Force
 }
@@ -42,18 +44,19 @@ Start-Sleep -Seconds 1
 $tailscaleIP = & tailscale ip -4 2>$null
 if (-not $tailscaleIP) { $tailscaleIP = "localhost" }
 
-# Start Colyseus server
+# Start Colyseus server (Node.js + tsx runtime)
 Write-Host "Starting Colyseus server on port 2567..." -ForegroundColor Green
 $serverPath = Join-Path $PSScriptRoot "..\server"
-Start-Process -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$serverPath`" && npm run dev" -WindowStyle Minimized
+Start-Process -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$serverPath`" && npm run dev:node" -WindowStyle Minimized
 
 # Wait for server to initialize
 Start-Sleep -Seconds 3
 
-# Start HTTP server for client
+# Start HTTP server for client (uv runtime)
 Write-Host "Starting HTTP server on port 3000..." -ForegroundColor Green
 $clientPath = Join-Path $PSScriptRoot "..\prototype"
-Start-Process -FilePath "python" -ArgumentList "-m http.server 3000 --bind 0.0.0.0" -WorkingDirectory $clientPath -WindowStyle Minimized
+$uvPath = "$env:USERPROFILE\.local\bin\uv.exe"
+Start-Process -FilePath $uvPath -ArgumentList "run python -m http.server 3000 --bind 0.0.0.0" -WorkingDirectory $clientPath -WindowStyle Minimized
 
 # Optionally start Traefik
 if ($Traefik) {
@@ -77,14 +80,14 @@ Write-Host "  WebSocket: ws://${tailscaleIP}:2567" -ForegroundColor Gray
 if ($Traefik) {
     Write-Host "  WSS:       wss://ws.game.711bf.org" -ForegroundColor Magenta
 }
-Write-Host "  Monitor:   http://localhost:2567/colyseus" -ForegroundColor Gray
+Write-Host "  Monitor:   http://localhost:2568/colyseus" -ForegroundColor Gray
 Write-Host ""
 if ($Traefik) {
     Write-Host "Traefik Dashboard:" -ForegroundColor White
     Write-Host "  http://localhost:8080/dashboard/" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "To stop all: Get-Process node, python, traefik | Stop-Process" -ForegroundColor Yellow
+    Write-Host "To stop all: Get-Process node, uv, traefik | Stop-Process" -ForegroundColor Yellow
 } else {
-    Write-Host "To stop servers: Get-Process node, python | Stop-Process" -ForegroundColor Yellow
-    Write-Host "Tip: Use -Traefik flag for HTTPS via Traefik" -ForegroundColor DarkGray
+    Write-Host "To stop servers: Get-Process node, uv | Stop-Process" -ForegroundColor Yellow
+    Write-Host "Tip: Traefik skipped. Remove -NoTraefik for HTTPS access." -ForegroundColor DarkGray
 }

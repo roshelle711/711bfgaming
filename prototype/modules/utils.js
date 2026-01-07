@@ -22,14 +22,19 @@ export function getTimeString(gameTime) {
 
 /**
  * Get current day phase based on game time
+ * 75% daytime / 25% nighttime split:
+ * - Dawn: 5-6 AM (1 hour)
+ * - Day: 6 AM - 10 PM (16 hours)
+ * - Dusk: 10-11 PM (1 hour)
+ * - Night: 11 PM - 5 AM (6 hours)
  * @param {number} gameTime - Minutes since midnight (0-1440)
  * @returns {'dawn'|'day'|'dusk'|'night'} Current phase
  */
 export function getDayPhase(gameTime) {
     const hour = Math.floor(gameTime / 60) % 24;
-    if (hour >= 6 && hour < 8) return 'dawn';
-    if (hour >= 8 && hour < 18) return 'day';
-    if (hour >= 18 && hour < 20) return 'dusk';
+    if (hour >= 5 && hour < 6) return 'dawn';
+    if (hour >= 6 && hour < 22) return 'day';
+    if (hour >= 22 && hour < 23) return 'dusk';
     return 'night';
 }
 
