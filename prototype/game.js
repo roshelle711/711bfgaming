@@ -1030,7 +1030,7 @@ function handleInput(scene) {
     const interactJustDown = Phaser.Input.Keyboard.JustDown(GameState.interactKey);
     const petJustDown = Phaser.Input.Keyboard.JustDown(GameState.petKey);
 
-    // Weather toggle keys (Ctrl+Alt + S/R/N)
+    // Weather toggle keys (Ctrl+Alt + S/R/N/M)
     const ctrlKey = scene.input.keyboard.addKey('CTRL');
     const altKey = scene.input.keyboard.addKey('ALT');
     if (ctrlKey.isDown && altKey.isDown) {
@@ -1044,6 +1044,12 @@ function handleInput(scene) {
             GameState.settings.manualWeather = GameState.settings.manualWeather === 'rain' ? null : 'rain';
             const status = GameState.settings.manualWeather === 'rain' ? 'Rain ON' : 'Auto weather';
             showDialog(`🌧️ ${status}`);
+            return;
+        }
+        if (Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('M'))) {
+            GameState.settings.manualWeather = GameState.settings.manualWeather === 'monsoon' ? null : 'monsoon';
+            const status = GameState.settings.manualWeather === 'monsoon' ? 'MONSOON!' : 'Auto weather';
+            showDialog(`🌊 ${status}`);
             return;
         }
         if (Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('N'))) {
@@ -1524,6 +1530,9 @@ function updateWeather(delta) {
         } else if (manualWeather === 'rain') {
             targetType = 'rain';
             targetIntensity = 0.7 * intensityMult;
+        } else if (manualWeather === 'monsoon') {
+            targetType = 'monsoon';
+            targetIntensity = 1.5; // Max intensity, ignores multiplier
         }
         // 'none' means no weather
     } else {
@@ -1573,16 +1582,18 @@ function updateWeather(delta) {
         if (!p.active) {
             p.active = true;
             p.x = Math.random() * GAME_WIDTH;
-            p.y = -10;
+            // Randomize starting Y so particles don't spawn in a row
+            p.y = -10 - Math.random() * 100;
 
             if (weather.type === 'snow') {
                 p.speed = 30 + Math.random() * 40;
                 p.size = 2 + Math.random() * 3;
                 p.drift = (Math.random() - 0.5) * 30; // Horizontal drift
-            } else if (weather.type === 'rain') {
-                p.speed = 200 + Math.random() * 100;
-                p.size = 1 + Math.random() * 2;
-                p.drift = -20; // Slight angle
+            } else if (weather.type === 'rain' || weather.type === 'monsoon') {
+                const isMonsoon = weather.type === 'monsoon';
+                p.speed = isMonsoon ? 300 + Math.random() * 150 : 200 + Math.random() * 100;
+                p.size = isMonsoon ? 2 + Math.random() * 2 : 1 + Math.random() * 2;
+                p.drift = isMonsoon ? -30 : -20; // Slight angle
             }
             activeCount++;
         }
@@ -1615,8 +1626,12 @@ function renderWeatherParticles(weather, g, dt) {
             g.fillStyle(0xFFFFFF, 0.8);
             g.fillCircle(p.x, p.y, p.size);
         } else if (weather.type === 'rain') {
-            // Darker blue, more opaque, thicker drops for visibility against grass
-            g.fillStyle(0x4169E1, 0.7);  // Royal blue
+            // Light rain - subtle blue streaks
+            g.fillStyle(0x6495ED, 0.6);  // Cornflower blue, 60% opacity
+            g.fillRect(p.x, p.y, 1, p.size * 4);
+        } else if (weather.type === 'monsoon') {
+            // Heavy monsoon - darker, thicker, more visible
+            g.fillStyle(0x4169E1, 0.75);  // Royal blue
             g.fillRect(p.x, p.y, 2, p.size * 6);
         }
     });
