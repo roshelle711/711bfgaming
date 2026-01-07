@@ -1030,10 +1030,10 @@ function handleInput(scene) {
     const interactJustDown = Phaser.Input.Keyboard.JustDown(GameState.interactKey);
     const petJustDown = Phaser.Input.Keyboard.JustDown(GameState.petKey);
 
-    // Weather toggle keys (Ctrl+Shift + S/R/N)
+    // Weather toggle keys (Ctrl+Alt + S/R/N)
     const ctrlKey = scene.input.keyboard.addKey('CTRL');
-    const shiftKey = scene.input.keyboard.addKey('SHIFT');
-    if (ctrlKey.isDown && shiftKey.isDown) {
+    const altKey = scene.input.keyboard.addKey('ALT');
+    if (ctrlKey.isDown && altKey.isDown) {
         if (Phaser.Input.Keyboard.JustDown(scene.input.keyboard.addKey('S'))) {
             GameState.settings.manualWeather = GameState.settings.manualWeather === 'snow' ? null : 'snow';
             const status = GameState.settings.manualWeather === 'snow' ? 'Snow ON' : 'Auto weather';

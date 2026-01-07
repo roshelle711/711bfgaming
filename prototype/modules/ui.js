@@ -1262,7 +1262,7 @@ export function showPauseMenu(onChangeCharacter) {
     });
 
     // Hotkey hint
-    const hotkeyHint = scene.add.text(centerX, weatherY + 80, 'Ctrl+Shift+S (snow) | Ctrl+Shift+R (rain) | Ctrl+Shift+N (none)', {
+    const hotkeyHint = scene.add.text(centerX, weatherY + 80, 'Ctrl+Alt+S (snow) | Ctrl+Alt+R (rain) | Ctrl+Alt+N (none)', {
         fontSize: '9px', fill: '#666'
     }).setOrigin(0.5).setDepth(DEPTH_LAYERS.MODAL + 2);
     GameState.pauseMenuUI.push(hotkeyHint);
