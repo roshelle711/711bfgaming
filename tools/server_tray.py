@@ -108,21 +108,13 @@ class ServerManager:
         print(f"[{'OK' if success else 'ERROR'}] {title}: {message}")
 
     def create_icon_image(self, color="green"):
-        """Create a koala emoji icon with status indicator."""
+        """Create a koala emoji icon."""
         from PIL import ImageFont
 
-        colors = {
-            "green": "#22c55e",
-            "red": "#ef4444",
-            "yellow": "#eab308",
-            "gray": "#6b7280"
-        }
         img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
 
-        # Try to load emoji font
         try:
-            # Windows emoji font
             font = ImageFont.truetype("seguiemj.ttf", 48)
             draw.text((8, 0), "🐨", font=font, embedded_color=True)
         except:
@@ -131,10 +123,6 @@ class ServerManager:
             draw.ellipse([2, 12, 22, 32], fill="#606060")  # Left ear
             draw.ellipse([42, 12, 62, 32], fill="#606060")  # Right ear
             draw.ellipse([22, 32, 42, 48], fill="#404040")  # Nose
-
-        # Status indicator dot centered at bottom
-        indicator_color = colors.get(color, colors["gray"])
-        draw.ellipse([24, 52, 40, 64], fill=indicator_color, outline="white", width=2)
 
         return img
 
