@@ -601,13 +601,14 @@ export function updatePetFollow(delta = 16) {
             }
             pet.collectTarget = null;
             pet.collectType = null;
+            pet.collectCooldown = 8000 + Math.random() * 7000; // 8-15 sec before looking for more
             pet.petState = isPlayerIdle ? 'idle_wander' : 'following';
             pet.rotation = 0;
         }
         return;
     }
 
-    // Idle wander - expanded range, looks for collectibles
+    // Idle wander - expanded range, occasionally picks up collectibles
     if (pet.petState === 'idle_wander') {
         // If player starts moving, return to following
         if (!isPlayerIdle) {
@@ -617,13 +618,9 @@ export function updatePetFollow(delta = 16) {
             return;
         }
 
-        // Check for things to collect (weeds, grass, herbs)
-        if (!pet.collectTarget) {
-            const collectible = findCollectible();
-            if (collectible) {
-                pet.collectTarget = collectible.target;
-                pet.collectType = collectible.type;
-            }
+        // Cooldown after collecting (don't immediately look for more)
+        if (pet.collectCooldown > 0) {
+            pet.collectCooldown -= delta;
         }
 
         // Move toward collectible or wander target
@@ -657,11 +654,24 @@ export function updatePetFollow(delta = 16) {
             }
         }
 
-        // Pick new wander target periodically (if no collect target)
+        // Pick new wander target periodically
         pet.wanderTimer = (pet.wanderTimer || 0) - delta;
         if (pet.wanderTimer <= 0 && !pet.collectTarget) {
-            pet.wanderTimer = 2000 + Math.random() * 3000;
-            // Wander anywhere on visible screen
+            pet.wanderTimer = 3000 + Math.random() * 4000;
+
+            // 25% chance to look for something to collect (if not on cooldown)
+            if (!pet.collectCooldown || pet.collectCooldown <= 0) {
+                if (Math.random() < 0.25) {
+                    const collectible = findCollectible();
+                    if (collectible) {
+                        pet.collectTarget = collectible.target;
+                        pet.collectType = collectible.type;
+                        return;
+                    }
+                }
+            }
+
+            // Otherwise just wander anywhere on visible screen
             pet.wanderTarget = {
                 x: 50 + Math.random() * (GAME_WIDTH - 100),
                 y: 50 + Math.random() * (GAME_HEIGHT - 100)
