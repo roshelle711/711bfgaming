@@ -132,9 +132,9 @@ class ServerManager:
             draw.ellipse([42, 12, 62, 32], fill="#606060")  # Right ear
             draw.ellipse([22, 32, 42, 48], fill="#404040")  # Nose
 
-        # Status indicator dot in corner
+        # Status indicator dot centered at bottom
         indicator_color = colors.get(color, colors["gray"])
-        draw.ellipse([44, 44, 62, 62], fill=indicator_color, outline="white", width=2)
+        draw.ellipse([24, 52, 40, 64], fill=indicator_color, outline="white", width=2)
 
         return img
 
