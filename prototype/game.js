@@ -1085,23 +1085,13 @@ function handleInput(scene) {
         console.log('[INPUT] E pressed! Dialog:', GameState.isDialogOpen, '| Inventory:', GameState.inventoryOpen, '| Pause:', GameState.pauseMenuOpen);
     }
 
-    // P key - pet interaction (dedicated key to avoid conflicts)
+    // P key - pet interaction (silent easter egg - no dialog, just does trick)
     if (petJustDown && !GameState.isDialogOpen && !GameState.inventoryOpen && !GameState.pauseMenuOpen) {
         const pet = GameState.playerPet;
         const player = GameState.player;
         if (pet && player && isNearPet()) {
-            const petState = pet.petState;
-            if (petState !== 'trick') {
-                const trick = petDoTrick();
-                if (trick) {
-                    const petName = GameState.customization.pet.charAt(0).toUpperCase() + GameState.customization.pet.slice(1);
-                    const trickMessages = {
-                        spin: `${petName} does a happy spin! 🎉`,
-                        jump: `${petName} jumps with joy! 🎉`,
-                        flip: `${petName} does a cute flip! 🎉`
-                    };
-                    showDialog(trickMessages[trick]);
-                }
+            if (pet.petState !== 'trick') {
+                petDoTrick();  // Silent trick - animation plays, no popup
             }
         }
         return;

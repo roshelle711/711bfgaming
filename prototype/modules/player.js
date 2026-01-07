@@ -9,9 +9,10 @@
  * - updatePlayerSparkles(time): Animate player sparkles
  */
 
-import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration, DEPTH_LAYERS, getWorldDepth } from './config.js';
+import { classes, petTypes, skinTones, baseSpeed, maxSpeed, acceleration, deceleration, DEPTH_LAYERS, getWorldDepth, GAME_WIDTH, GAME_HEIGHT } from './config.js';
 import { GameState } from './state.js';
 import { lerp } from './utils.js';
+import { removeHazard } from './systems.js';
 
 // Tool graphics containers (created once, reused)
 let toolGraphics = null;
@@ -441,7 +442,42 @@ function getValidWanderTarget(playerX, playerY) {
 }
 
 /**
+ * Find a weed in a farm plot that the pet can clean
+ * @returns {Object|null} - Plot with weed, or null
+ */
+function findWeedToClean() {
+    if (!GameState.farmPlots) return null;
+    for (const plot of GameState.farmPlots) {
+        if (plot.hazard === 'weeds') {
+            return plot;
+        }
+    }
+    return null;
+}
+
+/**
+ * Check if player is idle (not moving)
+ * @param {number} delta - Time delta in ms
+ * @returns {boolean}
+ */
+function updatePlayerIdleState(delta) {
+    const player = GameState.player;
+    if (!player || !player.body) return false;
+
+    const isMoving = Math.abs(player.body.velocity.x) > 5 || Math.abs(player.body.velocity.y) > 5;
+
+    if (isMoving) {
+        GameState.playerIdleTime = 0;
+        return false;
+    } else {
+        GameState.playerIdleTime = (GameState.playerIdleTime || 0) + delta;
+        return GameState.playerIdleTime > 2000; // Idle after 2 seconds
+    }
+}
+
+/**
  * Update pet behavior - following, wandering, and tricks
+ * When player is idle, pet wanders screen and cleans weeds
  * @param {number} delta - Time delta in ms
  */
 export function updatePetFollow(delta = 16) {
@@ -453,20 +489,20 @@ export function updatePetFollow(delta = 16) {
     const dy = player.y - pet.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
+    // Check if player is idle
+    const isPlayerIdle = updatePlayerIdleState(delta);
+
     // Update trick animation
     if (pet.petState === 'trick') {
         pet.trickTimer -= delta;
         const progress = 1 - (pet.trickTimer / 800);
 
         if (pet.trickType === 'spin') {
-            // Spin animation
             pet.rotation = progress * Math.PI * 4;
         } else if (pet.trickType === 'jump') {
-            // Jump animation
             const jumpHeight = Math.sin(progress * Math.PI) * 25;
             pet.y = pet.baseY - jumpHeight;
         } else if (pet.trickType === 'flip') {
-            // Flip animation (scale Y)
             pet.scaleY = Math.cos(progress * Math.PI * 2);
         }
 
@@ -481,39 +517,122 @@ export function updatePetFollow(delta = 16) {
 
     // If pet somehow ends up in pond, push it out
     if (isPetInPond(pet.x, pet.y)) {
-        // Move toward player to escape pond
         pet.x += (dx / dist) * 100 * delta / 1000;
         pet.y += (dy / dist) * 100 * delta / 1000;
         return;
     }
 
-    // If player is too far, follow them
-    if (dist > 120) {
+    // If player starts moving, pet returns to following
+    if (!isPlayerIdle && dist > 120) {
         pet.petState = 'following';
+        pet.targetWeed = null;
     }
 
-    if (pet.petState === 'following') {
+    // Cleaning weed behavior (when pet reaches a weed)
+    if (pet.petState === 'cleaning') {
+        pet.cleanTimer -= delta;
+        // Little wiggle animation while cleaning
+        pet.rotation = Math.sin(pet.cleanTimer / 50) * 0.2;
+
+        if (pet.cleanTimer <= 0) {
+            // Remove the weed silently
+            if (pet.targetWeed && pet.targetWeed.hazard === 'weeds') {
+                removeHazard(pet.targetWeed);
+            }
+            pet.targetWeed = null;
+            pet.petState = isPlayerIdle ? 'idle_wander' : 'following';
+            pet.rotation = 0;
+        }
+        return;
+    }
+
+    // Idle wander - expanded range, looks for weeds
+    if (pet.petState === 'idle_wander') {
+        // If player starts moving, return to following
+        if (!isPlayerIdle) {
+            pet.petState = 'following';
+            pet.targetWeed = null;
+            return;
+        }
+
+        // Check for weeds to clean
+        if (!pet.targetWeed) {
+            const weed = findWeedToClean();
+            if (weed) {
+                pet.targetWeed = weed;
+            }
+        }
+
+        // Move toward weed or wander target
+        let targetX, targetY;
+        if (pet.targetWeed) {
+            targetX = pet.targetWeed.x;
+            targetY = pet.targetWeed.y;
+        } else {
+            targetX = pet.wanderTarget?.x || player.x;
+            targetY = pet.wanderTarget?.y || player.y;
+        }
+
+        const wdx = targetX - pet.x;
+        const wdy = targetY - pet.y;
+        const wdist = Math.sqrt(wdx * wdx + wdy * wdy);
+
+        // If near weed, start cleaning
+        if (pet.targetWeed && wdist < 20) {
+            pet.petState = 'cleaning';
+            pet.cleanTimer = 600; // 600ms to clean
+            return;
+        }
+
+        if (wdist > 5) {
+            const wanderSpeed = pet.targetWeed ? 70 : 50; // Faster toward weeds
+            const newX = pet.x + (wdx / wdist) * wanderSpeed * delta / 1000;
+            const newY = pet.y + (wdy / wdist) * wanderSpeed * delta / 1000;
+            if (!isPetInPond(newX, newY)) {
+                pet.x = newX;
+                pet.y = newY;
+            }
+        }
+
+        // Pick new wander target periodically (if no weed target)
+        pet.wanderTimer = (pet.wanderTimer || 0) - delta;
+        if (pet.wanderTimer <= 0 && !pet.targetWeed) {
+            pet.wanderTimer = 2000 + Math.random() * 3000;
+            // Wander anywhere on visible screen
+            pet.wanderTarget = {
+                x: 50 + Math.random() * (GAME_WIDTH - 100),
+                y: 50 + Math.random() * (GAME_HEIGHT - 100)
+            };
+        }
+    } else if (pet.petState === 'following') {
         // Follow the player
         if (dist > 50) {
             const speed = Math.min(dist * 2, 180);
             const newX = pet.x + (dx / dist) * speed * delta / 1000;
             const newY = pet.y + (dy / dist) * speed * delta / 1000;
-            // Only move if not entering pond
             if (!isPetInPond(newX, newY)) {
                 pet.x = newX;
                 pet.y = newY;
             }
         } else if (dist < 40) {
-            // Close enough, start wandering
-            pet.petState = 'wandering';
+            // Close enough, start wandering (or idle wander if player idle)
+            pet.petState = isPlayerIdle ? 'idle_wander' : 'wandering';
             pet.wanderTimer = 1000 + Math.random() * 2000;
-            pet.wanderTarget = getValidWanderTarget(player.x, player.y);
+            pet.wanderTarget = isPlayerIdle
+                ? { x: 50 + Math.random() * (GAME_WIDTH - 100), y: 50 + Math.random() * (GAME_HEIGHT - 100) }
+                : getValidWanderTarget(player.x, player.y);
         }
     } else if (pet.petState === 'wandering') {
+        // If player becomes idle, switch to idle_wander
+        if (isPlayerIdle) {
+            pet.petState = 'idle_wander';
+            pet.wanderTimer = 0; // Pick new target immediately
+            return;
+        }
+
         // Wander around near the player
         pet.wanderTimer -= delta;
 
-        // Move toward wander target
         const wdx = pet.wanderTarget.x - pet.x;
         const wdy = pet.wanderTarget.y - pet.y;
         const wdist = Math.sqrt(wdx * wdx + wdy * wdy);
@@ -522,21 +641,19 @@ export function updatePetFollow(delta = 16) {
             const wanderSpeed = 40;
             const newX = pet.x + (wdx / wdist) * wanderSpeed * delta / 1000;
             const newY = pet.y + (wdy / wdist) * wanderSpeed * delta / 1000;
-            // Only move if not entering pond
             if (!isPetInPond(newX, newY)) {
                 pet.x = newX;
                 pet.y = newY;
             }
         }
 
-        // Pick new wander target periodically
         if (pet.wanderTimer <= 0) {
             pet.wanderTimer = 1500 + Math.random() * 2500;
             pet.wanderTarget = getValidWanderTarget(player.x, player.y);
         }
     }
 
-    // Update depth based on foot Y position (y + 10 for ~20px pet, -0.1 sublayer to stay behind player)
+    // Update depth based on foot Y position
     pet.setDepth(getWorldDepth(pet.y + 10, -0.1));
 }
 
